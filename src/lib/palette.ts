@@ -53,29 +53,23 @@ export const categoryStyles: Record<
   },
 };
 
-export const phaseLabels: Record<Phase, { label: string; className: string }> = {
+export const phaseStyles: Record<Phase, { className: string }> = {
   'not-started': {
-    label: 'P0 定位',
     className: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700/50 dark:text-zinc-200',
   },
   startup: {
-    label: 'P1 启动',
     className: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-200',
   },
   encoding: {
-    label: 'P2 编码',
     className: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200',
   },
   reference: {
-    label: 'P3 参考',
     className: 'bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200',
   },
   retrieval: {
-    label: 'P4 检索',
     className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-200',
   },
   completed: {
-    label: '✓ 已完成',
     className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
   },
 };

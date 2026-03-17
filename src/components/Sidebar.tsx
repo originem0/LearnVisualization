@@ -1,13 +1,16 @@
 import Link from 'next/link';
 import type { Category, Module } from '@/lib/types';
 import { categoryStyles } from '@/lib/palette';
+import { getModuleSlug } from '@/lib/data';
+import type { Locale } from '@/lib/i18n';
 
 interface SidebarProps {
   categories: Category[];
   modules: Module[];
+  locale: Locale;
 }
 
-export default function Sidebar({ categories, modules }: SidebarProps) {
+export default function Sidebar({ categories, modules, locale }: SidebarProps) {
   return (
     <aside className="sticky top-20 hidden h-[calc(100vh-5rem)] w-56 flex-shrink-0 overflow-y-auto pr-2 lg:block">
       <div className="space-y-6">
@@ -24,7 +27,7 @@ export default function Sidebar({ categories, modules }: SidebarProps) {
                 {grouped.map((module) => (
                   <Link
                     key={module.id}
-                    href={`/m/${module.id}`}
+                    href={`/${locale}/${getModuleSlug(module.id)}/`}
                     className={`flex items-center justify-between rounded-lg border border-transparent px-2 py-1.5 text-sm transition hover:border-[color:var(--color-border)] hover:bg-[color:var(--color-panel)] ${
                       module.current ? 'font-semibold text-[color:var(--color-text)]' : 'text-[color:var(--color-muted)]'
                     }`}

@@ -1,16 +1,32 @@
-import state from '@/data/state.json';
+import zh from '@/data/state.zh.json';
+import en from '@/data/state.en.json';
 import type { Category, Module, StateData } from './types';
+import type { Locale } from './i18n';
 
-export const data = state as StateData;
+const datasets: Record<Locale, StateData> = {
+  zh: zh as StateData,
+  en: en as StateData,
+};
 
-export const categoriesById = data.categories.reduce<Record<string, Category>>((acc, category) => {
-  acc[category.id] = category;
-  return acc;
-}, {});
+export function getData(locale: Locale): StateData {
+  return datasets[locale] ?? datasets.zh;
+}
 
-export const modulesById = data.modules.reduce<Record<number, Module>>((acc, module) => {
-  acc[module.id] = module;
-  return acc;
-}, {});
+export function getCategoriesById(data: StateData): Record<string, Category> {
+  return data.categories.reduce<Record<string, Category>>((acc, category) => {
+    acc[category.id] = category;
+    return acc;
+  }, {});
+}
 
-export const moduleIds = data.modules.map((module) => module.id);
+export function getModulesById(data: StateData): Record<number, Module> {
+  return data.modules.reduce<Record<number, Module>>((acc, module) => {
+    acc[module.id] = module;
+    return acc;
+  }, {});
+}
+
+export function getModuleSlug(id: number): string {
+  return `s${String(id).padStart(2, '0')}`;
+}
+

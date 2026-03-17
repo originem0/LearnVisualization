@@ -1,17 +1,21 @@
 import type { Category, Module } from '@/lib/types';
 import { categoryStyles } from '@/lib/palette';
+import type { Locale } from '@/lib/i18n';
+import { getLabels } from '@/lib/labels';
 
 interface BarChartProps {
   modules: Module[];
   categoriesById: Record<string, Category>;
+  locale: Locale;
 }
 
-export default function BarChart({ modules, categoriesById }: BarChartProps) {
+export default function BarChart({ modules, categoriesById, locale }: BarChartProps) {
+  const labels = getLabels(locale);
   return (
     <section className="mt-12">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[color:var(--color-text)]">模块进度分布</h2>
-        <div className="text-xs text-[color:var(--color-muted)]">基于概念掌握比例</div>
+        <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{labels.sections.progress}</h2>
+        <div className="text-xs text-[color:var(--color-muted)]">{labels.sections.progressHint}</div>
       </div>
       <div className="space-y-3">
         {modules.map((module) => {

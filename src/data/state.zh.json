@@ -235,6 +235,36 @@
       "logicChain": [],
       "examples": [],
       "counterexamples": []
+    },
+    {
+      "id": 11,
+      "title": "上下文窗口",
+      "subtitle": "长度与记忆的权衡",
+      "category": "frontier",
+      "phase": "not-started",
+      "concepts": { "learned": 0, "total": 3, "items": [] },
+      "weaknesses": [],
+      "feynman": { "tested": false },
+      "quote": "窗口越大，推理越远，但也带来更高成本",
+      "keyInsight": null,
+      "logicChain": [],
+      "examples": [],
+      "counterexamples": []
+    },
+    {
+      "id": 12,
+      "title": "系统化回顾",
+      "subtitle": "将模型变成自己的知识",
+      "category": "frontier",
+      "phase": "not-started",
+      "concepts": { "learned": 0, "total": 3, "items": [] },
+      "weaknesses": [],
+      "feynman": { "tested": false },
+      "quote": "最后一课是把知识组织成自己的语言",
+      "keyInsight": null,
+      "logicChain": [],
+      "examples": [],
+      "counterexamples": []
     }
   ]
 }
