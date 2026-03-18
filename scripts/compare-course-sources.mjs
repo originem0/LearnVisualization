@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Compare legacy src/content/zh source with mirrored course package.
- * Produces a human-readable summary for migration confidence.
+ * Produces a human-readable summary for migration confidence,
+ * distinguishing expected design drifts from risky drifts.
  */
 
 import { readFileSync, readdirSync } from 'fs';
@@ -27,7 +28,25 @@ const mirroredModules = mirroredModuleFiles.map((name) => load(resolve(mirroredM
 
 const lines = [];
 const add = (s = '') => lines.push(s);
-let driftCount = 0;
+let riskyDriftCount = 0;
+let expectedDriftCount = 0;
+
+function hasLeadingFocusQuestionHeading(legacyModule) {
+  const first = legacyModule?.narrative?.[0];
+  return first?.type === 'heading' && /^(?:焦点问题|Focus Question)[:：]\s*/.test(first?.content ?? '');
+}
+
+function classifyIssue(issue, legacy, mirrored) {
+  if (issue !== 'narrative length drift') return 'risky';
+
+  const legacyLen = legacy.narrative?.length ?? 0;
+  const mirroredLen = mirrored.narrative?.length ?? 0;
+  if (hasLeadingFocusQuestionHeading(legacy) && legacyLen === mirroredLen + 1 && mirrored.focusQuestion) {
+    return 'expected';
+  }
+
+  return 'risky';
+}
 
 add('# Course Source Comparison');
 add('');
@@ -63,13 +82,30 @@ for (let i = 0; i < pairs; i++) {
   if (!Array.isArray(mirrored.visuals) || mirrored.visuals.length === 0) issues.push('missing visuals');
   if (!Array.isArray(mirrored.interactionRequirements) || mirrored.interactionRequirements.length === 0) issues.push('missing interaction requirements');
 
-  if (issues.length) driftCount += 1;
-  add(`- ${mirrored.id}: ${issues.length ? issues.join(', ') : 'OK'}`);
+  const expected = [];
+  const risky = [];
+  for (const issue of issues) {
+    (classifyIssue(issue, legacy, mirrored) === 'expected' ? expected : risky).push(issue);
+  }
+
+  if (expected.length) expectedDriftCount += 1;
+  if (risky.length) riskyDriftCount += 1;
+
+  if (!expected.length && !risky.length) {
+    add(`- ${mirrored.id}: OK`);
+  } else if (expected.length && !risky.length) {
+    add(`- ${mirrored.id}: expected drift -> ${expected.join(', ')}`);
+  } else if (!expected.length && risky.length) {
+    add(`- ${mirrored.id}: risky drift -> ${risky.join(', ')}`);
+  } else {
+    add(`- ${mirrored.id}: expected drift -> ${expected.join(', ')} | risky drift -> ${risky.join(', ')}`);
+  }
 }
 
 add('');
 add('## Summary');
-add(`- Modules with drift or missing mirrored-only fields: ${driftCount}/${pairs}`);
+add(`- Modules with expected design drift: ${expectedDriftCount}/${pairs}`);
+add(`- Modules with risky drift: ${riskyDriftCount}/${pairs}`);
 add(`- Runtime switch available: LEARNING_SITE_DATA_SOURCE=mirrored`);
 add(`- Course package guardrail in build: yes`);
 
