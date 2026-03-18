@@ -6,18 +6,21 @@
   "concepts": {
     "items": [
       {
-        "name": "上下文窗口与注意力 O(n²)"
+        "name": "上下文窗口与注意力 O(n²)",
+        "note": "每个 token 都要和其他 token 计算关系，长度一上去，成本按平方爆炸。"
       },
       {
-        "name": "KV Cache 与显存瓶颈"
+        "name": "KV Cache 与显存瓶颈",
+        "note": "推理时为了避免重复算历史 token，会缓存 Key/Value，但缓存本身会吃掉大量显存。"
       },
       {
-        "name": "长上下文解决方案"
+        "name": "长上下文解决方案",
+        "note": "稀疏注意力、滑动窗口、FlashAttention、RoPE 外推，都是在不同层面缓解长度瓶颈。"
       }
     ]
   },
   "quote": "窗口越大，推理越远，但也带来更高成本",
-  "keyInsight": "注意力机制的计算量和序列长度的平方成正比，这是上下文窗口的根本瓶颈；KV Cache 是推理时的主要显存消耗",
+  "keyInsight": "上下文窗口的限制不是“模型不够聪明”，而是注意力 O(n²) 与 KV Cache 显存开销这两个物理约束；长上下文的难点首先是算力与内存，其次才是建模能力。",
   "logicChain": [
     "注意力矩阵大小 = n × n，计算量 O(n²)",
     "序列长度翻倍 → 计算量翻四倍、显存需求翻倍",
@@ -34,7 +37,7 @@
     "更长的上下文不一定意味着更好的利用——模型在超长文本中容易“忽略”中间部分（Lost in the Middle 现象）",
     "对于短任务，使用超长上下文模型是纯粹的浪费——计算成本增加但质量不变"
   ],
-  "opening": "GPT-4 的上下文窗口是 128K token——大约 10 万字，一本小说的长度。听起来很大？\n\n但注意力机制的计算量和长度的平方成正比。128K 的注意力矩阵有 160 亿个元素。每一层、每一个头都要算一遍。\n\n为什么模型不能一次读完一本书？不是不想——是算不起。",
+  "opening": "你可能会想：既然模型会读文本，为什么不一次把整本书都塞进去？\n\n不是它不想，是注意力根本算不起。\n\n上下文窗口的上限，首先不是智力问题，而是计算和显存问题。",
   "narrative": [
     {
       "type": "heading",
@@ -50,11 +53,65 @@
     },
     {
       "type": "heading",
+      "content": "为什么长度一翻倍，代价会爆得这么快？"
+    },
+    {
+      "type": "steps",
+      "label": "从 4K 到 128K",
+      "content": "",
+      "steps": [
+        {
+          "title": "先有 n 个 token",
+          "description": "序列越长，行列都变大",
+          "visual": "4K tokens → 4K × 4K attention matrix",
+          "highlight": "4K × 4K"
+        },
+        {
+          "title": "每个 token 看所有 token",
+          "description": "不是线性加长，而是每一行都一起变长",
+          "visual": "16K tokens → 16K × 16K\n128K tokens → 128K × 128K",
+          "highlight": "128K × 128K"
+        },
+        {
+          "title": "平方爆炸",
+          "description": "长度翻 32 倍，矩阵大小翻 1024 倍",
+          "visual": "length ×32\ncompute ×1,024",
+          "highlight": "×1,024"
+        }
+      ]
+    },
+    {
+      "type": "heading",
       "content": "KV Cache：推理时的隐形杀手"
     },
     {
       "type": "text",
       "content": "训练时，整个序列一次处理，注意力矩阵虽大但只需要一轮计算。推理时问题更严重——自回归生成意味着每生成一个 token 就要重新计算注意力。\n\nKV Cache 是优化手段：缓存已经计算过的 Key 和 Value 向量，生成新 token 时只需计算新 token 的 Q 和已缓存的 KV。这把推理时的计算从 O(n²) 优化到 O(n)——但代价是缓存本身占大量显存。\n\n一个 70B 模型在 128K 上下文时，KV Cache 需要约 40GB 显存。这比模型参数本身还大。"
+    },
+    {
+      "type": "steps",
+      "label": "为什么 KV Cache 省算力却吃显存",
+      "content": "",
+      "steps": [
+        {
+          "title": "不缓存",
+          "description": "每生成一个新 token，都要把整段历史重新算一遍",
+          "visual": "token_1 ... token_n\nnew token\n→ recompute all K/V again",
+          "highlight": "recompute all"
+        },
+        {
+          "title": "缓存历史 K/V",
+          "description": "历史 token 不重算，只追加新 token 的 K/V",
+          "visual": "cache = [K1,V1 ... Kn,Vn]\nappend K(n+1), V(n+1)",
+          "highlight": "cache"
+        },
+        {
+          "title": "代价转移",
+          "description": "算力省下来了，但历史越长，缓存越大",
+          "visual": "less compute\nmore memory",
+          "highlight": "more memory"
+        }
+      ]
     },
     {
       "type": "callout",
@@ -70,7 +127,7 @@
     },
     {
       "type": "comparison",
-      "content": "标准注意力：每个 token 看所有 token，O(n²) 计算，精确但昂贵\n稀疏/滑动窗口：每个 token 只看部分 token，O(n·k) 计算，近似但高效",
+      "content": "标准注意力：每个 token 看所有 token，O(n²) 计算，精确但昂贵\n稀疏 / 滑动窗口：每个 token 只看部分 token，O(n·k) 计算，近似但高效",
       "label": "注意力策略"
     },
     {
@@ -87,9 +144,18 @@
     },
     {
       "type": "text",
-      "content": "从 GPT-3 的 2K 到 GPT-4 的 128K 到 Gemini 的 1M，上下文窗口在两年内增长了 500 倍。这个增长趋势还在继续。\n\n更长的上下文意味着什么？模型可以一次读完整本代码库、整个对话历史、一本完整的书。这不只是“更多信息”——它质变了模型能做的事情。RAG（检索增强生成）可能不再必要，因为整本文档都能放进上下文。\n\n但成本也在增长。1M token 的推理成本是 4K 的几千倍。长上下文的“性价比”是一个持续的工程挑战。"
+      "content": "从 GPT-3 的 2K 到 GPT-4 的 128K 到 Gemini 的 1M，上下文窗口在两年内增长了 500 倍。这个增长趋势还在继续。\n\n更长的上下文意味着什么？模型可以一次读完整本代码库、整个对话历史、一本完整的书。这不只是“更多信息”——它质变了模型能做的事情。RAG 可能不再必要，因为整本文档都能放进上下文。\n\n但成本也在增长。1M token 的推理成本是 4K 的几千倍。长上下文的“性价比”是一个持续的工程挑战。"
     }
   ],
   "bridgeTo": "你现在知道了 LLM 的每一个零件：分词、嵌入、注意力、Transformer、预训练、优化、微调、Prompt、Scaling Laws、涌现、上下文。\n\n但零件和机器是两回事。让我们把所有东西串起来——追踪一个 prompt 从输入到输出的完整旅程。这是最后一步：从理解零件到理解整个系统。",
-  "pitfalls": []
+  "pitfalls": [
+    {
+      "point": "把更长上下文等同于更强理解能力",
+      "rootCause": "忽视了模型对长文本的信息利用并不均匀，甚至会“迷失在中间”"
+    },
+    {
+      "point": "只盯参数量，不看 KV Cache",
+      "rootCause": "没意识到推理时真正爆显存的常常不是模型权重，而是历史 token 的缓存"
+    }
+  ]
 }

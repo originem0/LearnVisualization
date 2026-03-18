@@ -6,24 +6,29 @@
   "concepts": {
     "items": [
       {
-        "name": "SFT 指令微调"
+        "name": "SFT 指令微调",
+        "note": "用高质量指令—回答数据把模型从“会续写”拉向“会做任务”。"
       },
       {
-        "name": "RLHF"
+        "name": "RLHF",
+        "note": "利用人类偏好比较，把“回答得更好”变成可优化目标。"
       },
       {
-        "name": "奖励模型"
+        "name": "奖励模型",
+        "note": "学习给不同回答打分，充当“人类偏好”的近似代理。"
       },
       {
-        "name": "PPO"
+        "name": "PPO",
+        "note": "一种常见强化学习方法，用来在不偏离太远的情况下提升高奖励行为。"
       },
       {
-        "name": "LoRA / QLoRA"
+        "name": "LoRA / QLoRA",
+        "note": "用更低成本做任务适配和领域定制，而不是每次都全量改参数。"
       }
     ]
   },
   "quote": "RLHF 让模型学会在人类偏好的空间中导航",
-  "keyInsight": null,
+  "keyInsight": "微调与对齐的本质，是把“预测最可能出现什么”改造成“在人类目标下应该说什么”；SFT 提供接口习惯，RLHF 提供偏好方向，LoRA 提供成本可控的适配方式。",
   "logicChain": [
     "预训练模型擅长续写但不天然服从指令",
     "SFT 让模型学会任务接口",
@@ -59,8 +64,49 @@
     },
     {
       "type": "comparison",
-      "label": "三种状态",
+      "label": "两种状态",
       "content": "Base：会续写，但经常不按问题意图回应\nSFT：开始理解问答、格式、角色与任务约束"
+    },
+    {
+      "type": "heading",
+      "content": "从 base 到 aligned，到底经历了什么？"
+    },
+    {
+      "type": "steps",
+      "label": "对齐流程",
+      "content": "",
+      "steps": [
+        {
+          "title": "预训练模型",
+          "description": "会续写，但不一定会“帮忙”",
+          "visual": "User: 怎么写辞职邮件？\nBase: 辞职邮件通常出现在……（开始模仿网页）",
+          "highlight": "开始模仿网页"
+        },
+        {
+          "title": "SFT",
+          "description": "用高质量示范告诉模型“理想回答长什么样”",
+          "visual": "User: 怎么写辞职邮件？\nSFT: 下面给你一个简洁模板……",
+          "highlight": "模板"
+        },
+        {
+          "title": "奖励模型",
+          "description": "人类比较两份回答，训练出一个“哪个更好”的打分器",
+          "visual": "回答 A > 回答 B\n回答 C > 回答 A\n→ Reward Model",
+          "highlight": "A > B"
+        },
+        {
+          "title": "RLHF / PPO",
+          "description": "推动模型更偏向高奖励回答，同时别偏离太远",
+          "visual": "policy model\n  ↑ reward\n  ↓ KL constraint",
+          "highlight": "reward, KL"
+        },
+        {
+          "title": "对齐后的助手",
+          "description": "更愿意直接帮忙、解释、更少跑偏",
+          "visual": "helpful + harmless + follows instructions",
+          "highlight": "helpful"
+        }
+      ]
     },
     {
       "type": "heading",
@@ -97,5 +143,14 @@
     }
   ],
   "bridgeTo": "当模型已经被对齐成一个像助手的系统，用户真正握在手里的接口就剩下 prompt。\n\n同一个模型，换一种提问方式，结果可能天差地别。\n\n怎么用自然语言把模型的能力调出来，就是 Prompt Engineering。",
-  "pitfalls": []
+  "pitfalls": [
+    {
+      "point": "把对齐理解成“加一层安全词表过滤”",
+      "rootCause": "忽视了对齐是在改模型偏好的整体分布，而不是只做关键词拦截"
+    },
+    {
+      "point": "以为 RLHF 会让模型自动更聪明",
+      "rootCause": "混淆了“能力”与“行为风格”，RLHF 更多是在塑形输出偏好"
+    }
+  ]
 }

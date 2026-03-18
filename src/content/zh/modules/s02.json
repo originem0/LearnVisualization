@@ -6,24 +6,29 @@
   "concepts": {
     "items": [
       {
-        "name": "Embedding 矩阵查表"
+        "name": "Embedding 矩阵查表",
+        "note": "每个 token 对应一行可学习参数，输入 ID 后直接取出该行向量。"
       },
       {
-        "name": "语义相似度与向量空间"
+        "name": "语义相似度与向量空间",
+        "note": "相似上下文中的 token 会被推向相近区域，不同方向还能编码关系。"
       },
       {
-        "name": "one-hot 到稠密表示"
+        "name": "one-hot 到稠密表示",
+        "note": "one-hot 只有身份，没有相似性；Embedding 把离散符号压成可连续运算的表示。"
       },
       {
-        "name": "位置编码"
+        "name": "位置编码",
+        "note": "告诉模型“它是什么词”之外，还要告诉它“它在第几位”。"
       },
       {
-        "name": "RoPE"
+        "name": "RoPE",
+        "note": "把位置信息编码进旋转关系里，更适合相对位置和长上下文外推。"
       }
     ]
   },
   "quote": "相似的含义在向量空间中靠得更近",
-  "keyInsight": "Token ID 经过 embedding 矩阵映射到高维向量；位置编码赋予模型序列顺序感知",
+  "keyInsight": "Embedding 的本质不是“存词义”，而是把离散 token ID 投进一个可连续运算的几何空间；再加上位置编码，模型才真正拿到可用于注意力计算的输入表示。",
   "logicChain": [
     "整数 ID 没有语义距离",
     "Embedding 把离散编号映射到连续向量",
@@ -39,7 +44,7 @@
     "Embedding 不是人能直接读懂的“语义表”",
     "只靠 embedding 不能表达顺序，必须加位置编码"
   ],
-  "opening": "Token ID 25105 和 25106 只差 1，但这不意味着它们的意义相近。\n\n整数只是地址，不是语义。\n\n模型真正工作的对象，不是这些离散编号，而是它们背后那一行行高维向量。",
+  "opening": "25105 和 25106 只差 1，但这不意味着它们的意义相近。\n\n整数只是地址，不是语义。地址之间的距离，对模型来说毫无语言学含义。\n\n模型真正工作的对象，不是这些离散编号，而是它们背后那一行行高维向量。",
   "narrative": [
     {
       "type": "heading",
@@ -60,6 +65,41 @@
     {
       "type": "code",
       "content": "one-hot(token_id)  @  EmbeddingMatrix\n= 对应 token 的那一行向量\n\n形状：\n词表大小 V × 向量维度 d"
+    },
+    {
+      "type": "heading",
+      "content": "一个 token 是怎样变成输入向量的？"
+    },
+    {
+      "type": "steps",
+      "label": "从 ID 到 Transformer 输入",
+      "content": "",
+      "steps": [
+        {
+          "title": "只有离散编号",
+          "description": "分词器输出的只是身份标签，不带语义距离",
+          "visual": "token: 苹果\nid: 25105",
+          "highlight": "25105"
+        },
+        {
+          "title": "查 Embedding 矩阵",
+          "description": "按 id 取出第 25105 行参数",
+          "visual": "E[25105] = [0.12, -0.88, 0.41, ...]",
+          "highlight": "E[25105]"
+        },
+        {
+          "title": "加入位置信息",
+          "description": "同一个词在不同位置，输入表示也应该不同",
+          "visual": "x_token + x_position\n= [0.12, -0.88, ...] + [0.03, 0.17, ...]",
+          "highlight": "x_position"
+        },
+        {
+          "title": "形成最终输入表示",
+          "description": "注意力层真正看到的是“词义 + 位置”后的向量",
+          "visual": "h0 = embedding(token) + position(token)",
+          "highlight": "h0"
+        }
+      ]
     },
     {
       "type": "callout",
@@ -97,5 +137,14 @@
     }
   ],
   "bridgeTo": "现在每个 token 都有了向量，也知道了自己在序列里的位置。\n\n但它仍然是孤立的。它不知道句子里谁和谁相关，不知道“it”该指向谁，也不知道当前词应该重点看前面哪些词。\n\n让 token 彼此交流的机制，就是注意力。",
-  "pitfalls": []
+  "pitfalls": [
+    {
+      "point": "把 embedding 理解成“人类能直接读懂的语义表”",
+      "rootCause": "忽视了它首先是任务驱动的统计表示，而不是人工可解释词典"
+    },
+    {
+      "point": "以为 token embedding 一旦有了语义就天然知道顺序",
+      "rootCause": "没分清“它是什么”与“它在第几位”是两件不同的事"
+    }
+  ]
 }
