@@ -47,6 +47,13 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
   const SecondaryInteractive = registry?.secondaryInteractive ?? null;
   const conceptMapSchema = registry?.conceptMapSchema ?? null;
 
+  const focusQuestionMatch = module.narrative?.[0]?.type === 'heading'
+    ? module.narrative[0].content.match(/^(?:焦点问题|Focus Question)[:：]\s*(.+)$/)
+    : null;
+  const focusQuestion = focusQuestionMatch?.[1] ?? null;
+  const narrativeBlocks = focusQuestion ? module.narrative?.slice(1) ?? [] : module.narrative ?? [];
+  const quickRoute = module.logicChain.slice(0, 3);
+
   const openingSection = module.opening ? (
     <section className="overflow-hidden rounded-xl bg-zinc-100/70 dark:bg-[#0b3a45]/70">
       {(() => {
@@ -99,9 +106,9 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
     </section>
   ) : null;
 
-  const narrativeBody = module.narrative && module.narrative.length > 0 ? (
+  const narrativeBody = narrativeBlocks.length > 0 ? (
     <article className="mx-auto max-w-2xl pb-8 prose-custom">
-      {module.narrative.map((block, i) => (
+      {narrativeBlocks.map((block, i) => (
         <NarrativeBlockRenderer key={i} block={block} accentBorder={headingBorder} />
       ))}
     </article>
@@ -141,6 +148,37 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
           <p className="mt-4 border-l-2 border-[color:var(--color-border)] pl-3 text-sm italic text-[color:var(--color-muted)]">
             “{module.quote}”
           </p>
+        )}
+
+        {(focusQuestion || quickRoute.length > 0) && (
+          <div className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            {focusQuestion && (
+              <section className="rounded-xl border border-[color:var(--color-border)] bg-zinc-50/80 p-4 dark:bg-[#0b3a45]/45">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
+                  {isZh ? '本章焦点问题' : 'Focus question'}
+                </div>
+                <p className="mt-2 text-sm leading-7 text-[color:var(--color-text)] sm:text-base">{focusQuestion}</p>
+              </section>
+            )}
+
+            {quickRoute.length > 0 && (
+              <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
+                  {isZh ? '本章路线' : 'Chapter route'}
+                </div>
+                <ol className="mt-3 space-y-2">
+                  {quickRoute.map((step, index) => (
+                    <li key={`${step}-${index}`} className="flex items-start gap-2 text-sm leading-6 text-[color:var(--color-text)]">
+                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-[color:var(--color-muted)] dark:bg-[#0b3a45]">
+                        {index + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+          </div>
         )}
       </header>
 
