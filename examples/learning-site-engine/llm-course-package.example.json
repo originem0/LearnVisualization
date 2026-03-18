@@ -1,0 +1,350 @@
+{
+  "id": "llm-fundamentals",
+  "slug": "llm-fundamentals",
+  "title": "LLM 原理与实践",
+  "subtitle": "复杂知识的可视化学习样板课程",
+  "topic": "llm",
+  "language": "zh",
+  "status": "published",
+  "audience": {
+    "primaryAudience": "想系统理解大模型原理的中文学习者",
+    "priorKnowledge": [
+      "基础互联网使用能力"
+    ],
+    "desiredOutcome": "建立从 token 到生成的系统理解"
+  },
+  "learningGoals": [
+    "理解 LLM 从 token 到生成的完整链路",
+    "理解训练、对齐、prompt 和上下文窗口的作用",
+    "获得对复杂技术主题进行可视化理解的能力"
+  ],
+  "nonGoals": [
+    "不覆盖所有前沿论文细节",
+    "不追求多语言内容并行"
+  ],
+  "assumptions": [
+    "用户对 AI 有兴趣但不一定有计算机专业背景"
+  ],
+  "philosophy": {
+    "promise": "分解复杂，呈现复杂，穿透复杂",
+    "corePrinciples": [
+      "认知升级优先于术语堆砌",
+      "结构外显优先于长文解释",
+      "AI 用来放大判断与创造，不是加速垃圾生产"
+    ],
+    "shiftStatement": "从知道概念名字，升级为看清概念关系与系统结构。"
+  },
+  "paths": [
+    {
+      "id": "full-path",
+      "title": "系统学习",
+      "description": "完整走完 12 章链路",
+      "moduleIds": ["s01", "s02", "s03"]
+    },
+    {
+      "id": "core-mechanism",
+      "title": "核心机制",
+      "description": "先掌握 token、embedding、attention 三件套",
+      "moduleIds": ["s01", "s02", "s03"]
+    }
+  ],
+  "moduleGraph": {
+    "order": ["s01", "s02", "s03"],
+    "edges": [
+      {
+        "from": "s01",
+        "to": "s02",
+        "type": "prerequisite",
+        "note": "先理解文本如何变成离散 token，才能进入向量空间。"
+      },
+      {
+        "from": "s02",
+        "to": "s03",
+        "type": "prerequisite",
+        "note": "先理解 token 向量，才能理解注意力里的信息交互。"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "id": "s01",
+      "number": 1,
+      "title": "Token 与词表",
+      "subtitle": "从文本到离散符号",
+      "category": "foundations",
+      "focusQuestion": "模型为什么不能直接读文本？",
+      "misconception": "模型一上来看到的就是自然语言语义本身。",
+      "quote": "语言模型的世界从分词器开始",
+      "keyInsight": "分词器的目标不是切得像人，而是在表达能力和计算代价之间找平衡。",
+      "opening": "你以为模型读一句话，第一步是理解意思。不是。第一步是把它切碎、编号。",
+      "priorKnowledge": [
+        "理解文本由字词组成"
+      ],
+      "targetChunk": "文本 -> token -> 词表 -> ID",
+      "chunkDependencies": [],
+      "concepts": [
+        {
+          "name": "BPE 算法",
+          "note": "从字符开始，反复合并最高频的相邻对。"
+        },
+        {
+          "name": "特殊 token",
+          "note": "如 [CLS]/[SEP]/[PAD]，是模型与输入之间的协议。"
+        }
+      ],
+      "logicChain": [
+        "原始文本不能直接参与矩阵计算",
+        "模型必须先把文本切成离散 token",
+        "字符级和词级各自走向两个极端",
+        "BPE 在覆盖率和序列长度之间找平衡"
+      ],
+      "examples": [
+        "unhappiness 可能被切成 un + happi + ness"
+      ],
+      "counterexamples": [
+        "字符级不是更真实，它只是把序列长度问题推到后面爆炸"
+      ],
+      "pitfalls": [
+        {
+          "point": "把 tokenizer 当成无关紧要的预处理细节",
+          "rootCause": "没意识到它决定了模型看到世界时的基本单位"
+        }
+      ],
+      "narrative": [
+        {
+          "type": "text",
+          "content": "模型的计算对象是向量和矩阵，不是字。分词不是预处理小细节，而是整个系统的入口设计。"
+        },
+        {
+          "type": "steps",
+          "label": "BPE 合并过程",
+          "content": "",
+          "steps": [
+            {
+              "title": "初始状态",
+              "description": "从字符和词尾标记开始",
+              "visual": "l o w _ / n e w e r _",
+              "highlight": ""
+            },
+            {
+              "title": "统计频率",
+              "description": "寻找最高频相邻对",
+              "visual": "(e, r) -> 高频",
+              "highlight": "e, r"
+            }
+          ]
+        }
+      ],
+      "visuals": [
+        {
+          "id": "s01-map",
+          "type": "conceptMap",
+          "required": true
+        }
+      ],
+      "interactionRequirements": [
+        {
+          "capability": "simulate",
+          "purpose": "让用户亲手观察 tokenization 结果变化",
+          "priority": "core",
+          "componentHint": "TokenizerPlayground"
+        },
+        {
+          "capability": "step-through",
+          "purpose": "让用户跟着 BPE 合并过程一步步理解",
+          "priority": "secondary",
+          "componentHint": "BPESimulator"
+        }
+      ],
+      "retrievalPrompts": [
+        {
+          "type": "compare-variants",
+          "prompt": "字符级和词级为什么都不理想？"
+        }
+      ],
+      "bridgeTo": "编号本身没有语义，下一章进入 embedding。",
+      "nextModuleId": "s02"
+    },
+    {
+      "id": "s02",
+      "number": 2,
+      "title": "Embedding 空间",
+      "subtitle": "从离散编号到连续向量",
+      "category": "foundations",
+      "focusQuestion": "离散 token ID 怎么变成有语义的表示？",
+      "misconception": "数字 ID 本身就带着相似性。",
+      "quote": "整数只是地址，不是语义。",
+      "keyInsight": "Embedding 的本质是把离散 token 投进可连续运算的空间，再通过位置编码让模型知道它在第几位。",
+      "priorKnowledge": [
+        "知道 token 与 ID 的关系"
+      ],
+      "targetChunk": "ID -> embedding -> position -> input representation",
+      "chunkDependencies": [
+        "s01"
+      ],
+      "concepts": [
+        {
+          "name": "Embedding 矩阵查表",
+          "note": "每个 token 对应一行可学习参数。"
+        },
+        {
+          "name": "位置编码",
+          "note": "告诉模型它在第几位。"
+        }
+      ],
+      "logicChain": [
+        "整数 ID 只有身份，没有语义距离",
+        "模型需要把 ID 映射到向量空间",
+        "只有词义还不够，还需要位置信息"
+      ],
+      "examples": [
+        "同一个词在不同位置，需要不同输入表示"
+      ],
+      "narrative": [
+        {
+          "type": "text",
+          "content": "Embedding 最直观的理解就是查表：输入某个 id，就取出矩阵中的一行向量。"
+        },
+        {
+          "type": "steps",
+          "label": "从 ID 到输入表示",
+          "content": "",
+          "steps": [
+            {
+              "title": "只有离散编号",
+              "description": "token 先被表示成身份标签",
+              "visual": "苹果 -> 25105",
+              "highlight": "25105"
+            },
+            {
+              "title": "查 Embedding 矩阵",
+              "description": "按 id 取出对应向量",
+              "visual": "E[25105] = [0.12, -0.88, ...]",
+              "highlight": "E[25105]"
+            }
+          ]
+        }
+      ],
+      "visuals": [
+        {
+          "id": "s02-map",
+          "type": "conceptMap",
+          "required": true
+        }
+      ],
+      "interactionRequirements": [
+        {
+          "capability": "compare",
+          "purpose": "比较 one-hot 和 embedding 表示差异",
+          "priority": "core",
+          "componentHint": "VectorArithmetic"
+        },
+        {
+          "capability": "trace",
+          "purpose": "追踪 token 如何从 ID 变成输入向量",
+          "priority": "secondary",
+          "componentHint": "EmbeddingLookup"
+        }
+      ],
+      "retrievalPrompts": [
+        {
+          "type": "fill-gap",
+          "prompt": "Embedding 解决的是“它是什么”，位置编码解决的是“_____”。"
+        }
+      ],
+      "bridgeTo": "输入表示有了，下一章进入 token 之间如何彼此交流。",
+      "nextModuleId": "s03"
+    },
+    {
+      "id": "s03",
+      "number": 3,
+      "title": "注意力机制",
+      "subtitle": "加权聚合的艺术",
+      "category": "architecture",
+      "focusQuestion": "一个词到底怎么决定该看谁？",
+      "misconception": "注意力只是把知识存在某个词里。",
+      "quote": "注意力的本质是 Query 和 Key 的相似度驱动 Value 的加权聚合。",
+      "keyInsight": "注意力不是记忆仓库，而是按当前问题重新分配上下文带宽。",
+      "priorKnowledge": [
+        "理解 token 向量与上下文表示"
+      ],
+      "targetChunk": "Q/K/V -> scores -> weights -> weighted sum",
+      "chunkDependencies": [
+        "s02"
+      ],
+      "concepts": [
+        {
+          "name": "Query / Key / Value",
+          "note": "我在找什么、我有什么、我携带什么内容。"
+        },
+        {
+          "name": "Softmax",
+          "note": "把相关性变成权重分布。"
+        }
+      ],
+      "logicChain": [
+        "token 的意义依赖上下文",
+        "Q/K/V 把找什么、索引什么、传递什么拆开",
+        "Softmax 把相关性变成权重",
+        "按权重聚合 Value 得到上下文化表示"
+      ],
+      "examples": [
+        "在 because it was tired 里，it 更容易看向 cat"
+      ],
+      "narrative": [
+        {
+          "type": "text",
+          "content": "注意力要解决的问题是：一个 token 的意义不是固定不变的，它依赖上下文。"
+        },
+        {
+          "type": "steps",
+          "label": "以 it was tired 为例",
+          "content": "",
+          "steps": [
+            {
+              "title": "先得到 Q/K/V",
+              "description": "每个 token 先投影成三种角色",
+              "visual": "token -> Q/K/V",
+              "highlight": "Q/K/V"
+            },
+            {
+              "title": "当前位置发问",
+              "description": "it 用 Query 去匹配全句 Key",
+              "visual": "score(it->cat)=0.61",
+              "highlight": "cat"
+            }
+          ]
+        }
+      ],
+      "visuals": [
+        {
+          "id": "s03-map",
+          "type": "conceptMap",
+          "required": true
+        }
+      ],
+      "interactionRequirements": [
+        {
+          "capability": "simulate",
+          "purpose": "观察不同 token 之间权重如何变化",
+          "priority": "core",
+          "componentHint": "AttentionHeatmap"
+        },
+        {
+          "capability": "step-through",
+          "purpose": "逐步理解 QKV 到 weighted sum 的链路",
+          "priority": "secondary",
+          "componentHint": "QKVStepper"
+        }
+      ],
+      "retrievalPrompts": [
+        {
+          "type": "predict-next-step",
+          "prompt": "Q·K^T 得到分数之后，下一步为什么不是直接输出答案？"
+        }
+      ],
+      "bridgeTo": "一次注意力还不等于完整模型，下一章进入 block 结构。",
+      "nextModuleId": null
+    }
+  ]
+}
