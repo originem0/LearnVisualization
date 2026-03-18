@@ -1,16 +1,16 @@
-import type { WeaknessItem } from '@/lib/types';
+import type { PitfallItem } from '@/lib/types';
 import type { Locale } from '@/lib/i18n';
 import { getLabels } from '@/lib/labels';
 
-interface WeaknessListProps {
-  items: WeaknessItem[];
+interface PitfallListProps {
+  items: PitfallItem[];
   locale: Locale;
 }
 
-export default function WeaknessList({ items, locale }: WeaknessListProps) {
+export default function PitfallList({ items, locale }: PitfallListProps) {
   const labels = getLabels(locale);
   if (!items.length) {
-    return <div className="text-sm text-[color:var(--color-muted)]">{labels.empty.weaknesses}</div>;
+    return <div className="text-sm text-[color:var(--color-muted)]">{labels.empty.pitfalls}</div>;
   }
 
   return (

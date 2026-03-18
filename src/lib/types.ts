@@ -15,26 +15,16 @@ export interface Category {
 
 export interface ConceptItem {
   name: string;
-  status?: string;
   note?: string;
 }
 
 export interface ConceptGroup {
-  learned?: number;
-  total?: number;
   items: ConceptItem[];
 }
 
-export interface WeaknessItem {
+export interface PitfallItem {
   point: string;
   rootCause: string;
-  status: 'active' | 'resolved' | string;
-}
-
-export interface FeynmanTest {
-  tested: boolean;
-  passed?: boolean;
-  notes?: string;
 }
 
 export interface StepItem {
@@ -56,11 +46,8 @@ export interface Module {
   title: string;
   subtitle: string;
   category: string;
-  phase?: string;
-  current?: boolean;
   concepts: ConceptGroup;
-  weaknesses: WeaknessItem[];
-  feynman: FeynmanTest;
+  pitfalls: PitfallItem[];
   quote: string;
   keyInsight: string | null;
   logicChain: string[];

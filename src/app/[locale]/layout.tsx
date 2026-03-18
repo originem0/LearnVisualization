@@ -2,17 +2,17 @@ import type { Metadata } from 'next';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { getData } from '@/lib/data';
-import { locales, type Locale } from '@/lib/i18n';
+import { enabledLocales, type Locale } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-  title: 'Learn Visualization',
-  description: 'Learning timeline and module detail visualization',
+  title: 'LLM 原理与实践 — 可视化交互学习',
+  description: '通过交互式可视化，从零理解 Transformer 架构、训练机制与应用实践',
 };
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return locales.map((locale) => ({ locale }));
+  return enabledLocales.map((locale) => ({ locale }));
 }
 
 

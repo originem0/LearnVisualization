@@ -2,7 +2,6 @@ import Link from 'next/link';
 import ThemeToggle from './ThemeToggle';
 import type { ProjectInfo } from '@/lib/types';
 import type { Locale } from '@/lib/i18n';
-import LanguageToggle from './LanguageToggle';
 import { getLabels } from '@/lib/labels';
 
 interface HeaderProps {
@@ -32,7 +31,7 @@ export default function Header({ project, locale }: HeaderProps) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <LanguageToggle locale={locale} />
+          {/* LanguageToggle disabled — en content incomplete */}
           <ThemeToggle locale={locale} />
         </div>
       </div>

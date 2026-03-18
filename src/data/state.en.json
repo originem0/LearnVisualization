@@ -6,11 +6,31 @@
     "startDate": "2026-03-10"
   },
   "categories": [
-    { "id": "foundations", "name": "Foundations", "color": "blue" },
-    { "id": "architecture", "name": "Architecture", "color": "emerald" },
-    { "id": "training", "name": "Training", "color": "purple" },
-    { "id": "application", "name": "Applications", "color": "amber" },
-    { "id": "frontier", "name": "Frontier", "color": "red" }
+    {
+      "id": "foundations",
+      "name": "Foundations",
+      "color": "blue"
+    },
+    {
+      "id": "architecture",
+      "name": "Architecture",
+      "color": "emerald"
+    },
+    {
+      "id": "training",
+      "name": "Training",
+      "color": "purple"
+    },
+    {
+      "id": "application",
+      "name": "Applications",
+      "color": "amber"
+    },
+    {
+      "id": "frontier",
+      "name": "Frontier",
+      "color": "red"
+    }
   ],
   "modules": [
     {
@@ -18,19 +38,22 @@
       "title": "Tokens & Vocabulary",
       "subtitle": "From text to discrete symbols",
       "category": "foundations",
-      "phase": "completed",
       "concepts": {
-        "learned": 4,
-        "total": 4,
         "items": [
-          { "name": "Character vs word tokenization", "status": "mastered" },
-          { "name": "BPE algorithm", "status": "mastered" },
-          { "name": "WordPiece & SentencePiece", "status": "mastered" },
-          { "name": "Special tokens (CLS/SEP/PAD)", "status": "mastered" }
+          {
+            "name": "Character vs word tokenization"
+          },
+          {
+            "name": "BPE algorithm"
+          },
+          {
+            "name": "WordPiece & SentencePiece"
+          },
+          {
+            "name": "Special tokens (CLS/SEP/PAD)"
+          }
         ]
       },
-      "weaknesses": [],
-      "feynman": { "tested": true, "passed": true, "notes": "Explains BPE merge rules and vocab size trade-offs clearly" },
       "quote": "The world of language models starts with the tokenizer",
       "keyInsight": "BPE balances frequency and granularity—keep common words intact, split rare words into subword pieces",
       "logicChain": [
@@ -40,28 +63,38 @@
         "Vocabulary size controls granularity and sequence length",
         "Each token is mapped to a unique integer ID"
       ],
-      "examples": ["'unhappiness' → ['un', 'happiness'] or ['un', 'happ', 'iness'] depending on vocab"],
-      "counterexamples": ["Pure character tokenization keeps all info but makes sequences too long; attention cost grows O(n²)"]
+      "examples": [
+        "'unhappiness' → ['un', 'happiness'] or ['un', 'happ', 'iness'] depending on vocab"
+      ],
+      "counterexamples": [
+        "Pure character tokenization keeps all info but makes sequences too long; attention cost grows O(n²)"
+      ],
+      "pitfalls": []
     },
     {
       "id": 2,
       "title": "Embedding Space",
       "subtitle": "From symbols to semantic vectors",
       "category": "foundations",
-      "phase": "completed",
       "concepts": {
-        "learned": 5,
-        "total": 5,
         "items": [
-          { "name": "Embedding matrix lookup", "status": "mastered" },
-          { "name": "Semantic similarity in vector space", "status": "mastered" },
-          { "name": "Sinusoidal positional encoding", "status": "mastered" },
-          { "name": "Learnable positional encoding", "status": "mastered" },
-          { "name": "RoPE rotation encoding", "status": "mastered" }
+          {
+            "name": "Embedding matrix lookup"
+          },
+          {
+            "name": "Semantic similarity in vector space"
+          },
+          {
+            "name": "Sinusoidal positional encoding"
+          },
+          {
+            "name": "Learnable positional encoding"
+          },
+          {
+            "name": "RoPE rotation encoding"
+          }
         ]
       },
-      "weaknesses": [],
-      "feynman": { "tested": true, "passed": true, "notes": "Explains why positional signals are needed and when to use each scheme" },
       "quote": "Similar meanings end up close in vector space",
       "keyInsight": "Token IDs are mapped into a dense embedding space; positional encoding injects order information",
       "logicChain": [
@@ -71,31 +104,42 @@
         "Transformer layers are permutation-invariant; order must be injected",
         "Positional encoding is added to token embeddings"
       ],
-      "examples": ["king - man + woman ≈ queen shows linear structure in embedding space"],
-      "counterexamples": ["One-hot encoding is sparse and cannot express semantic similarity"]
+      "examples": [
+        "king - man + woman ≈ queen shows linear structure in embedding space"
+      ],
+      "counterexamples": [
+        "One-hot encoding is sparse and cannot express semantic similarity"
+      ],
+      "pitfalls": []
     },
     {
       "id": 3,
       "title": "Attention Mechanism",
       "subtitle": "The art of weighted aggregation",
       "category": "architecture",
-      "phase": "retrieval",
       "concepts": {
-        "learned": 6,
-        "total": 6,
         "items": [
-          { "name": "Query-Key-Value triples", "status": "mastered" },
-          { "name": "Scaled dot-product attention", "status": "mastered" },
-          { "name": "Softmax normalization", "status": "mastered" },
-          { "name": "Multi-head attention", "status": "weak", "note": "Concat projection role still fuzzy" },
-          { "name": "Causal mask", "status": "mastered" },
-          { "name": "Attention complexity analysis", "status": "mastered" }
+          {
+            "name": "Query-Key-Value triples"
+          },
+          {
+            "name": "Scaled dot-product attention"
+          },
+          {
+            "name": "Softmax normalization"
+          },
+          {
+            "name": "Multi-head attention",
+            "note": "Concat projection role still fuzzy"
+          },
+          {
+            "name": "Causal mask"
+          },
+          {
+            "name": "Attention complexity analysis"
+          }
         ]
       },
-      "weaknesses": [
-        { "point": "Cannot clearly explain the output projection after multi-head concat", "rootCause": "Wrong abstraction level", "status": "active" }
-      ],
-      "feynman": { "tested": true, "passed": false, "notes": "Core mechanism is clear, but multi-head merge explanation stalls" },
       "quote": "Attention is similarity-driven weighting of Value vectors",
       "keyInsight": "Multi-head attention lets the model capture different relationship patterns in parallel",
       "logicChain": [
@@ -106,34 +150,49 @@
         "Multiple heads run in parallel subspaces",
         "Concat all heads and project to model dimension"
       ],
-      "examples": ["'The cat sat on the mat because it was tired' — 'it' attends most to 'cat'"],
-      "counterexamples": ["RNN hidden states compress the whole sequence; attention removes this bottleneck"]
+      "examples": [
+        "'The cat sat on the mat because it was tired' — 'it' attends most to 'cat'"
+      ],
+      "counterexamples": [
+        "RNN hidden states compress the whole sequence; attention removes this bottleneck"
+      ],
+      "pitfalls": [
+        {
+          "point": "Cannot clearly explain the output projection after multi-head concat",
+          "rootCause": "Wrong abstraction level"
+        }
+      ]
     },
     {
       "id": 4,
       "title": "Transformer Structure",
       "subtitle": "Encoder–decoder symphony",
       "category": "architecture",
-      "phase": "encoding",
-      "current": true,
       "concepts": {
-        "learned": 3,
-        "total": 7,
         "items": [
-          { "name": "Encoder–decoder architecture", "status": "mastered" },
-          { "name": "Residual connections", "status": "mastered" },
-          { "name": "Layer normalization", "status": "mastered" },
-          { "name": "FFN blocks", "status": "learning" },
-          { "name": "Pre-Norm vs Post-Norm", "status": "not-started" },
-          { "name": "Cross attention", "status": "not-started" },
-          { "name": "Decoder-only structure", "status": "not-started" }
+          {
+            "name": "Encoder–decoder architecture"
+          },
+          {
+            "name": "Residual connections"
+          },
+          {
+            "name": "Layer normalization"
+          },
+          {
+            "name": "FFN blocks"
+          },
+          {
+            "name": "Pre-Norm vs Post-Norm"
+          },
+          {
+            "name": "Cross attention"
+          },
+          {
+            "name": "Decoder-only structure"
+          }
         ]
       },
-      "weaknesses": [
-        { "point": "Confuses information flow between self-attention and cross-attention", "rootCause": "Concept relations missing", "status": "active" },
-        { "point": "Unclear why Pre-Norm stabilizes training", "rootCause": "Missing prerequisites", "status": "active" }
-      ],
-      "feynman": { "tested": false },
       "quote": "Residual connections and layer norm keep deep networks alive",
       "keyInsight": null,
       "logicChain": [
@@ -144,127 +203,137 @@
         "(learning in progress...)"
       ],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": [
+        {
+          "point": "Confuses information flow between self-attention and cross-attention",
+          "rootCause": "Concept relations missing"
+        },
+        {
+          "point": "Unclear why Pre-Norm stabilizes training",
+          "rootCause": "Missing prerequisites"
+        }
+      ]
     },
     {
       "id": 5,
       "title": "Pretraining Objectives",
       "subtitle": "Self-supervision design",
       "category": "training",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 5, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "Predicting the next token is simple, yet powerful",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     },
     {
       "id": 6,
       "title": "Loss & Optimization",
       "subtitle": "How gradients shape language ability",
       "category": "training",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 6, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "Cross-entropy measures divergence between predicted and true distributions",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     },
     {
       "id": 7,
       "title": "Fine-tuning & Alignment",
       "subtitle": "From general to controllable",
       "category": "application",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 8, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "RLHF teaches the model to navigate human preferences",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     },
     {
       "id": 8,
       "title": "Prompt Engineering",
       "subtitle": "Programming with language",
       "category": "application",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 5, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "Great prompts build scaffolding for the model's reasoning",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     },
     {
       "id": 9,
       "title": "Scaling Laws",
       "subtitle": "Power and limits of scale",
       "category": "frontier",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 4, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "Parameters, data, compute—three variables follow elegant power laws",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     },
     {
       "id": 10,
       "title": "Emergence & Reasoning",
       "subtitle": "When scale sparks new abilities",
       "category": "frontier",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 4, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "At sufficient scale, models exhibit capabilities not explicitly trained",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     },
     {
       "id": 11,
       "title": "Context Window",
       "subtitle": "Length vs memory trade-offs",
       "category": "frontier",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 3, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "Larger windows mean longer reasoning but higher cost",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     },
     {
       "id": 12,
       "title": "Systematic Review",
       "subtitle": "Make the model your own knowledge",
       "category": "frontier",
-      "phase": "not-started",
-      "concepts": { "learned": 0, "total": 3, "items": [] },
-      "weaknesses": [],
-      "feynman": { "tested": false },
+      "concepts": {
+        "items": []
+      },
       "quote": "The final lesson is to organize knowledge in your own words",
       "keyInsight": null,
       "logicChain": [],
       "examples": [],
-      "counterexamples": []
+      "counterexamples": [],
+      "pitfalls": []
     }
   ]
 }
