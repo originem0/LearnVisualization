@@ -1,20 +1,16 @@
-import zh from '@/content/zh';
 import { getMirroredStateData } from '@/lib/course-package-adapter';
+import { getLegacyStateData } from '@/lib/legacy-content-adapter';
 import type { Category, Module, StateData } from './types';
 import type { Locale } from './i18n';
 
 export type RuntimeDataSource = 'legacy' | 'mirrored';
-
-const datasets: Record<Locale, StateData> = {
-  zh: zh as StateData,
-};
 
 export function getRuntimeDataSource(): RuntimeDataSource {
   return process.env.LEARNING_SITE_DATA_SOURCE === 'legacy' ? 'legacy' : 'mirrored';
 }
 
 export function getLegacyData(locale: Locale): StateData {
-  return datasets[locale] ?? datasets.zh;
+  return getLegacyStateData(locale);
 }
 
 export function getData(locale: Locale): StateData {

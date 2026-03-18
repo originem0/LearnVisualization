@@ -25,8 +25,9 @@
 ## 二、当前仍然依赖旧源的地方
 
 ### A. runtime / adapter
-- `src/lib/data.ts` 仍然 import 了 `@/content/zh`
-- 但这部分已经降级为 fallback / legacy 路径
+- `src/lib/data.ts` 已不再直接 import `@/content/zh`
+- 旧源已被隔离到 `src/lib/legacy-content-adapter.ts`
+- 这部分现在是显式 fallback / legacy 路径，而不是主数据入口内联实现
 
 ### B. 校验脚本
 下面这些脚本仍然直接读 `src/content/zh`：
