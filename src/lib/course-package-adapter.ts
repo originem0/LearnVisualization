@@ -57,6 +57,7 @@ export function toStateData(coursePackage: CoursePackage): StateData {
       title: module.title,
       subtitle: module.subtitle ?? '',
       category: module.category,
+      focusQuestion: module.focusQuestion,
       concepts: {
         items: module.concepts,
       },

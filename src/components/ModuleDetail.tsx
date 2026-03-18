@@ -50,8 +50,8 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
   const focusQuestionMatch = module.narrative?.[0]?.type === 'heading'
     ? module.narrative[0].content.match(/^(?:焦点问题|Focus Question)[:：]\s*(.+)$/)
     : null;
-  const focusQuestion = focusQuestionMatch?.[1] ?? null;
-  const narrativeBlocks = focusQuestion ? module.narrative?.slice(1) ?? [] : module.narrative ?? [];
+  const focusQuestion = module.focusQuestion ?? focusQuestionMatch?.[1] ?? null;
+  const narrativeBlocks = !module.focusQuestion && focusQuestion ? module.narrative?.slice(1) ?? [] : module.narrative ?? [];
   const quickRoute = module.logicChain.slice(0, 3);
 
   const openingSection = module.opening ? (

@@ -46,6 +46,7 @@ export interface Module {
   title: string;
   subtitle: string;
   category: string;
+  focusQuestion?: string;
   concepts: ConceptGroup;
   pitfalls: PitfallItem[];
   quote: string;
