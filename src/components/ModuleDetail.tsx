@@ -43,14 +43,12 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
     { id: 'deep', label: isZh ? '深入' : 'Deep Dive' },
   ];
 
-  /* ── Components from registry ── */
   const HeroInteractive = registry?.heroInteractive ?? null;
   const SecondaryInteractive = registry?.secondaryInteractive ?? null;
   const conceptMapSchema = registry?.conceptMapSchema ?? null;
 
-  /* ── Opening section ── */
   const openingSection = module.opening ? (
-    <section className="overflow-hidden rounded-xl bg-zinc-100/70 dark:bg-zinc-800/40">
+    <section className="overflow-hidden rounded-xl bg-zinc-100/70 dark:bg-[#0b3a45]/70">
       {(() => {
         const paragraphs = module.opening.split('\n\n');
         const hasNumberArray = (p: string) => /\[[\d, ]+\]/.test(p);
@@ -59,20 +57,20 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
           <div className="p-6 sm:p-8">
             {paragraphs.map((p, i) => {
               if (hasNumberArray(p)) {
-                const match = p.match(/[""]([^""]+)[""].*?(\[[\d, ]+\])/);
+                const match = p.match(/["”]([^"”]+)["”].*?(\[[\d, ]+\])/);
                 if (match) {
                   const humanText = match[1];
                   const numbers = match[2];
                   return (
                     <div key={i} className={`${i > 0 ? 'mt-6' : ''}`}>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="flex flex-col items-center justify-center rounded-xl bg-white/80 p-6 dark:bg-zinc-700/40">
+                        <div className="flex flex-col items-center justify-center rounded-xl bg-white/80 p-6 dark:bg-[#073642]">
                           <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-[color:var(--color-muted)]">你输入</div>
-                          <div className="text-3xl font-bold tracking-wide text-[color:var(--color-text)]">{humanText}</div>
+                          <div className="text-2xl font-bold tracking-wide text-[color:var(--color-text)]">{humanText}</div>
                         </div>
-                        <div className="flex flex-col items-center justify-center rounded-xl bg-zinc-900 p-6 dark:bg-zinc-950">
-                          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-500">模型看到</div>
-                          <div className="font-mono text-lg font-bold leading-relaxed text-emerald-400 sm:text-xl">{numbers}</div>
+                        <div className="flex flex-col items-center justify-center rounded-xl bg-zinc-900 p-6 dark:bg-[#001f27]">
+                          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-[#93a1a1]">模型看到</div>
+                          <div className="font-mono text-base font-bold leading-relaxed text-emerald-400 sm:text-lg">{numbers}</div>
                           <div className="mt-1 h-4 w-2 animate-pulse bg-emerald-400" aria-hidden />
                         </div>
                       </div>
@@ -81,7 +79,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
                 }
               }
               return (
-                <p key={i} className={`${i > 0 ? 'mt-4' : ''} text-lg leading-[1.75] text-[color:var(--color-text)]`}>{p}</p>
+                <p key={i} className={`${i > 0 ? 'mt-4' : ''} text-base leading-[1.75] text-[color:var(--color-text)]`}>{p}</p>
               );
             })}
           </div>
@@ -90,7 +88,6 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
     </section>
   ) : null;
 
-  /* ── Narrative body ── */
   const narrativeBody = module.narrative && module.narrative.length > 0 ? (
     <article className="mx-auto max-w-2xl pb-8 prose-custom">
       {module.narrative.map((block, i) => (
@@ -99,17 +96,16 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
     </article>
   ) : null;
 
-  /* ── Bridge section ── */
   const bridgeSection = module.bridgeTo && next ? (
-    <section className="rounded-xl border border-[color:var(--color-border)] bg-zinc-50/80 p-6 dark:bg-zinc-800/30 sm:p-8">
+    <section className="rounded-xl border border-[color:var(--color-border)] bg-zinc-50/80 p-6 dark:bg-[#0b3a45]/55 sm:p-8">
       <div className="mx-auto max-w-2xl">
         {module.bridgeTo.split('\n\n').map((p, i) => (
-          <p key={i} className={`${i > 0 ? 'mt-4' : ''} text-base leading-[1.75] text-[color:var(--color-text)]`}>
+          <p key={i} className={`${i > 0 ? 'mt-4' : ''} text-sm leading-[1.75] text-[color:var(--color-text)] sm:text-base`}>
             {p}
           </p>
         ))}
         <div className="mt-6 flex items-center gap-2">
-          <span className="text-2xl text-[color:var(--color-muted)]">↓</span>
+          <span className="text-xl text-[color:var(--color-muted)]">↓</span>
           <Link
             href={`/${locale}/${getModuleSlug(next.id)}/`}
             className={`rounded-full px-4 py-2 text-sm font-semibold ${styles.soft} transition-opacity hover:opacity-80`}
@@ -123,22 +119,18 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
 
   return (
     <div className="space-y-0">
-      {/* Hero */}
       <header className="pb-8">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles.badge}`}>{category.name}</span>
           <span className="font-mono text-xs text-[color:var(--color-muted)]">{getModuleSlug(module.id)}</span>
         </div>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-[color:var(--color-text)]">{module.title}</h1>
-        <p className="mt-2 text-lg text-[color:var(--color-muted)]">{module.subtitle}</p>
+        <h1 className="mt-3 text-3xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-4xl">{module.title}</h1>
+        <p className="mt-2 text-base text-[color:var(--color-muted)]">{module.subtitle}</p>
       </header>
 
-      {/* Hero interactive */}
       {HeroInteractive && <div className="mx-auto max-w-2xl pb-10"><HeroInteractive /></div>}
 
-      {/* Tabs */}
       <Tabs tabs={tabs} defaultTab="learn">
-        {/* Learn tab */}
         <div className="space-y-10">
           {openingSection}
           {conceptMapSchema && <ConceptMapRenderer schema={conceptMapSchema} color={category.color} />}
@@ -146,22 +138,20 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
           {bridgeSection}
         </div>
 
-        {/* Interactive tab */}
         <div className="space-y-8">
           {SecondaryInteractive && <div className="mx-auto max-w-2xl"><SecondaryInteractive /></div>}
         </div>
 
-        {/* Deep Dive tab */}
         <div className="space-y-8">
           <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
-            <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{labels.sections.conceptList}</h2>
+            <h2 className="text-base font-semibold text-[color:var(--color-text)]">{labels.sections.conceptList}</h2>
             <div className="mt-4">
               <ConceptList items={module.concepts.items} locale={locale} />
             </div>
           </section>
 
           <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
-            <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{labels.sections.logicChain}</h2>
+            <h2 className="text-base font-semibold text-[color:var(--color-text)]">{labels.sections.logicChain}</h2>
             <ol className="mt-4 space-y-2 text-sm text-[color:var(--color-text)]">
               {module.logicChain.length ? (
                 module.logicChain.map((step, index) => (
@@ -177,7 +167,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
 
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
-              <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{labels.sections.examples}</h2>
+              <h2 className="text-base font-semibold text-[color:var(--color-text)]">{labels.sections.examples}</h2>
               <ul className="mt-4 space-y-2 text-sm text-[color:var(--color-text)]">
                 {module.examples.length ? (
                   module.examples.map((example, index) => (
@@ -192,7 +182,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
             </section>
 
             <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
-              <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{labels.sections.counterexamples}</h2>
+              <h2 className="text-base font-semibold text-[color:var(--color-text)]">{labels.sections.counterexamples}</h2>
               <ul className="mt-4 space-y-2 text-sm text-[color:var(--color-text)]">
                 {module.counterexamples.length ? (
                   module.counterexamples.map((example, index) => (
@@ -209,7 +199,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
 
           {module.pitfalls.length > 0 && (
             <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
-              <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{labels.sections.pitfalls}</h2>
+              <h2 className="text-base font-semibold text-[color:var(--color-text)]">{labels.sections.pitfalls}</h2>
               <div className="mt-4">
                 <PitfallList items={module.pitfalls} locale={locale} />
               </div>
@@ -218,7 +208,6 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
         </div>
       </Tabs>
 
-      {/* Navigation */}
       <div className="pt-10">
         <ModuleNav locale={locale} prev={prev} next={next} />
       </div>

@@ -13,7 +13,7 @@ export default function TimelinePage({ params }: { params: { locale: Locale } })
   return (
     <div className="space-y-10">
       <section>
-        <h1 className="text-3xl font-bold text-[color:var(--color-text)]">{labels.sections.timelineTitle}</h1>
+        <h1 className="text-2xl font-bold text-[color:var(--color-text)] sm:text-3xl">{labels.sections.timelineTitle}</h1>
         <p className="mt-2 text-sm text-[color:var(--color-muted)]">{labels.sections.timelineSubtitle}</p>
       </section>
 

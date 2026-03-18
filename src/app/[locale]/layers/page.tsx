@@ -12,7 +12,7 @@ export default function LayersPage({ params }: { params: { locale: Locale } }) {
         <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
           {isZh ? '知识地图' : 'Knowledge Map'}
         </div>
-        <h1 className="mt-2 text-3xl font-bold text-[color:var(--color-text)]">
+        <h1 className="mt-2 text-2xl font-bold text-[color:var(--color-text)] sm:text-3xl">
           {isZh ? '五层架构，一条主线' : 'Five Layers, One Thread'}
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-[color:var(--color-muted)]">

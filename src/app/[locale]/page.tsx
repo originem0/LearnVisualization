@@ -8,10 +8,9 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
   const isZh = params.locale === 'zh';
   const firstModule = data.modules[0];
 
-  // Compute real numbers instead of hardcoding
   const moduleCount = data.modules.length;
   const layerCount = data.categories.length;
-  const interactiveCount = moduleCount * 2; // hero + secondary per module
+  const interactiveCount = moduleCount * 2;
 
   const grouped = data.categories.map((category) => ({
     ...category,
@@ -20,17 +19,16 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
 
   return (
     <div className="space-y-14">
-      {/* Hero */}
       <section className="overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)]">
         <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.25fr_0.95fr] lg:p-10">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
               {isZh ? '可视化交互学习' : 'Visual Interactive Learning'}
             </div>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-5xl">
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-4xl">
               {data.project.title}
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-[color:var(--color-muted)] sm:text-lg">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[color:var(--color-muted)] sm:text-base">
               {isZh
                 ? '不是术语堆砌，不是静态文档。这里把 LLM 从 token、embedding、注意力、Transformer，到训练、对齐、涌现与上下文窗口，拆成可以看、可以玩、可以一层层穿透的学习页面。'
                 : 'Not a glossary dump and not static docs. This path turns LLMs into a visual, interactive learning experience.'}
@@ -45,27 +43,27 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
               </Link>
               <Link
                 href={`/${params.locale}/layers/`}
-                className="rounded-full border border-[color:var(--color-border)] px-5 py-2.5 font-semibold text-[color:var(--color-text)] transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                className="rounded-full border border-[color:var(--color-border)] px-5 py-2.5 font-semibold text-[color:var(--color-text)] transition-colors hover:bg-zinc-50 dark:hover:bg-[#0b3a45]"
               >
                 {isZh ? '查看知识地图' : 'Knowledge map'}
               </Link>
             </div>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-zinc-50 p-4 dark:bg-zinc-900/60">
-                <div className="text-2xl font-bold text-[color:var(--color-text)]">{moduleCount}</div>
+              <div className="rounded-xl bg-zinc-50 p-4 dark:bg-[#0b3a45]">
+                <div className="text-xl font-bold text-[color:var(--color-text)]">{moduleCount}</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-[color:var(--color-muted)]">
                   {isZh ? '模块' : 'Modules'}
                 </div>
               </div>
-              <div className="rounded-xl bg-zinc-50 p-4 dark:bg-zinc-900/60">
-                <div className="text-2xl font-bold text-[color:var(--color-text)]">{layerCount}</div>
+              <div className="rounded-xl bg-zinc-50 p-4 dark:bg-[#0b3a45]">
+                <div className="text-xl font-bold text-[color:var(--color-text)]">{layerCount}</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-[color:var(--color-muted)]">
                   {isZh ? '知识层' : 'Layers'}
                 </div>
               </div>
-              <div className="rounded-xl bg-zinc-50 p-4 dark:bg-zinc-900/60">
-                <div className="text-2xl font-bold text-[color:var(--color-text)]">{interactiveCount}</div>
+              <div className="rounded-xl bg-zinc-50 p-4 dark:bg-[#0b3a45]">
+                <div className="text-xl font-bold text-[color:var(--color-text)]">{interactiveCount}</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-[color:var(--color-muted)]">
                   {isZh ? '交互演示' : 'Interactive demos'}
                 </div>
@@ -73,9 +71,8 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
             </div>
           </div>
 
-          {/* Mini knowledge map — replaces static ASCII panel */}
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-950 p-5 text-zinc-100 dark:border-zinc-800">
-            <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-950 p-5 text-zinc-100 dark:border-[#586e75] dark:bg-[#001f27] dark:text-[#eee8d5]">
+            <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-500 dark:text-[#93a1a1]">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
               {isZh ? '核心路径' : 'Core path'}
             </div>
@@ -86,26 +83,24 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
                   <div key={group.id}>
                     <div className="flex items-center gap-2">
                       <span className={`h-1.5 w-1.5 rounded-full ${categoryStyles[group.color].dot}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{group.name}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-[#93a1a1]">{group.name}</span>
                     </div>
                     <div className="ml-4 mt-1 flex flex-wrap items-center gap-1">
                       {group.modules.map((mod, i) => (
                         <span key={mod.id} className="flex items-center">
                           <Link
                             href={`/${params.locale}/${getModuleSlug(mod.id)}/`}
-                            className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-xs text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+                            className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-xs text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white dark:bg-[#073642] dark:text-[#93a1a1] dark:hover:bg-[#0b3a45] dark:hover:text-[#eee8d5]"
                           >
                             {getModuleSlug(mod.id)}
                           </Link>
                           {i < group.modules.length - 1 && (
-                            <span className="mx-0.5 text-xs text-zinc-600">→</span>
+                            <span className="mx-0.5 text-xs text-zinc-600 dark:text-[#586e75]">→</span>
                           )}
                         </span>
                       ))}
                     </div>
-                    {!isLast && (
-                      <div className="ml-5 h-3 border-l border-zinc-700" />
-                    )}
+                    {!isLast && <div className="ml-5 h-3 border-l border-zinc-700 dark:border-[#586e75]" />}
                   </div>
                 );
               })}
@@ -114,14 +109,13 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
         </div>
       </section>
 
-      {/* Learning path routing — 3 personas */}
       <section className="grid gap-4 lg:grid-cols-3">
         <Link
           href={`/${params.locale}/s01/`}
           className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 transition-colors hover:border-[color:var(--color-muted)]/60"
         >
-          <div className="text-2xl">🔰</div>
-          <h3 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">
+          <div className="text-xl">🔰</div>
+          <h3 className="mt-3 text-base font-bold text-[color:var(--color-text)]">
             {isZh ? '系统学习' : 'Full path'}
           </h3>
           <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
@@ -138,8 +132,8 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
           href={`/${params.locale}/s01/`}
           className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 transition-colors hover:border-[color:var(--color-muted)]/60"
         >
-          <div className="text-2xl">⚡</div>
-          <h3 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">
+          <div className="text-xl">⚡</div>
+          <h3 className="mt-3 text-base font-bold text-[color:var(--color-text)]">
             {isZh ? '只看核心机制' : 'Core mechanism'}
           </h3>
           <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
@@ -156,8 +150,8 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
           href={`/${params.locale}/s07/`}
           className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 transition-colors hover:border-[color:var(--color-muted)]/60"
         >
-          <div className="text-2xl">🎯</div>
-          <h3 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">
+          <div className="text-xl">🎯</div>
+          <h3 className="mt-3 text-base font-bold text-[color:var(--color-text)]">
             {isZh ? '应用导向' : 'Application-focused'}
           </h3>
           <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
@@ -171,13 +165,12 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
         </Link>
       </section>
 
-      {/* Full module grid by layer */}
       <section className="space-y-6">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
             {isZh ? '全部模块' : 'All modules'}
           </div>
-          <h2 className="mt-3 text-2xl font-bold text-[color:var(--color-text)]">
+          <h2 className="mt-3 text-xl font-bold text-[color:var(--color-text)] sm:text-2xl">
             {isZh ? '按知识层组织' : 'Organized by knowledge layer'}
           </h2>
         </div>
@@ -197,7 +190,7 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
                     <Link
                       key={module.id}
                       href={`/${params.locale}/${getModuleSlug(module.id)}/`}
-                      className="flex items-start rounded-xl border border-[color:var(--color-border)] px-4 py-3 transition-colors hover:border-[color:var(--color-muted)]/40 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                      className="flex items-start rounded-xl border border-[color:var(--color-border)] px-4 py-3 transition-colors hover:border-[color:var(--color-muted)]/40 hover:bg-zinc-50 dark:hover:bg-[#0b3a45]"
                     >
                       <span className="w-12 shrink-0 font-mono text-xs text-[color:var(--color-muted)]">{getModuleSlug(module.id)}</span>
                       <span>

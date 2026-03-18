@@ -10,12 +10,13 @@
   --color-border: #e4e4e7;
 }
 
+/* Solarized Dark */
 .dark {
-  --color-bg: #09090b;
-  --color-panel: #0f0f12;
-  --color-text: #fafafa;
-  --color-muted: #a1a1aa;
-  --color-border: #27272a;
+  --color-bg: #002b36;
+  --color-panel: #073642;
+  --color-text: #eee8d5;
+  --color-muted: #93a1a1;
+  --color-border: #586e75;
 }
 
 @layer base {
@@ -60,7 +61,7 @@
   margin-top: 2.25rem;
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
   border-bottom: 1px solid var(--color-border);
 }
@@ -68,15 +69,15 @@
 .prose-custom h3 {
   margin-top: 2rem;
   margin-bottom: 0.75rem;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .prose-custom p {
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
-  font-size: 0.95rem;
-  line-height: 1.7;
+  font-size: 0.92rem;
+  line-height: 1.72;
 }
 
 .prose-custom blockquote {
@@ -89,9 +90,9 @@
 }
 
 .dark .prose-custom blockquote {
-  border-left-color: #60a5fa;
-  background: rgba(96, 165, 250, 0.12);
-  color: #bfdbfe;
+  border-left-color: #268bd2;
+  background: rgba(38, 139, 210, 0.16);
+  color: #93a1a1;
 }
 
 .prose-custom pre {
@@ -105,6 +106,11 @@
   overflow-x: auto;
 }
 
+.dark .prose-custom pre {
+  background: #001f27;
+  color: #eee8d5;
+}
+
 .prose-custom :not(pre) > code {
   border-radius: 0.4rem;
   background: #f1f5f9;
@@ -116,9 +122,9 @@
 }
 
 .dark .prose-custom :not(pre) > code {
-  background: #27272a;
-  border-color: #3f3f46;
-  color: #f9a8d4;
+  background: #0b3a45;
+  border-color: #586e75;
+  color: #b58900;
 }
 
 .prose-custom ol {
