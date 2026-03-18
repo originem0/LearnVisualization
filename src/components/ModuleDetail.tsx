@@ -88,6 +88,17 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
     </section>
   ) : null;
 
+  const keyInsightSection = module.keyInsight ? (
+    <section className="rounded-xl border border-[color:var(--color-border)] bg-zinc-50/80 p-5 dark:bg-[#0b3a45]/45 sm:p-6">
+      <div className="mx-auto max-w-2xl">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
+          {isZh ? '本章关键洞察' : 'Key insight'}
+        </div>
+        <p className="mt-2 text-sm leading-7 text-[color:var(--color-text)] sm:text-base">{module.keyInsight}</p>
+      </div>
+    </section>
+  ) : null;
+
   const narrativeBody = module.narrative && module.narrative.length > 0 ? (
     <article className="mx-auto max-w-2xl pb-8 prose-custom">
       {module.narrative.map((block, i) => (
@@ -126,6 +137,11 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
         </div>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-4xl">{module.title}</h1>
         <p className="mt-2 text-sm text-[color:var(--color-muted)] sm:text-base">{module.subtitle}</p>
+        {module.quote && (
+          <p className="mt-4 border-l-2 border-[color:var(--color-border)] pl-3 text-sm italic text-[color:var(--color-muted)]">
+            “{module.quote}”
+          </p>
+        )}
       </header>
 
       {HeroInteractive && <div className="mx-auto max-w-2xl pb-10"><HeroInteractive /></div>}
@@ -133,6 +149,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
       <Tabs tabs={tabs} defaultTab="learn">
         <div className="space-y-12">
           {openingSection}
+          {keyInsightSection}
           {conceptMapSchema && <ConceptMapRenderer schema={conceptMapSchema} color={category.color} />}
           {narrativeBody}
           {bridgeSection}
