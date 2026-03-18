@@ -1,0 +1,109 @@
+{
+  "id": 8,
+  "title": "Prompt Engineering",
+  "subtitle": "用自然语言编程",
+  "category": "application",
+  "concepts": {
+    "items": [
+      {
+        "name": "角色 / 上下文 / 任务 / 格式"
+      },
+      {
+        "name": "Few-shot"
+      },
+      {
+        "name": "Chain-of-Thought"
+      },
+      {
+        "name": "Prompt 模板"
+      },
+      {
+        "name": "自然语言编程"
+      }
+    ]
+  },
+  "quote": "好的 prompt 是给模型搭建正确的思维脚手架",
+  "keyInsight": null,
+  "logicChain": [
+    "prompt 改变的是上下文条件而不是模型权重",
+    "强 prompt 通常需要角色+上下文+任务+格式",
+    "few-shot 用示例降低歧义",
+    "CoT 通过展开中间步骤帮助复杂推理",
+    "prompt 能调动能力但不能创造能力"
+  ],
+  "examples": [
+    "分类任务中，给 3 个例子往往比一句“请分类”稳定得多",
+    "要求 JSON 输出通常能显著降低后处理成本"
+  ],
+  "counterexamples": [
+    "prompt 不是越长越好，冗余上下文会增加噪声",
+    "礼貌措辞不是能力来源，结构清晰才是"
+  ],
+  "opening": "同一个模型，你说“写一首诗”，它可能敷衍你。\n\n你说“你是李白，酒后望月，写一首七言绝句”，它突然像换了一个人。\n\n模型没变，变的是 prompt。Prompt 不是礼貌用语，而是你给模型的临时运行环境。",
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "Prompt 到底在控制什么？"
+    },
+    {
+      "type": "text",
+      "content": "Prompt 不会修改模型权重，但它会改变当前上下文中的条件分布。不同的角色设定、任务描述、格式要求、示例数量，都会把模型推向不同的输出区域。\n\n所以 prompt engineering 本质上是在做“上下文内编程”。"
+    },
+    {
+      "type": "heading",
+      "content": "一个强 prompt 通常包含什么？"
+    },
+    {
+      "type": "text",
+      "content": "最常见的骨架是：角色、上下文、任务、约束、输出格式。\n\n角色决定说话身份，上下文决定边界条件，任务定义目标，约束避免跑偏，输出格式则让结果更可用。缺哪一块，不一定马上坏，但稳定性通常会下降。"
+    },
+    {
+      "type": "diagram",
+      "label": "Prompt 模板",
+      "content": "Role\nContext\nTask\nConstraint\nOutput Format\nExamples(optional)"
+    },
+    {
+      "type": "heading",
+      "content": "Few-shot 为什么有效？"
+    },
+    {
+      "type": "text",
+      "content": "给出几个输入—输出示例，相当于在上下文里临时展示任务模式。模型不需要重新训练，只要从示例中推断“现在你想让我按这个规则做事”。\n\n这也是为什么 few-shot 常常比抽象说明更稳定：示例比解释更具体。"
+    },
+    {
+      "type": "comparison",
+      "label": "两种提示方式",
+      "content": "抽象要求：告诉模型“你应该怎么做”，依赖模型自己补全执行细节\nFew-shot：直接展示“做成什么样”，降低歧义和自由度"
+    },
+    {
+      "type": "heading",
+      "content": "Chain-of-Thought 什么时候有用？"
+    },
+    {
+      "type": "text",
+      "content": "对需要多步推理的问题，要求模型“step by step”往往会提升正确率。不是因为这句咒语神秘，而是它显式鼓励模型展开中间步骤，减少一步跳结论时的错误。\n\n但它也不是总有用：简单任务会显得啰嗦，某些场景还会暴露不必要的中间过程。"
+    },
+    {
+      "type": "heading",
+      "content": "Prompt 不是万能魔法"
+    },
+    {
+      "type": "text",
+      "content": "Prompt 能调动已有能力，不能凭空创造模型没有的能力。一个基础薄弱的小模型，不会因为 prompt 写得像圣经就突然拥有 GPT-4 级别推理。\n\n它更像镜头而不是发动机：决定你怎么调焦，但决定不了底层硬件的上限。"
+    },
+    {
+      "type": "callout",
+      "content": "Prompt engineering 的核心不是“花哨措辞”，而是给模型足够清晰的任务结构和上下文约束。"
+    },
+    {
+      "type": "heading",
+      "content": "为什么说它像自然语言编程？"
+    },
+    {
+      "type": "text",
+      "content": "因为你在做的事，本质上是指定接口、输入约束、执行流程、返回格式，甚至用示例当测试用例。\n\n区别只在于：传统编程用形式语言和严格语法；prompt engineering 用自然语言和统计接口。"
+    }
+  ],
+  "bridgeTo": "到这里，我们已经走完了一条“从文本到输出”的主线。\n\n但大模型的行为还受两个更宏观的问题支配：规模怎么改变能力？能力为什么会突然涌现？上下文窗口为什么总是不够？\n\n接下来，我们从更高层的视角看这台机器。",
+  "pitfalls": []
+}

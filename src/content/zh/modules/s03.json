@@ -1,0 +1,124 @@
+{
+  "id": 3,
+  "title": "注意力机制",
+  "subtitle": "加权聚合的艺术",
+  "category": "architecture",
+  "concepts": {
+    "items": [
+      {
+        "name": "Query / Key / Value",
+        "note": "我在找什么、我有什么、我携带什么内容。"
+      },
+      {
+        "name": "Scaled Dot-Product",
+        "note": "用相似度分数衡量“该不该看”。"
+      },
+      {
+        "name": "Softmax",
+        "note": "把分数变成概率分布。"
+      },
+      {
+        "name": "加权聚合",
+        "note": "按权重汇总别的 token 的 Value。"
+      },
+      {
+        "name": "多头注意力",
+        "note": "让模型并行关注不同类型的关系。"
+      },
+      {
+        "name": "因果遮罩",
+        "note": "生成时只能看左边，不能偷看未来。"
+      }
+    ]
+  },
+  "quote": "注意力的本质是 Query 和 Key 的相似度驱动 Value 的加权聚合",
+  "keyInsight": "多头注意力让模型在不同子空间同时捕捉不同类型的关系模式",
+  "logicChain": [
+    "token 的意义依赖上下文",
+    "Q/K/V 把“找什么”“索引什么”“传递什么”拆开",
+    "Q·K 计算相关性",
+    "Softmax 把相关性变成权重",
+    "用权重聚合 V 得到上下文化表示",
+    "多头并行建模多种关系"
+  ],
+  "examples": [
+    "在 “because it was tired” 里，it 更容易对 cat 分配高权重",
+    "在翻译任务里，一个词往往会重点看和自己对齐的源语言片段"
+  ],
+  "counterexamples": [
+    "注意力不是简单共现计数，它是条件化、动态的匹配过程",
+    "多头不是“参数翻倍的浪费”，而是关系分工"
+  ],
+  "opening": "“The cat sat on the mat because it was tired.”\n\n“it” 指的是 cat，不是 mat。你几乎不费力就知道。\n\n模型怎么知道？不是靠语法规则库，而是靠一个非常简单的机制：让每个词自己决定该看谁。",
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "注意力要解决的根本问题"
+    },
+    {
+      "type": "text",
+      "content": "一个 token 的意义不是固定不变的，它依赖上下文。同样是“bank”，在“river bank”和“bank account”里含义完全不同。\n\n所以模型不能只看 token 自己的 embedding，它必须根据当前任务、当前上下文，动态决定从其他 token 身上取多少信息。"
+    },
+    {
+      "type": "heading",
+      "content": "Q、K、V 分别在做什么？"
+    },
+    {
+      "type": "text",
+      "content": "最常见的解释是：Query 表示“我在找什么”，Key 表示“我提供什么索引线索”，Value 表示“我真正携带的内容”。\n\n一个词拿着自己的 Query 去和所有 Key 做匹配，匹配越高，就越说明“我该多看你一点”。"
+    },
+    {
+      "type": "diagram",
+      "label": "单头注意力",
+      "content": "输入向量\n  ↓ 线性投影\nQ   K   V\n  ↓\nQ·K^T / √d_k\n  ↓\nSoftmax\n  ↓\n加权求和 V"
+    },
+    {
+      "type": "heading",
+      "content": "为什么要除以 √d_k ？"
+    },
+    {
+      "type": "text",
+      "content": "维度越高，点积的数值方差会变大。直接拿去做 Softmax，会让分布过于尖锐，梯度变差。\n\n除以 √d_k 的作用就是缩放，让数值落在更稳定的区间里。它不是技巧边角料，而是让训练稳定下来的关键一刀。"
+    },
+    {
+      "type": "comparison",
+      "label": "两种聚合方式",
+      "content": "固定窗口/RNN：谁影响谁 largely 由架构预设，远距离信息容易衰减\n注意力：每个 token 动态给全序列分配权重，重要关系可以被直接连起来"
+    },
+    {
+      "type": "heading",
+      "content": "Softmax 在这里意味着什么？"
+    },
+    {
+      "type": "text",
+      "content": "Softmax 把原始分数变成一组和为 1 的权重。于是注意力输出就可以理解成“从全序列中有偏地收集信息”。\n\n这一步的本质不是分类，而是分配带宽：有限的注意力预算，应该给谁更多。"
+    },
+    {
+      "type": "heading",
+      "content": "因果遮罩为什么必不可少？"
+    },
+    {
+      "type": "text",
+      "content": "做语言生成时，当前位置不能偷看未来 token，否则训练和推理会信息泄漏。因果遮罩用一个下三角矩阵把未来位置屏蔽掉，让每个 token 只能看见自己和左边。\n\n这就是 GPT 一类 decoder-only 模型能做“自回归生成”的前提。"
+    },
+    {
+      "type": "callout",
+      "content": "注意力不是“查字典”，而是“按当前问题重新组织上下文”。"
+    },
+    {
+      "type": "heading",
+      "content": "多头注意力为什么不是重复造轮子？"
+    },
+    {
+      "type": "text",
+      "content": "单头只能学到一种匹配模式，多头让模型在不同子空间并行关注不同关系：有的头盯代词指代，有的头盯句法依存，有的头盯位置邻近。\n\n不是所有头都可解释，但“多种关系同时建模”的能力正是 Transformer 强大的来源之一。"
+    }
+  ],
+  "bridgeTo": "有了注意力，token 终于能彼此交流。\n\n但一层注意力还不是完整模型。信息还要经过残差连接、层归一化、前馈网络，再一层层堆叠起来，才能形成真正的 Transformer。",
+  "pitfalls": [
+    {
+      "point": "多头注意力 concat 后投影矩阵的作用说不清楚",
+      "rootCause": "抽象层级错误"
+    }
+  ]
+}

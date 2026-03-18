@@ -1,4 +1,4 @@
-import zh from '@/data/state.zh.json';
+import zh from '@/content/zh';
 import en from '@/data/state.en.json';
 import type { Category, Module, StateData } from './types';
 import type { Locale } from './i18n';
