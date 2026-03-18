@@ -32,7 +32,7 @@
     ]
   },
   "quote": "注意力的本质是 Query 和 Key 的相似度驱动 Value 的加权聚合",
-  "keyInsight": "注意力不是“看哪里”的可视化花活，而是一条真正的计算链：Query 决定当前要找什么，Key 决定谁值得被看见，Value 决定最终被拿走什么信息。",
+  "keyInsight": "注意力不是把知识“存”在某个词里，而是让当前位置按当前问题重新分配上下文带宽：先匹配谁重要，再按权重聚合谁的内容。",
   "logicChain": [
     "token 的意义依赖上下文",
     "Q/K/V 把“找什么”“索引什么”“传递什么”拆开",
@@ -49,103 +49,115 @@
     "注意力不是简单共现计数，它是条件化、动态的匹配过程",
     "多头不是“参数翻倍的浪费”，而是关系分工"
   ],
-  "opening": "“The animal didn’t cross the street because it was too tired.”\n\n你几乎立刻知道 it 指的是 animal，不是 street。\n\n如果模型做不到这种选择，它就不是真的在用上下文，只是在按词频瞎猜。",
+  "opening": "你以为 “it 指向 cat” 是模型背下了某条语法规则。\n\n更接近真实的说法是：当前位置拿着一个问题，去整句里给别的词打分，然后按分数收集信息。\n\n注意力不是理解之后的解释词，它就是理解发生时的计算机制。",
   "narrative": [
     {
       "type": "heading",
-      "content": "注意力机制要解决的不是“记住全部”，而是“此刻该看谁”"
+      "content": "注意力要解决的根本问题"
     },
     {
       "type": "text",
-      "content": "一个 token 的意义不是写死在词表里的。\n\n同样是 bank，在 river bank 和 bank account 里不是同一个意思；同样是 it，在不同句子里指代对象也会变。模型真正缺的不是更多静态词义，而是一种动态能力：当前这个 token 面对当前上下文时，应该从谁那里拿信息？"
-    },
-    {
-      "type": "comparison",
-      "label": "两种上下文建模方式",
-      "content": "固定窗口 / RNN：谁影响谁 largely 由顺序传播和架构限制决定，远距离关系容易被稀释\n注意力：每个 token 都可以直接给全序列分配权重，重要关系不必绕路传播"
+      "content": "一个 token 的意义不是固定不变的，它依赖上下文。同样是“bank”，在“river bank”和“bank account”里含义完全不同。\n\n所以模型不能只看 token 自己的 embedding，它必须根据当前任务、当前上下文，动态决定从其他 token 身上取多少信息。"
     },
     {
       "type": "heading",
-      "content": "Q、K、V 不是三个术语，而是三种分工"
+      "content": "Q、K、V 分别在做什么？"
     },
     {
       "type": "text",
-      "content": "最有用的理解方式是：Query 表示“我现在在找什么”，Key 表示“我这里能提供什么索引线索”，Value 表示“我真正携带的内容”。\n\n一个词拿着自己的 Query 去和所有 Key 比较，相似度高的对象会分到更高权重；然后它不是把对方整个“复制过来”，而是按这些权重去聚合对方的 Value。"
+      "content": "最常见的解释是：Query 表示“我现在在找什么”，Key 表示“我提供什么索引线索”，Value 表示“我真正携带什么内容”。\n\n一个词拿着自己的 Query 去和所有 Key 做匹配，匹配越高，就越说明“当前这个问题下，我该多看你一点”。"
+    },
+    {
+      "type": "diagram",
+      "label": "单头注意力",
+      "content": "输入向量\n  ↓ 线性投影\nQ   K   V\n  ↓\nQ·K^T / √d_k\n  ↓\nSoftmax\n  ↓\n加权求和 V"
+    },
+    {
+      "type": "heading",
+      "content": "一个词到底是怎样“看”别的词的？"
     },
     {
       "type": "steps",
-      "label": "一次注意力计算到底发生了什么",
+      "label": "以 “it was tired” 为例",
       "content": "",
       "steps": [
         {
-          "title": "先把输入投影成 Q / K / V",
-          "description": "同一个 token 会得到三种不同角色的表示",
-          "visual": "token 向量\n  ↓W_Q    ↓W_K    ↓W_V\n   Q        K        V",
-          "highlight": "Q, K, V"
+          "title": "先投影出 Q / K / V",
+          "description": "每个 token 先把自己变成三种角色",
+          "visual": "The   cat   sat   on   the   mat   because   it   was   tired\n K/V   K/V   K/V   K/V  K/V   K/V    K/V      QKV   K/V   K/V",
+          "highlight": "it"
         },
         {
-          "title": "用 Q 去匹配所有 K",
-          "description": "不是问“谁最像我”，而是问“谁最回答我现在的问题”",
-          "visual": "Q_it · K_animal = 高\nQ_it · K_street = 低\nQ_it · K_cross = 中",
-          "highlight": "Q_it, K_animal"
+          "title": "当前位置发问",
+          "description": "“it” 拿自己的 Query 去和全句 Key 做匹配",
+          "visual": "score(it→The)=0.04\nscore(it→cat)=0.61\nscore(it→mat)=0.08\nscore(it→tired)=0.17",
+          "highlight": "cat"
         },
         {
-          "title": "缩放后做 Softmax",
-          "description": "把分数变成有限注意力预算",
-          "visual": "原始分数 → 缩放 → Softmax\n0.1  2.8  0.6\n↓\n0.07 0.78 0.15",
-          "highlight": "Softmax"
+          "title": "Softmax 变成权重",
+          "description": "把原始分数压成一组总和为 1 的分布",
+          "visual": "The: 0.06\ncat: 0.54\nmat: 0.10\ntired: 0.30",
+          "highlight": "0.54, 0.30"
         },
         {
-          "title": "按权重聚合 Value",
-          "description": "最后拿走的是内容，不是分数本身",
-          "visual": "0.78 × V_animal\n+ 0.15 × V_cross\n+ 0.07 × V_street\n= 当前 token 的新表示",
-          "highlight": "V_animal"
+          "title": "按权重聚合内容",
+          "description": "输出不是“抄一个词”，而是混合多处信息后的新表示",
+          "visual": "output(it) = 0.06·V(The) + 0.54·V(cat) + 0.10·V(mat) + 0.30·V(tired)",
+          "highlight": "0.54, 0.30"
         }
       ]
     },
     {
       "type": "heading",
-      "content": "为什么要除以 √d_k"
+      "content": "为什么要除以 √d_k ？"
     },
     {
       "type": "text",
-      "content": "维度一高，点积就容易数值过大。直接把这种分数送进 Softmax，会让分布过尖、梯度过差，训练非常不稳定。\n\n除以 √d_k 不是数学装饰，而是一个数值稳定器：它把分数拉回更可训练的范围，让“该关注谁”的分配不会一开始就硬到学不动。"
-    },
-    {
-      "type": "callout",
-      "content": "注意力分数不是语义本身，而是“当前问题下，谁对我更相关”的临时判断。"
-    },
-    {
-      "type": "heading",
-      "content": "因果遮罩为什么是 GPT 类模型的底线"
-    },
-    {
-      "type": "text",
-      "content": "做生成时，当前位置不能偷看右边的未来 token。否则训练时模型会见过答案，推理时却见不到，整个任务定义都变味了。\n\n因果遮罩的作用很直接：把未来位置的注意力分数压成无效值，让每个 token 只能看自己和左边。自回归生成不是靠“按顺序输出”就能成立，它必须靠遮罩把信息流方向锁死。"
-    },
-    {
-      "type": "heading",
-      "content": "多头注意力为什么不是重复劳动"
+      "content": "维度越高，点积的数值方差会变大。直接拿去做 Softmax，会让分布过于尖锐，梯度变差。\n\n除以 √d_k 的作用就是缩放，让数值落在更稳定的区间里。它不是技巧边角料，而是让训练稳定下来的关键一刀。"
     },
     {
       "type": "comparison",
-      "label": "单头 vs 多头",
-      "content": "单头：只能在一个相似度空间里做一种匹配，容易把不同关系挤在同一把尺子上\n多头：在不同子空间并行建模不同关系，有的头看指代，有的头看句法，有的头看位置邻近"
+      "label": "两种聚合方式",
+      "content": "固定窗口 / RNN：谁影响谁 largely 由架构预设，远距离信息容易衰减\n注意力：每个 token 动态给全序列分配权重，重要关系可以被直接连起来"
+    },
+    {
+      "type": "heading",
+      "content": "Softmax 在这里意味着什么？"
     },
     {
       "type": "text",
-      "content": "多头不是简单把参数复制几份，而是让模型同时拥有多套“看关系的坐标系”。这正是 Transformer 能兼顾局部和全局、语义和位置的关键原因之一。"
+      "content": "Softmax 把原始分数变成一组和为 1 的权重。于是注意力输出就可以理解成“从全序列中有偏地收集信息”。\n\n这一步的本质不是分类，而是分配带宽：有限的注意力预算，应该给谁更多。"
+    },
+    {
+      "type": "heading",
+      "content": "因果遮罩为什么必不可少？"
+    },
+    {
+      "type": "text",
+      "content": "做语言生成时，当前位置不能偷看未来 token，否则训练和推理会信息泄漏。因果遮罩用一个下三角矩阵把未来位置屏蔽掉，让每个 token 只能看见自己和左边。\n\n这就是 GPT 一类 decoder-only 模型能做“自回归生成”的前提。"
+    },
+    {
+      "type": "callout",
+      "content": "注意力不是“查字典”，而是“按当前问题重新组织上下文”。"
+    },
+    {
+      "type": "heading",
+      "content": "多头注意力为什么不是重复造轮子？"
+    },
+    {
+      "type": "text",
+      "content": "单头只能学到一种匹配模式，多头让模型在不同子空间并行关注不同关系：有的头盯代词指代，有的头盯句法依存，有的头盯位置邻近。\n\n不是所有头都可解释，但“多种关系同时建模”的能力正是 Transformer 强大的来源之一。"
     }
   ],
   "bridgeTo": "到这里，token 已经学会彼此通信了。\n\n但“一次注意力”还不等于“一个完整模型”。信息还要经过残差连接、归一化、前馈网络，再一层层堆起来，才会变成真正可扩展的 Transformer。",
   "pitfalls": [
     {
-      "point": "把注意力理解成“谁和谁共现得多”",
-      "rootCause": "忽略了注意力是当前 Query 条件下的动态匹配，而不是静态统计"
+      "point": "多头注意力 concat 后投影矩阵的作用说不清楚",
+      "rootCause": "只记住“多头并行”，没理解最后还要把多种关系重新压回统一表示空间"
     },
     {
-      "point": "说不清多头 concat 后为什么还要再投影一次",
-      "rootCause": "只记住了“多头并行”，没建立“多种关系最后要重新整合回统一表示空间”的概念"
+      "point": "把注意力分数当成静态语法边",
+      "rootCause": "忽视了 Q 来自当前 token，本质上是条件化、动态的匹配"
     }
   ]
 }
