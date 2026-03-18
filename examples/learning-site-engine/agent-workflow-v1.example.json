@@ -1,0 +1,56 @@
+[
+  {
+    "id": "topic-framing",
+    "title": "Topic Framing",
+    "reviewRequirement": "required",
+    "outputType": "TopicFramingOutput"
+  },
+  {
+    "id": "curriculum-planning",
+    "title": "Curriculum Planning",
+    "reviewRequirement": "required",
+    "outputType": "CurriculumPlanningOutput"
+  },
+  {
+    "id": "research-synthesis",
+    "title": "Research Synthesis",
+    "reviewRequirement": "recommended",
+    "outputType": "ResearchSynthesisOutput"
+  },
+  {
+    "id": "module-composition",
+    "title": "Module Composition",
+    "reviewRequirement": "required",
+    "outputType": "ModuleCompositionOutput"
+  },
+  {
+    "id": "visual-mapping",
+    "title": "Visual Mapping",
+    "reviewRequirement": "recommended",
+    "outputType": "VisualMappingOutput"
+  },
+  {
+    "id": "qa-critique",
+    "title": "QA / Critique",
+    "reviewRequirement": "optional",
+    "outputType": "CritiqueOutput"
+  },
+  {
+    "id": "human-review-gate",
+    "title": "Human Review Gate",
+    "reviewRequirement": "required",
+    "outputType": "approval-decision"
+  },
+  {
+    "id": "export-course-package",
+    "title": "Export to Course Package",
+    "reviewRequirement": "optional",
+    "outputType": "CoursePackage"
+  },
+  {
+    "id": "validate-build",
+    "title": "Validate + Build",
+    "reviewRequirement": "optional",
+    "outputType": "validation-report"
+  }
+]
