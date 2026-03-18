@@ -7,6 +7,7 @@
     "check": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs",
     "prebuild": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs",
     "build": "next build",
+    "postbuild": "node scripts/check-prerender.mjs",
     "start": "next start",
     "lint": "next lint"
   },
