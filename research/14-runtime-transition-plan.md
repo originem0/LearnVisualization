@@ -57,10 +57,12 @@
 - `src/lib/data.ts` 支持在 runtime 选择旧源或镜像课程包
 - 已在本地验证从镜像源读取仍可完整 build 当前站点
 
-### Phase 3
-- 让校验脚本同时检查：
+### Phase 3（已完成）
+- 已新增 `scripts/check-course-package.mjs`
+- `npm run check` / `prebuild` 已同时检查：
   - 旧源
   - 镜像课程包
+- 已新增 `scripts/compare-course-sources.mjs` 作为双源对照脚本
 
 ### Phase 4
 - 当镜像课程包与运行站点完全一致时，切换默认读取源
