@@ -6,24 +6,29 @@
   "concepts": {
     "items": [
       {
-        "name": "交叉熵损失"
+        "name": "交叉熵损失",
+        "note": "衡量模型给真实 token 分配了多大概率，而不是只看猜对没猜对。"
       },
       {
-        "name": "反向传播"
+        "name": "反向传播",
+        "note": "把最终损失拆回每一层参数的责任分配过程。"
       },
       {
-        "name": "梯度下降"
+        "name": "梯度下降",
+        "note": "梯度给出最陡上升方向，取反就是最快下降方向。"
       },
       {
-        "name": "Adam 优化器"
+        "name": "Adam 优化器",
+        "note": "利用动量和自适应步长，让高维噪声环境下的训练更稳。"
       },
       {
-        "name": "学习率调度"
+        "name": "学习率调度",
+        "note": "不同训练阶段需要不同步幅：先稳住，再加速，最后收敛。"
       }
     ]
   },
   "quote": "交叉熵度量预测分布与真实分布之间的信息差距",
-  "keyInsight": null,
+  "keyInsight": "训练不是“猜错了就改一下”这么模糊，而是一套精确链条：先用损失把错误压成一个数字，再用反向传播把责任拆回每层参数，最后由优化器决定每个参数该动多少。",
   "logicChain": [
     "预测结果通过交叉熵被量化成损失",
     "反向传播把损失拆回每层参数",
@@ -52,6 +57,47 @@
     {
       "type": "code",
       "content": "loss = -log p(true_token | context)\n\n真实答案概率越接近 1\nloss 越接近 0"
+    },
+    {
+      "type": "heading",
+      "content": "一个错误是怎样一路传回去的？"
+    },
+    {
+      "type": "steps",
+      "label": "从预测错误到参数更新",
+      "content": "",
+      "steps": [
+        {
+          "title": "先做一次预测",
+          "description": "模型给所有 token 一个概率分布",
+          "visual": "巴黎: 0.12\n伦敦: 0.51\n苹果: 0.00",
+          "highlight": "伦敦"
+        },
+        {
+          "title": "真实答案揭晓",
+          "description": "如果 target 是“巴黎”，那当前分布就错了",
+          "visual": "target = 巴黎\nloss = -log 0.12",
+          "highlight": "0.12"
+        },
+        {
+          "title": "反向传播拆责任",
+          "description": "输出层、注意力层、FFN、Embedding 都会收到“你贡献了多少错误”",
+          "visual": "loss\n ↓\noutput proj\n ↓\ntransformer blocks\n ↓\nembedding",
+          "highlight": "↓"
+        },
+        {
+          "title": "优化器决定步长",
+          "description": "不是所有参数都一样大步走，Adam 会按历史梯度自适应调节",
+          "visual": "θ = θ - lr · update(grad, m, v)",
+          "highlight": "update(grad, m, v)"
+        },
+        {
+          "title": "再来一轮",
+          "description": "几十万次之后，模型慢慢学会把“巴黎”的概率推高",
+          "visual": "step 1: P(巴黎)=0.12\nstep 10k: P(巴黎)=0.41\nstep 100k: P(巴黎)=0.83",
+          "highlight": "0.83"
+        }
+      ]
     },
     {
       "type": "heading",
@@ -96,5 +142,14 @@
     }
   ],
   "bridgeTo": "到这里，模型已经能通过损失和优化在海量文本上慢慢学会语言。\n\n但预训练出来的模型仍然只是一个“会续写的基础模型”。它不一定服从指令，不一定安全，也不一定真的像助手。\n\n怎么把它从“通用语言模型”变成“可控系统”，就是微调与对齐。",
-  "pitfalls": []
+  "pitfalls": [
+    {
+      "point": "把损失下降直接等同于所有任务能力同步提升",
+      "rootCause": "没分清训练目标优化的是总体分布，而不是每个下游任务的显式指标"
+    },
+    {
+      "point": "把优化器当成数学细节",
+      "rootCause": "忽视了训练能不能稳、能不能快、能不能收敛，很大程度上取决于优化过程本身"
+    }
+  ]
 }
