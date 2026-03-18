@@ -29,10 +29,6 @@ export default function TimelinePage({ params }: { params: { locale: Locale } })
               </div>
             );
           })}
-          <div className="flex items-center gap-2 text-xs text-[color:var(--color-muted)]">
-            <span>🧪 {labels.sections.feynman}</span>
-            <span>⚠️ {labels.sections.weaknesses}</span>
-          </div>
         </div>
       </section>
 

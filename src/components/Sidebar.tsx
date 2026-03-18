@@ -13,32 +13,31 @@ interface SidebarProps {
 export default function Sidebar({ categories, modules, locale }: SidebarProps) {
   return (
     <aside className="sticky top-20 hidden h-[calc(100vh-5rem)] w-56 flex-shrink-0 overflow-y-auto pr-2 lg:block">
-      <div className="space-y-6">
+      <div className="space-y-5">
         {categories.map((category) => {
           const grouped = modules.filter((module) => module.category === category.id);
           const styles = categoryStyles[category.color];
           return (
-            <div key={category.id} className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-muted)]">
+            <div key={category.id}>
+              <div className="flex items-center gap-1.5 pb-1.5">
                 <span className={`h-2 w-2 rounded-full ${styles.dot}`} />
-                {category.name}
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--color-muted)]">
+                  {category.name}
+                </span>
               </div>
-              <div className="space-y-1">
+              <ul className="space-y-0.5">
                 {grouped.map((module) => (
-                  <Link
-                    key={module.id}
-                    href={`/${locale}/${getModuleSlug(module.id)}/`}
-                    className={`flex items-center justify-between rounded-lg border border-transparent px-2 py-1.5 text-sm transition hover:border-[color:var(--color-border)] hover:bg-[color:var(--color-panel)] ${
-                      module.current ? 'font-semibold text-[color:var(--color-text)]' : 'text-[color:var(--color-muted)]'
-                    }`}
-                  >
-                    <span className="truncate">{module.title}</span>
-                    {module.current ? (
-                      <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
-                    ) : null}
-                  </Link>
+                  <li key={module.id}>
+                    <Link
+                      href={`/${locale}/${getModuleSlug(module.id)}/`}
+                      className="block rounded-md px-2.5 py-1.5 text-sm text-[color:var(--color-muted)] transition-colors hover:bg-zinc-100 hover:text-[color:var(--color-text)] dark:hover:bg-zinc-800/50"
+                    >
+                      <span className="font-mono text-xs">{getModuleSlug(module.id)}</span>
+                      <span className="ml-1.5">{module.title}</span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           );
         })}

@@ -6,11 +6,31 @@
     "startDate": "2026-03-10"
   },
   "categories": [
-    { "id": "foundations", "name": "基础概念", "color": "blue" },
-    { "id": "architecture", "name": "架构原理", "color": "emerald" },
-    { "id": "training", "name": "训练机制", "color": "purple" },
-    { "id": "application", "name": "应用实践", "color": "amber" },
-    { "id": "frontier", "name": "前沿探索", "color": "red" }
+    {
+      "id": "foundations",
+      "name": "基础概念",
+      "color": "blue"
+    },
+    {
+      "id": "architecture",
+      "name": "架构原理",
+      "color": "emerald"
+    },
+    {
+      "id": "training",
+      "name": "训练机制",
+      "color": "purple"
+    },
+    {
+      "id": "application",
+      "name": "应用实践",
+      "color": "amber"
+    },
+    {
+      "id": "frontier",
+      "name": "前沿探索",
+      "color": "red"
+    }
   ],
   "modules": [
     {
@@ -23,14 +43,30 @@
         "learned": 4,
         "total": 4,
         "items": [
-          { "name": "字符级 vs 词级分词", "status": "mastered" },
-          { "name": "BPE 算法", "status": "mastered" },
-          { "name": "WordPiece 与 SentencePiece", "status": "mastered" },
-          { "name": "特殊 token（CLS/SEP/PAD）", "status": "mastered" }
+          {
+            "name": "字符级 vs 词级分词",
+            "status": "mastered"
+          },
+          {
+            "name": "BPE 算法",
+            "status": "mastered"
+          },
+          {
+            "name": "WordPiece 与 SentencePiece",
+            "status": "mastered"
+          },
+          {
+            "name": "特殊 token（CLS/SEP/PAD）",
+            "status": "mastered"
+          }
         ]
       },
       "weaknesses": [],
-      "feynman": { "tested": true, "passed": true, "notes": "能清晰解释 BPE 合并规则和词表大小对下游的影响" },
+      "feynman": {
+        "tested": true,
+        "passed": true,
+        "notes": "能清晰解释 BPE 合并规则和词表大小对下游的影响"
+      },
       "quote": "语言模型的世界从分词器开始",
       "keyInsight": "BPE 在频率和粒度之间找到平衡——高频词完整保留，低频词拆成子词片段",
       "logicChain": [
@@ -40,8 +76,12 @@
         "词表大小控制粒度：太小→序列太长，太大→稀疏覆盖",
         "最终每个 token 对应一个整数 ID"
       ],
-      "examples": ["'unhappiness' → ['un', 'happiness'] 或 ['un', 'happ', 'iness']，取决于词表"],
-      "counterexamples": ["字符级分词保留所有信息但序列过长，注意力复杂度 O(n²) 爆炸"]
+      "examples": [
+        "'unhappiness' → ['un', 'happiness'] 或 ['un', 'happ', 'iness']，取决于词表"
+      ],
+      "counterexamples": [
+        "字符级分词保留所有信息但序列过长，注意力复杂度 O(n²) 爆炸"
+      ]
     },
     {
       "id": 2,
@@ -53,15 +93,34 @@
         "learned": 5,
         "total": 5,
         "items": [
-          { "name": "Embedding 矩阵查表", "status": "mastered" },
-          { "name": "向量空间语义相似度", "status": "mastered" },
-          { "name": "正弦位置编码", "status": "mastered" },
-          { "name": "可学习位置编码", "status": "mastered" },
-          { "name": "RoPE 旋转位置编码", "status": "mastered" }
+          {
+            "name": "Embedding 矩阵查表",
+            "status": "mastered"
+          },
+          {
+            "name": "向量空间语义相似度",
+            "status": "mastered"
+          },
+          {
+            "name": "正弦位置编码",
+            "status": "mastered"
+          },
+          {
+            "name": "可学习位置编码",
+            "status": "mastered"
+          },
+          {
+            "name": "RoPE 旋转位置编码",
+            "status": "mastered"
+          }
         ]
       },
       "weaknesses": [],
-      "feynman": { "tested": true, "passed": true, "notes": "能解释为什么需要位置编码以及三种方案的取舍" },
+      "feynman": {
+        "tested": true,
+        "passed": true,
+        "notes": "能解释为什么需要位置编码以及三种方案的取舍"
+      },
       "quote": "相似的含义在向量空间中靠得更近",
       "keyInsight": "Token ID 经过 embedding 矩阵映射到高维向量；位置编码赋予模型序列顺序感知",
       "logicChain": [
@@ -71,8 +130,12 @@
         "Transformer 是排列不变的，需要额外注入位置信息",
         "位置编码（正弦/可学习/RoPE）叠加到 embedding 上"
       ],
-      "examples": ["king - man + woman ≈ queen 展示了 embedding 空间的线性结构"],
-      "counterexamples": ["One-hot 编码维度等于词表大小，无法表达语义相似度"]
+      "examples": [
+        "king - man + woman ≈ queen 展示了 embedding 空间的线性结构"
+      ],
+      "counterexamples": [
+        "One-hot 编码维度等于词表大小，无法表达语义相似度"
+      ]
     },
     {
       "id": 3,
@@ -84,18 +147,45 @@
         "learned": 6,
         "total": 6,
         "items": [
-          { "name": "Query-Key-Value 三元组", "status": "mastered" },
-          { "name": "Scaled Dot-Product Attention", "status": "mastered" },
-          { "name": "Softmax 归一化", "status": "mastered" },
-          { "name": "多头注意力", "status": "weak", "note": "concat 后投影矩阵的作用还不够清晰" },
-          { "name": "因果遮罩（Causal Mask）", "status": "mastered" },
-          { "name": "注意力复杂度分析", "status": "mastered" }
+          {
+            "name": "Query-Key-Value 三元组",
+            "status": "mastered"
+          },
+          {
+            "name": "Scaled Dot-Product Attention",
+            "status": "mastered"
+          },
+          {
+            "name": "Softmax 归一化",
+            "status": "mastered"
+          },
+          {
+            "name": "多头注意力",
+            "status": "weak",
+            "note": "concat 后投影矩阵的作用还不够清晰"
+          },
+          {
+            "name": "因果遮罩（Causal Mask）",
+            "status": "mastered"
+          },
+          {
+            "name": "注意力复杂度分析",
+            "status": "mastered"
+          }
         ]
       },
       "weaknesses": [
-        { "point": "多头注意力 concat 后投影矩阵的作用说不清楚", "rootCause": "抽象层级错误", "status": "active" }
+        {
+          "point": "多头注意力 concat 后投影矩阵的作用说不清楚",
+          "rootCause": "抽象层级错误",
+          "status": "active"
+        }
       ],
-      "feynman": { "tested": true, "passed": false, "notes": "基本机制解释清楚，但多头合并后的线性投影解释卡壳" },
+      "feynman": {
+        "tested": true,
+        "passed": false,
+        "notes": "基本机制解释清楚，但多头合并后的线性投影解释卡壳"
+      },
       "quote": "注意力的本质是 Query 和 Key 的相似度驱动 Value 的加权聚合",
       "keyInsight": "多头注意力让模型在不同子空间同时捕捉不同类型的关系模式",
       "logicChain": [
@@ -106,8 +196,12 @@
         "多头：在 h 个子空间并行执行上述过程",
         "Concat 所有头的输出，再做一次线性投影"
       ],
-      "examples": ["'The cat sat on the mat because it was tired' — 'it' 对 'cat' 的注意力权重最高"],
-      "counterexamples": ["RNN 的隐藏状态是序列压缩的瓶颈，注意力机制绕过了这个限制"]
+      "examples": [
+        "'The cat sat on the mat because it was tired' — 'it' 对 'cat' 的注意力权重最高"
+      ],
+      "counterexamples": [
+        "RNN 的隐藏状态是序列压缩的瓶颈，注意力机制绕过了这个限制"
+      ]
     },
     {
       "id": 4,
@@ -120,20 +214,51 @@
         "learned": 3,
         "total": 7,
         "items": [
-          { "name": "编码器-解码器架构", "status": "mastered" },
-          { "name": "残差连接", "status": "mastered" },
-          { "name": "层归一化", "status": "mastered" },
-          { "name": "FFN 前馈网络", "status": "learning" },
-          { "name": "Pre-Norm vs Post-Norm", "status": "not-started" },
-          { "name": "交叉注意力", "status": "not-started" },
-          { "name": "Decoder-only 架构", "status": "not-started" }
+          {
+            "name": "编码器-解码器架构",
+            "status": "mastered"
+          },
+          {
+            "name": "残差连接",
+            "status": "mastered"
+          },
+          {
+            "name": "层归一化",
+            "status": "mastered"
+          },
+          {
+            "name": "FFN 前馈网络",
+            "status": "learning"
+          },
+          {
+            "name": "Pre-Norm vs Post-Norm",
+            "status": "not-started"
+          },
+          {
+            "name": "交叉注意力",
+            "status": "not-started"
+          },
+          {
+            "name": "Decoder-only 架构",
+            "status": "not-started"
+          }
         ]
       },
       "weaknesses": [
-        { "point": "交叉注意力与自注意力的信息流方向混淆", "rootCause": "概念关系未建立", "status": "active" },
-        { "point": "Pre-Norm vs Post-Norm 的训练稳定性差异", "rootCause": "前知识不足", "status": "active" }
+        {
+          "point": "交叉注意力与自注意力的信息流方向混淆",
+          "rootCause": "概念关系未建立",
+          "status": "active"
+        },
+        {
+          "point": "Pre-Norm vs Post-Norm 的训练稳定性差异",
+          "rootCause": "前知识不足",
+          "status": "active"
+        }
       ],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "残差连接和层归一化是深层网络的生命线",
       "keyInsight": null,
       "logicChain": [
@@ -152,9 +277,15 @@
       "subtitle": "自监督学习的巧妙设计",
       "category": "training",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 5, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 5,
+        "items": []
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "预测下一个 token——简单目标蕴含深刻的语言结构",
       "keyInsight": null,
       "logicChain": [],
@@ -167,9 +298,15 @@
       "subtitle": "梯度如何塑造语言能力",
       "category": "training",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 6, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 6,
+        "items": []
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "交叉熵度量预测分布与真实分布之间的信息差距",
       "keyInsight": null,
       "logicChain": [],
@@ -182,9 +319,15 @@
       "subtitle": "从通用到可控",
       "category": "application",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 8, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 8,
+        "items": []
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "RLHF 让模型学会在人类偏好的空间中导航",
       "keyInsight": null,
       "logicChain": [],
@@ -197,9 +340,15 @@
       "subtitle": "用自然语言编程",
       "category": "application",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 5, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 5,
+        "items": []
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "好的 prompt 是给模型搭建正确的思维脚手架",
       "keyInsight": null,
       "logicChain": [],
@@ -212,14 +361,107 @@
       "subtitle": "规模的力量与极限",
       "category": "frontier",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 4, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 4,
+        "items": [
+          {
+            "name": "幂律关系（Power Law）",
+            "status": "not-started"
+          },
+          {
+            "name": "Kaplan Scaling Laws",
+            "status": "not-started"
+          },
+          {
+            "name": "Chinchilla 最优比",
+            "status": "not-started"
+          },
+          {
+            "name": "训练算力估算",
+            "status": "not-started"
+          }
+        ]
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "参数、数据、算力——三者遵循优雅的幂律关系",
-      "keyInsight": null,
-      "logicChain": [],
-      "examples": [],
-      "counterexamples": []
+      "keyInsight": "损失和参数量/数据量之间存在幂律关系，Chinchilla 法则指出最优策略是参数和数据同步增长（D ≈ 20N）",
+      "logicChain": [
+        "更大的模型通常表现更好，但到底好多少？",
+        "Kaplan et al. 发现损失与参数量、数据量、算力之间存在幂律关系",
+        "幂律意味着：在训练之前就能预测模型性能",
+        "Chinchilla 证明早期模型普遍欠训练——参数多但数据不够",
+        "最优策略：给定算力预算，参数和数据同步增长 D ≈ 20N",
+        "但幂律也意味着回报递减——每 10× 参数只降低 ~0.2 损失"
+      ],
+      "examples": [
+        "GPT-3 有 175B 参数但只用了 300B tokens——按 Chinchilla 标准严重欠训练",
+        "Chinchilla 70B 用 1.4T tokens 训练，性能超过 3 倍参数的 Gopher 280B"
+      ],
+      "counterexamples": [
+        "并非所有能力都随规模平滑提升——某些推理能力呈阶梯式涌现",
+        "LLaMA 证明可以用远多于 Chinchilla 推荐的数据量来训练较小的模型，获得更好的推理性价比"
+      ],
+      "opening": "OpenAI 发现了一个惊人的规律：模型的损失和参数量、数据量、算力之间存在精确的幂律关系。\n\n这意味着——在训练之前，你就能预测模型会有多好。在花掉几千万美元的算力之前，你能在纸上算出结果。\n\n但这也意味着一个冷酷的事实：回报在递减。从 GPT-2 到 GPT-3，参数量翻了 100 倍，但损失只降了约 30%。",
+      "narrative": [
+        {
+          "type": "heading",
+          "content": "更大一定更好吗？"
+        },
+        {
+          "type": "text",
+          "content": "直觉上，更大的模型应该更强。参数更多，能记住更多模式，能学习更复杂的函数。\n\n但“更大”有两个维度：参数量（模型有多大）和数据量（看了多少文本）。以及一个约束：算力（你能负担多少计算）。\n\n这三者之间有什么关系？Kaplan et al. (2020) 在 OpenAI 的一篇论文中给出了惊人的精确答案。"
+        },
+        {
+          "type": "heading",
+          "content": "幂律：精确得令人不安的规律"
+        },
+        {
+          "type": "text",
+          "content": "在双对数坐标上画出“参数量 vs 损失”的关系，你会看到一条近乎完美的直线。这意味着它们之间是幂律关系：\n\nL(N) ≈ A · N^(-α) + L_irr\n\n其中 N 是参数量，α ≈ 0.076（Kaplan 的估计），L_irr 是不可约损失（即使参数无穷多也消除不了的噪声）。\n\n同样的幂律关系也存在于数据量和算力上。三条幂律曲线，三种资源，一个统一的框架。"
+        },
+        {
+          "type": "code",
+          "content": "L(N) = (5.3 / N^0.076) + 0.6    参数量幂律\nL(D) = (4.5 / D^0.095) + 0.6    数据量幂律\nL(C) = (5.0 / C^0.050) + 0.6    算力幂律\n\n注意指数都很小（0.05-0.1）\n→ 10× 资源只降低 ~15-20% 损失\n→ 回报在递减，但永不为零"
+        },
+        {
+          "type": "callout",
+          "content": "幂律的精确性让人能在训练之前预测结果——这是 LLM 工程化的基石。"
+        },
+        {
+          "type": "heading",
+          "content": "Chinchilla：你们的模型都训练不够"
+        },
+        {
+          "type": "text",
+          "content": "2022 年 DeepMind 发表了 Chinchilla 论文，核心发现令整个行业震动：当时几乎所有大模型都在浪费算力。\n\nGPT-3 有 175B 参数，但只用了 300B tokens 训练。按 Chinchilla 的最优比 D ≈ 20N，175B 参数的模型应该用 3.5T tokens 训练——数据量差了 10 倍以上。\n\nChinchilla 用 70B 参数 + 1.4T tokens，总算力和 Gopher（280B 参数）差不多，但性能全面超越。更少的参数 + 更多的数据 = 更好的模型 + 更快的推理。\n\n这个发现直接改变了行业路线：LLaMA、Mistral 等后续模型都大幅增加了训练数据量。"
+        },
+        {
+          "type": "comparison",
+          "content": "Gopher 280B：用 300B tokens 训练 → 参数过多，数据不足\nChinchilla 70B：用 1.4T tokens 训练 → 参数数据平衡，性能更好",
+          "label": "同等算力，不同分配"
+        },
+        {
+          "type": "heading",
+          "content": "算力预算：怎么规划训练"
+        },
+        {
+          "type": "text",
+          "content": "Scaling Laws 最实际的应用是训练规划。给定你的 GPU 预算，你能算出：\n\n1. 总算力 C = GPU数 × 峰值FLOPS × 训练时间 × MFU\n2. 最优参数量 N_opt = √(C / 120)（Chinchilla 推导）\n3. 最优数据量 D_opt = 20 × N_opt\n\n比如你有 1024 块 H100，训练 30 天，MFU 40%——总算力约 10²² FLOPs。按 Chinchilla 最优比，应该训练约 29B 参数的模型，用约 580B tokens。\n\n当然，实际工程中还有很多其他因素（数据质量、混合精度、并行策略），但 Scaling Laws 给出了一个极其有用的起点。"
+        },
+        {
+          "type": "heading",
+          "content": "幂律的极限"
+        },
+        {
+          "type": "text",
+          "content": "幂律曲线永远在下降，但下降得越来越慢。从 1B 到 10B 参数，损失降了约 0.3。从 100B 到 1000B，损失只降了约 0.15。\n\n这意味着纯靠 scale 提升性能的路径终究会遇到天花板——不是物理极限，而是经济极限。训练成本指数增长，性能提升却在减速。\n\n这就是为什么除了 scale，研究界同时在探索更好的数据质量、更高效的架构、更聪明的训练策略。Scale is not all you need——但它确实是目前最可预测的提升手段。"
+        }
+      ],
+      "bridgeTo": "Scaling Laws 告诉我们损失在平滑下降。但模型的能力并不总是平滑提升。\n\n一个 10B 的模型完全无法做三位数加法。100B 还是不行。但到 1000B——突然就会了。准确率不是从 50% 涨到 60%，而是从接近 0% 直接跳到 90%+。\n\n这种“突然学会”的现象叫涌现。它挑战了 Scaling Laws 的平滑假设。"
     },
     {
       "id": 10,
@@ -227,14 +469,95 @@
       "subtitle": "量变何时引发质变",
       "category": "frontier",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 4, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 4,
+        "items": [
+          {
+            "name": "涌现能力（Emergent Abilities）",
+            "status": "not-started"
+          },
+          {
+            "name": "阶梯式跳变 vs 平滑增长",
+            "status": "not-started"
+          },
+          {
+            "name": "Chain-of-Thought 推理",
+            "status": "not-started"
+          },
+          {
+            "name": "推理能力的来源",
+            "status": "not-started"
+          }
+        ]
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "规模足够大时，模型展现出未被显式训练的能力",
-      "keyInsight": null,
-      "logicChain": [],
-      "examples": [],
-      "counterexamples": []
+      "keyInsight": "某些能力（加法、推理）在小模型中完全不存在，但在模型超过某个规模后突然出现——这种阶梯式跳变叫涌现",
+      "logicChain": [
+        "损失随规模平滑下降（Scaling Laws），但任务准确率不一定",
+        "某些任务呈平滑增长：信息检索、翻译",
+        "某些任务呈阶梯跳变：三位数加法、多步推理",
+        "涌现的可能解释：任务需要多个能力同时达标才能完成",
+        "Chain-of-Thought 让模型外化推理过程，大幅提升推理准确率",
+        "CoT 本质上是把单步复杂推理拆成多步简单推理"
+      ],
+      "examples": [
+        "PaLM 540B 在三位数加法上从接近 0% 跳到 90%+",
+        "加 'Let’s think step by step' 后，数学推理准确率从 18% 跳到 79%"
+      ],
+      "counterexamples": [
+        "有研究者认为涌现可能是度量方式的假象——用连续度量而非准确率可能看到平滑增长",
+        "在小模型上使用 CoT 有时反而降低性能——推理链本身引入了更多出错机会"
+      ],
+      "opening": "一个 10 亿参数的模型完全无法做三位数加法。一个 100 亿的还是不行。但到 1000 亿——突然就会了。\n\n准确率不是从 50% 涨到 60% 涨到 70%，而是从接近 0% 直接跳到 90%+。\n\n这就是“涌现”。没有人训练模型做加法。没有人在训练数据里标注过“这是一道算术题”。能力就这样突然出现了。",
+      "narrative": [
+        {
+          "type": "heading",
+          "content": "两种增长模式"
+        },
+        {
+          "type": "text",
+          "content": "模型变大，能力提升。但提升的方式有两种截然不同的模式。\n\n第一种是平滑增长：信息检索、翻译、文本摘要——这些任务的准确率随参数量线性或亚线性提升。1B 模型做得一般，10B 做得好一些，100B 做得更好。曲线平滑，没有惊喜。\n\n第二种是阶梯跳变：三位数加法、多步逻辑推理、代码生成——在某个临界规模之前完全不行，越过临界点后突然“解锁”。就像水到 100°C 突然沸腾，中间没有渐变。"
+        },
+        {
+          "type": "callout",
+          "content": "涌现能力 = 在小模型中不存在、在大模型中突然出现的能力。"
+        },
+        {
+          "type": "heading",
+          "content": "为什么会涌现？"
+        },
+        {
+          "type": "text",
+          "content": "涌现的机制至今没有定论，但有几种合理的假说：\n\n1. 组合门槛假说：某些任务需要多种子能力同时达标。比如做三位数加法需要：理解数字、理解位值、执行进位。每种子能力可能都在平滑增长，但只有当所有子能力都越过及格线时，任务准确率才会从零跳到高位。就像开锁需要每个密码位都对——“差一点”和“完全不对”在结果上没有区别。\n\n2. 度量假象假说：Schaeffer et al. (2023) 提出涌现可能是选择了非线性度量（如准确率）导致的假象。如果换用对数概率等连续度量，增长可能是平滑的。模型的内部表示一直在改善，只是准确率这个度量在某个点发生了相变。\n\n3. 相变假说：类似物理中的相变（水→冰），模型内部的知识表示在达到某个复杂度后发生了质变——从“碎片化的模式”突然重组成“连贯的能力”。"
+        },
+        {
+          "type": "heading",
+          "content": "Chain-of-Thought：外化推理过程"
+        },
+        {
+          "type": "text",
+          "content": "2022 年 Google 发现了一个简单到离谱的技巧：在 prompt 里加一句“Let’s think step by step”，模型在数学推理上的准确率从 18% 跳到 79%。\n\n这就是 Chain-of-Thought (CoT) prompting。原理在 s08 讲过——模型是自回归生成的，每个 token 只取决于前面的 token。直接回答时，所有推理必须在一次前向传播中完成。CoT 让模型先写出中间步骤，每一步都成为后续推理的“外部记忆”。\n\n关键洞察：CoT 不是教模型新知识，而是改变了信息处理的流程。相同的模型参数，不同的推理路径，得到完全不同的结果。"
+        },
+        {
+          "type": "comparison",
+          "content": "直接回答：一次前向传播完成全部推理 → 复杂推理容易出错\nCoT 推理：每步写出来，成为后续步骤的输入 → 拆解复杂度",
+          "label": "推理模式对比"
+        },
+        {
+          "type": "heading",
+          "content": "涌现的启示"
+        },
+        {
+          "type": "text",
+          "content": "涌现现象有深远的实践意义：\n\n1. 不能用小模型预测大模型的能力。在 10B 参数上测试一个任务发现不行，不意味着 100B 上也不行——可能恰好在 50B 的临界点之后。\n\n2. 评估大模型需要更全面的基准。标准 benchmark 可能遗漏涌现能力，因为它们通常只在特定规模才出现。\n\n3. CoT 等推理技巧只在大模型上有效。小模型（<10B）使用 CoT 有时反而降低性能，因为推理链本身引入了更多出错机会。\n\n涌现是 LLM 最令人兴奋（也最令人不安）的特性之一——它意味着我们还不完全理解更大的模型会带来什么。"
+        }
+      ],
+      "bridgeTo": "涌现告诉我们，模型足够大就能解锁新能力。但能力还受另一个关键因素限制：模型一次能“看到”多少信息。\n\n一个推理问题可能需要同时考虑文章的开头和结尾。一个代码 bug 可能跨越几百行。如果上下文窗口太小，模型就像一个只能看到面前两行的读者——有推理能力也使不出来。\n\n上下文窗口的长度是怎么决定的？为什么加长它这么难？"
     },
     {
       "id": 11,
@@ -242,14 +565,103 @@
       "subtitle": "长度与记忆的权衡",
       "category": "frontier",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 3, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 3,
+        "items": [
+          {
+            "name": "上下文窗口与注意力 O(n²)",
+            "status": "not-started"
+          },
+          {
+            "name": "KV Cache 与显存瓶颈",
+            "status": "not-started"
+          },
+          {
+            "name": "长上下文解决方案",
+            "status": "not-started"
+          }
+        ]
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "窗口越大，推理越远，但也带来更高成本",
-      "keyInsight": null,
-      "logicChain": [],
-      "examples": [],
-      "counterexamples": []
+      "keyInsight": "注意力机制的计算量和序列长度的平方成正比，这是上下文窗口的根本瓶颈；KV Cache 是推理时的主要显存消耗",
+      "logicChain": [
+        "注意力矩阵大小 = n × n，计算量 O(n²)",
+        "序列长度翻倍 → 计算量翻四倍、显存需求翻倍",
+        "KV Cache 随序列长度线性增长，是推理时的显存瓶颈",
+        "解决方案：稀疏注意力、滑动窗口、FlashAttention",
+        "RoPE 支持位置外推，帮助模型泛化到更长序列",
+        "长上下文带来新能力，但也带来更高成本和新的挑战（如“迷失在中间”）"
+      ],
+      "examples": [
+        "GPT-4 128K 的注意力矩阵有 160 亿个元素，每层每头都要计算一遍",
+        "Gemini 1.5 用混合架构（稀疏+密集注意力）实现了 1M token 上下文"
+      ],
+      "counterexamples": [
+        "更长的上下文不一定意味着更好的利用——模型在超长文本中容易“忽略”中间部分（Lost in the Middle 现象）",
+        "对于短任务，使用超长上下文模型是纯粹的浪费——计算成本增加但质量不变"
+      ],
+      "opening": "GPT-4 的上下文窗口是 128K token——大约 10 万字，一本小说的长度。听起来很大？\n\n但注意力机制的计算量和长度的平方成正比。128K 的注意力矩阵有 160 亿个元素。每一层、每一个头都要算一遍。\n\n为什么模型不能一次读完一本书？不是不想——是算不起。",
+      "narrative": [
+        {
+          "type": "heading",
+          "content": "O(n²) 的代价"
+        },
+        {
+          "type": "text",
+          "content": "在 s03 讲注意力机制时提到过：每个 token 需要和所有其他 token 计算注意力分数，产生一个 n × n 的矩阵。\n\n序列长度 4K → 矩阵大小 1600 万。序列长度 128K → 矩阵大小 160 亿。长度翻了 32 倍，矩阵大小翻了 1024 倍。\n\n这就是 O(n²) 的含义：计算量和显存需求随序列长度平方增长。这个二次关系是上下文窗口的根本瓶颈。"
+        },
+        {
+          "type": "code",
+          "content": "序列长度    注意力矩阵大小    相对 4K 基准\n4K          16M              1×\n16K         256M             16×\n128K        16B              1,024×\n1M          1T               65,536×"
+        },
+        {
+          "type": "heading",
+          "content": "KV Cache：推理时的隐形杀手"
+        },
+        {
+          "type": "text",
+          "content": "训练时，整个序列一次处理，注意力矩阵虽大但只需要一轮计算。推理时问题更严重——自回归生成意味着每生成一个 token 就要重新计算注意力。\n\nKV Cache 是优化手段：缓存已经计算过的 Key 和 Value 向量，生成新 token 时只需计算新 token 的 Q 和已缓存的 KV。这把推理时的计算从 O(n²) 优化到 O(n)——但代价是缓存本身占大量显存。\n\n一个 70B 模型在 128K 上下文时，KV Cache 需要约 40GB 显存。这比模型参数本身还大。"
+        },
+        {
+          "type": "callout",
+          "content": "长上下文的瓶颈不是智力，是物理——显存和计算的硬约束。"
+        },
+        {
+          "type": "heading",
+          "content": "解决方案"
+        },
+        {
+          "type": "text",
+          "content": "研究界提出了多种打破 O(n²) 瓶颈的方案：\n\n稀疏注意力：不让每个 token 看所有其他 token，只看一部分（固定模式、随机采样、或学习到的模式）。从 O(n²) 降到 O(n·√n) 甚至 O(n·log n)。\n\n滑动窗口注意力：每个 token 只看前后 k 个 token（局部注意力），加上少量全局 token。Mistral 和 Longformer 用了这种方案。\n\nFlashAttention：不改变数学计算，但通过优化 GPU 内存访问模式（减少 HBM 读写），在不增加显存的情况下大幅加速注意力计算。\n\nRoPE 外推：RoPE 位置编码天然支持任意长度，但模型在超出训练长度时性能下降。通过调整 RoPE 基频或做少量微调，可以让 4K 训练的模型在 128K 上下文中工作。"
+        },
+        {
+          "type": "comparison",
+          "content": "标准注意力：每个 token 看所有 token，O(n²) 计算，精确但昂贵\n稀疏/滑动窗口：每个 token 只看部分 token，O(n·k) 计算，近似但高效",
+          "label": "注意力策略"
+        },
+        {
+          "type": "heading",
+          "content": "“迷失在中间”"
+        },
+        {
+          "type": "text",
+          "content": "有了长上下文就万事大吉了吗？不是。Liu et al. (2023) 发现一个有趣的现象：当信息放在超长文本的中间位置时，模型很容易“忽略”它。模型对开头和结尾的信息更敏感，中间的信息容易“迷失”。\n\n这意味着更长的上下文不等于更好的利用。模型的注意力分布不是均匀的——它有自己的“偏见”。这也是当前长上下文研究的活跃方向之一。"
+        },
+        {
+          "type": "heading",
+          "content": "上下文长度的未来"
+        },
+        {
+          "type": "text",
+          "content": "从 GPT-3 的 2K 到 GPT-4 的 128K 到 Gemini 的 1M，上下文窗口在两年内增长了 500 倍。这个增长趋势还在继续。\n\n更长的上下文意味着什么？模型可以一次读完整本代码库、整个对话历史、一本完整的书。这不只是“更多信息”——它质变了模型能做的事情。RAG（检索增强生成）可能不再必要，因为整本文档都能放进上下文。\n\n但成本也在增长。1M token 的推理成本是 4K 的几千倍。长上下文的“性价比”是一个持续的工程挑战。"
+        }
+      ],
+      "bridgeTo": "你现在知道了 LLM 的每一个零件：分词、嵌入、注意力、Transformer、预训练、优化、微调、Prompt、Scaling Laws、涌现、上下文。\n\n但零件和机器是两回事。让我们把所有东西串起来——追踪一个 prompt 从输入到输出的完整旅程。这是最后一步：从理解零件到理解整个系统。"
     },
     {
       "id": 12,
@@ -257,14 +669,81 @@
       "subtitle": "将模型变成自己的知识",
       "category": "frontier",
       "phase": "not-started",
-      "concepts": { "learned": 0, "total": 3, "items": [] },
+      "concepts": {
+        "learned": 0,
+        "total": 3,
+        "items": [
+          {
+            "name": "完整推理流水线",
+            "status": "not-started"
+          },
+          {
+            "name": "模块间依赖关系",
+            "status": "not-started"
+          },
+          {
+            "name": "从零件到系统的整合",
+            "status": "not-started"
+          }
+        ]
+      },
       "weaknesses": [],
-      "feynman": { "tested": false },
+      "feynman": {
+        "tested": false
+      },
       "quote": "最后一课是把知识组织成自己的语言",
-      "keyInsight": null,
-      "logicChain": [],
-      "examples": [],
-      "counterexamples": []
+      "keyInsight": "理解每个零件只是开始——真正的理解是能追踪一个 prompt 从输入到输出经历的每一步变换，并知道每步为什么这样做",
+      "logicChain": [
+        "文本输入 → 分词器将文本切分为 token（s01）",
+        "Token ID → Embedding 矩阵查表得到语义向量 + 位置编码（s02）",
+        "向量 → 注意力机制让 token 互相“看见”（s03）",
+        "注意力输出 → Transformer Block 的残差/归一化/FFN 处理（s04）",
+        "N 层堆叠后 → 输出投影到词表大小 → Softmax 得到概率分布（s05/s06）",
+        "采样一个 token → 加入序列 → 重复（s08 Prompt 引导整个过程）",
+        "模型的能力来自预训练（s05）+ 优化（s06）+ 对齐（s07），受规模（s09）、涌现（s10）、上下文（s11）影响"
+      ],
+      "examples": [
+        "输入 ‘天空是’ → [22825, 31712, 1621] → 嵌入 → 96 层 Transformer → 概率分布 → 采样 ‘蓝’ → 继续生成 ‘色的’"
+      ],
+      "counterexamples": [
+        "知道每个零件不等于理解系统——就像知道发动机、变速箱、轮胎的原理，不等于知道怎么开车"
+      ],
+      "opening": "你现在知道了 LLM 的每一个零件。但零件和机器是两回事。\n\n让我们把所有东西串起来——追踪一个 prompt 从输入到输出的完整旅程。如果你能在脑中走完这个旅程，不卡壳，不犹豫——那你就真正理解了大语言模型。",
+      "narrative": [
+        {
+          "type": "heading",
+          "content": "一个 prompt 的完整旅程"
+        },
+        {
+          "type": "text",
+          "content": "用户输入“天空是什么颜色？”。让我们追踪这段文字经历的每一步变换。\n\n第一站是分词器（s01）。BPE 算法将这段文字切分成 token：“天空”、“是”、“什么”、“颜色”、“？”。每个 token 对应一个整数 ID。文字消失了，剩下的是一串数字。\n\n第二站是 Embedding（s02）。每个 ID 从 Embedding 矩阵中查表取出一个 768 维（或更高）的向量。同时，RoPE 位置编码赋予每个向量“我在第几个位置”的信息。现在每个 token 有了语义和位置。\n\n第三站是注意力（s03）。通过 Q·K^T/√d → Softmax → ×V，每个 token “看到”了其他 token。“什么”看到了“天空”和“颜色”，开始理解这是一个关于天空颜色的问题。因果遮罩确保每个 token 只能看到前面的 token。\n\n第四站是 Transformer Block（s04）。注意力输出经过残差连接和层归一化保持稳定，再经过 FFN 做非线性变换。这样的 Block 重复 N 次（GPT-3 是 96 次）。每一层都在提炼更抽象的特征。"
+        },
+        {
+          "type": "heading",
+          "content": "从概率到文字"
+        },
+        {
+          "type": "text",
+          "content": "经过 N 层处理后，最后一个位置的输出向量被投影到词表大小的维度——50000 个数字，代表每个词作为下一个 token 的“原始分数”（logits）。\n\nSoftmax 将 logits 转换为概率分布。“蓝”可能得到 0.72 的概率，“红”0.03，“白”0.08……\n\n然后是采样：根据温度参数和 top-p 策略，从概率分布中选出一个 token。假设选中了“蓝”。\n\n“蓝”被添加到序列末尾，整个过程从头重复——现在输入是“天空是什么颜色？蓝”，生成下一个 token。如此反复，直到生成结束标记或达到长度限制。"
+        },
+        {
+          "type": "heading",
+          "content": "训练：这一切是怎么学会的"
+        },
+        {
+          "type": "text",
+          "content": "模型知道“天空”后面大概率是“蓝”，不是因为有人告诉它。这来自预训练（s05）——在几 TB 的文本上反复做“预测下一个词”。每次预测错误都产生损失，损失通过反向传播（s06）变成梯度，梯度驱动 Adam 优化器更新几十亿个参数。几十万步之后，模型的参数自动编码了语言的结构。\n\n预训练出来的模型只会续写。微调和对齐（s07）让它变成一个有用的助手——会回答问题、拒绝有害请求、遵循指令。\n\n最后，用户通过 Prompt（s08）引导模型：角色、上下文、示例——每个维度都在约束输出空间。"
+        },
+        {
+          "type": "heading",
+          "content": "全局视角"
+        },
+        {
+          "type": "text",
+          "content": "在这条主线之外，还有三个宏观视角：\n\n规模（s09）：参数量、数据量和算力之间遵循幂律关系。给定预算，Chinchilla 法则告诉你最优的资源分配。\n\n涌现（s10）：规模增长不只是“量变”——某些能力在临界点后突然出现。Chain-of-Thought 让模型外化推理过程，解锁了新的能力层级。\n\n上下文（s11）：模型一次能看到多少信息决定了它能处理多复杂的任务。注意力的 O(n²) 是根本瓶颈，各种优化技术在不断突破这个限制。\n\n12 个模块，一个系统。如果你能用自己的话讲清楚每一步——恭喜，你真正理解了大语言模型。"
+        }
+      ],
+      "bridgeTo": null
     }
   ]
 }

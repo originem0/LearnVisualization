@@ -1,7 +1,8 @@
 import type { Category, Module } from '@/lib/types';
 import { categoryStyles } from '@/lib/palette';
+import { getModuleSlug } from '@/lib/data';
+import Link from 'next/link';
 import type { Locale } from '@/lib/i18n';
-import { getLabels } from '@/lib/labels';
 
 interface BarChartProps {
   modules: Module[];
@@ -10,31 +11,43 @@ interface BarChartProps {
 }
 
 export default function BarChart({ modules, categoriesById, locale }: BarChartProps) {
-  const labels = getLabels(locale);
+  // Group modules by category
+  const grouped: Record<string, Module[]> = {};
+  for (const m of modules) {
+    if (!grouped[m.category]) grouped[m.category] = [];
+    grouped[m.category].push(m);
+  }
+
   return (
-    <section className="mt-12">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{labels.sections.progress}</h2>
-        <div className="text-xs text-[color:var(--color-muted)]">{labels.sections.progressHint}</div>
-      </div>
-      <div className="space-y-3">
-        {modules.map((module) => {
-          const category = categoriesById[module.category];
-          const styles = categoryStyles[category.color];
-          const ratio = module.concepts.total ? module.concepts.learned / module.concepts.total : 0;
-          return (
-            <div key={module.id} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-medium text-[color:var(--color-text)]">{module.title}</span>
-                <span className="text-xs text-[color:var(--color-muted)]">{Math.round(ratio * 100)}%</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
-                <div className={`h-2 rounded-full ${styles.bar}`} style={{ width: `${Math.round(ratio * 100)}%` }} />
-              </div>
+    <section className="mt-12 space-y-6">
+      <h2 className="text-lg font-semibold text-[color:var(--color-text)]">
+        {locale === 'zh' ? '模块概览' : 'Module Overview'}
+      </h2>
+      {Object.entries(grouped).map(([catId, mods]) => {
+        const category = categoriesById[catId];
+        if (!category) return null;
+        const styles = categoryStyles[category.color];
+        return (
+          <div key={catId}>
+            <div className="mb-2 flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} />
+              <span className="text-xs font-semibold uppercase tracking-wider text-[color:var(--color-muted)]">{category.name}</span>
             </div>
-          );
-        })}
-      </div>
+            <div className="space-y-1.5">
+              {mods.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/${locale}/${getModuleSlug(m.id)}/`}
+                  className="block rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] px-3 py-2 text-sm transition-colors hover:border-[color:var(--color-muted)]"
+                >
+                  <span className="font-mono text-xs text-[color:var(--color-muted)]">{getModuleSlug(m.id)}</span>
+                  <span className="ml-2 font-medium text-[color:var(--color-text)]">{m.title}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </section>
   );
 }

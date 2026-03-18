@@ -1,4 +1,4 @@
-import type { CategoryColor, Phase } from './types';
+import type { CategoryColor } from './types';
 
 export const categoryStyles: Record<
   CategoryColor,
@@ -50,26 +50,5 @@ export const categoryStyles: Record<
     bar: 'bg-red-500',
     soft: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-200',
     border: 'border-red-200/70 dark:border-red-500/30',
-  },
-};
-
-export const phaseStyles: Record<Phase, { className: string }> = {
-  'not-started': {
-    className: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700/50 dark:text-zinc-200',
-  },
-  startup: {
-    className: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-200',
-  },
-  encoding: {
-    className: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200',
-  },
-  reference: {
-    className: 'bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-200',
-  },
-  retrieval: {
-    className: 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-200',
-  },
-  completed: {
-    className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
   },
 };

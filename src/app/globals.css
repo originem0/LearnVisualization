@@ -51,3 +51,123 @@
   background: var(--color-border);
   border-radius: 999px;
 }
+
+/* =====================================================
+   Prose (lightweight) — improve reading experience
+   ===================================================== */
+
+.prose-custom h2 {
+  margin-top: 2.25rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.prose-custom h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.prose-custom p {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.prose-custom blockquote {
+  margin: 1.25rem 0;
+  border-left: 4px solid #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  color: #1e40af;
+}
+
+.dark .prose-custom blockquote {
+  border-left-color: #60a5fa;
+  background: rgba(96, 165, 250, 0.12);
+  color: #bfdbfe;
+}
+
+.prose-custom pre {
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.prose-custom :not(pre) > code {
+  border-radius: 0.4rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #be185d;
+}
+
+.dark .prose-custom :not(pre) > code {
+  background: #27272a;
+  border-color: #3f3f46;
+  color: #f9a8d4;
+}
+
+.prose-custom ol {
+  margin: 0.75rem 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: step-counter;
+}
+
+.prose-custom ol > li {
+  counter-increment: step-counter;
+  margin: 0.6rem 0;
+  padding-left: 2.5rem;
+  position: relative;
+}
+
+.prose-custom ol > li::before {
+  content: counter(step-counter);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+/* =====================================================
+   Entry animation (CSS only)
+   ===================================================== */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease both;
+}

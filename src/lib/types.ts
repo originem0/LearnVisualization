@@ -13,17 +13,15 @@ export interface Category {
   color: CategoryColor;
 }
 
-export type ConceptStatus = 'mastered' | 'learning' | 'weak' | 'not-started';
-
 export interface ConceptItem {
   name: string;
-  status: ConceptStatus;
+  status?: string;
   note?: string;
 }
 
 export interface ConceptGroup {
-  learned: number;
-  total: number;
+  learned?: number;
+  total?: number;
   items: ConceptItem[];
 }
 
@@ -39,14 +37,26 @@ export interface FeynmanTest {
   notes?: string;
 }
 
-export type Phase = 'not-started' | 'startup' | 'encoding' | 'reference' | 'retrieval' | 'completed';
+export interface StepItem {
+  title: string;
+  description: string;
+  visual: string;
+  highlight: string;
+}
+
+export interface NarrativeBlock {
+  type: 'heading' | 'text' | 'code' | 'diagram' | 'comparison' | 'callout' | 'steps';
+  content: string;
+  label?: string;
+  steps?: StepItem[];
+}
 
 export interface Module {
   id: number;
   title: string;
   subtitle: string;
   category: string;
-  phase: Phase;
+  phase?: string;
   current?: boolean;
   concepts: ConceptGroup;
   weaknesses: WeaknessItem[];
@@ -56,6 +66,9 @@ export interface Module {
   logicChain: string[];
   examples: string[];
   counterexamples: string[];
+  opening?: string;
+  narrative?: NarrativeBlock[];
+  bridgeTo?: string | null;
 }
 
 export interface StateData {
