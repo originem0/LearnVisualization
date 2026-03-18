@@ -54,7 +54,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
         const hasNumberArray = (p: string) => /\[[\d, ]+\]/.test(p);
 
         return (
-          <div className="p-6 sm:p-8">
+          <div className="mx-auto max-w-2xl p-6 sm:p-8">
             {paragraphs.map((p, i) => {
               if (hasNumberArray(p)) {
                 const match = p.match(/["”]([^"”]+)["”].*?(\[[\d, ]+\])/);
@@ -125,13 +125,13 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
           <span className="font-mono text-xs text-[color:var(--color-muted)]">{getModuleSlug(module.id)}</span>
         </div>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-4xl">{module.title}</h1>
-        <p className="mt-2 text-base text-[color:var(--color-muted)]">{module.subtitle}</p>
+        <p className="mt-2 text-sm text-[color:var(--color-muted)] sm:text-base">{module.subtitle}</p>
       </header>
 
       {HeroInteractive && <div className="mx-auto max-w-2xl pb-10"><HeroInteractive /></div>}
 
       <Tabs tabs={tabs} defaultTab="learn">
-        <div className="space-y-10">
+        <div className="space-y-12">
           {openingSection}
           {conceptMapSchema && <ConceptMapRenderer schema={conceptMapSchema} color={category.color} />}
           {narrativeBody}
@@ -155,7 +155,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
             <ol className="mt-4 space-y-2 text-sm text-[color:var(--color-text)]">
               {module.logicChain.length ? (
                 module.logicChain.map((step, index) => (
-                  <li key={`${step}-${index}`} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3">
+                  <li key={`${step}-${index}`} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3 leading-6">
                     {index + 1}. {step}
                   </li>
                 ))
@@ -171,7 +171,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
               <ul className="mt-4 space-y-2 text-sm text-[color:var(--color-text)]">
                 {module.examples.length ? (
                   module.examples.map((example, index) => (
-                    <li key={`${example}-${index}`} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3">
+                    <li key={`${example}-${index}`} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3 leading-6">
                       {example}
                     </li>
                   ))
@@ -186,7 +186,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
               <ul className="mt-4 space-y-2 text-sm text-[color:var(--color-text)]">
                 {module.counterexamples.length ? (
                   module.counterexamples.map((example, index) => (
-                    <li key={`${example}-${index}`} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3">
+                    <li key={`${example}-${index}`} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3 leading-6">
                       {example}
                     </li>
                   ))

@@ -118,6 +118,9 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
           <h3 className="mt-3 text-base font-bold text-[color:var(--color-text)]">
             {isZh ? '系统学习' : 'Full path'}
           </h3>
+          <div className="mt-2 inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-muted)] dark:bg-[#0b3a45]">
+            {isZh ? '12 章完整链路' : '12-chapter full path'}
+          </div>
           <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
             {isZh
               ? '从 s01 顺着走到 s12。每一章为下一章铺路，概念层层递进。适合想完整理解 LLM 的人。'
@@ -136,6 +139,9 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
           <h3 className="mt-3 text-base font-bold text-[color:var(--color-text)]">
             {isZh ? '只看核心机制' : 'Core mechanism'}
           </h3>
+          <div className="mt-2 inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-muted)] dark:bg-[#0b3a45]">
+            {isZh ? '4 章高密度速通' : '4-chapter dense track'}
+          </div>
           <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
             {isZh
               ? '4 章搞定 LLM 核心原理：token 化 → 注意力 → Transformer → 预训练。最小知识量，最大密度。'
@@ -154,6 +160,9 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
           <h3 className="mt-3 text-base font-bold text-[color:var(--color-text)]">
             {isZh ? '应用导向' : 'Application-focused'}
           </h3>
+          <div className="mt-2 inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-[color:var(--color-muted)] dark:bg-[#0b3a45]">
+            {isZh ? '对齐 + Prompt + 上下文' : 'Alignment + Prompt + Context'}
+          </div>
           <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
             {isZh
               ? '已经会用但想知道为什么？对齐 → Prompt → 上下文窗口，直接讲你每天在用的东西。'
