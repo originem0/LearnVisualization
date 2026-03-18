@@ -39,17 +39,29 @@
       "id": "full-path",
       "title": "系统学习",
       "description": "完整走完 12 章链路",
-      "moduleIds": ["s01", "s02", "s03"]
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03"
+      ]
     },
     {
       "id": "core-mechanism",
       "title": "核心机制",
       "description": "先掌握 token、embedding、attention 三件套",
-      "moduleIds": ["s01", "s02", "s03"]
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03"
+      ]
     }
   ],
   "moduleGraph": {
-    "order": ["s01", "s02", "s03"],
+    "order": [
+      "s01",
+      "s02",
+      "s03"
+    ],
     "edges": [
       {
         "from": "s01",
@@ -345,6 +357,33 @@
       ],
       "bridgeTo": "一次注意力还不等于完整模型，下一章进入 block 结构。",
       "nextModuleId": null
+    }
+  ],
+  "categories": [
+    {
+      "id": "foundations",
+      "name": "基础概念",
+      "color": "blue"
+    },
+    {
+      "id": "architecture",
+      "name": "架构原理",
+      "color": "emerald"
+    },
+    {
+      "id": "training",
+      "name": "训练机制",
+      "color": "purple"
+    },
+    {
+      "id": "application",
+      "name": "应用实践",
+      "color": "amber"
+    },
+    {
+      "id": "frontier",
+      "name": "前沿探索",
+      "color": "red"
     }
   ]
 }

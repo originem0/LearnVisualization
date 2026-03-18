@@ -1,4 +1,4 @@
-import type { ConceptItem, NarrativeBlock, PitfallItem } from '@/lib/types';
+import type { Category, ConceptItem, NarrativeBlock, PitfallItem } from '@/lib/types';
 
 export type CourseStatus = 'draft' | 'review' | 'published';
 export type CourseLanguage = 'zh';
@@ -113,6 +113,8 @@ export interface CoursePackage {
   topic: string;
   language: CourseLanguage;
   status: CourseStatus;
+
+  categories: Category[];
 
   audience: AudienceProfile;
   learningGoals: string[];

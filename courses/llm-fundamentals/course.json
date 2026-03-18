@@ -1,0 +1,205 @@
+{
+  "id": "llm-fundamentals",
+  "slug": "llm-fundamentals",
+  "title": "LLM 原理与实践",
+  "subtitle": "LearnVisualization 当前样板课程包镜像",
+  "topic": "llm",
+  "language": "zh",
+  "status": "published",
+  "categories": [
+    {
+      "id": "foundations",
+      "name": "基础概念",
+      "color": "blue"
+    },
+    {
+      "id": "architecture",
+      "name": "架构原理",
+      "color": "emerald"
+    },
+    {
+      "id": "training",
+      "name": "训练机制",
+      "color": "purple"
+    },
+    {
+      "id": "application",
+      "name": "应用实践",
+      "color": "amber"
+    },
+    {
+      "id": "frontier",
+      "name": "前沿探索",
+      "color": "red"
+    }
+  ],
+  "audience": {
+    "primaryAudience": "想系统理解大模型原理的中文学习者",
+    "priorKnowledge": [
+      "基础互联网与 AI 使用经验"
+    ],
+    "desiredOutcome": "建立从 token 到生成的结构化理解"
+  },
+  "learningGoals": [
+    "理解大模型从分词到生成的完整链路",
+    "理解训练、对齐、prompt 与上下文窗口的相互关系",
+    "获得把复杂技术主题转化成结构化学习对象的视角"
+  ],
+  "nonGoals": [
+    "不追踪每一篇前沿论文",
+    "不覆盖所有工程落地细节"
+  ],
+  "assumptions": [
+    "用户希望获得结构化理解，而不是术语堆砌"
+  ],
+  "philosophy": {
+    "promise": "分解复杂，呈现复杂，穿透复杂",
+    "corePrinciples": [
+      "认知升级优先于术语罗列",
+      "结构外显优先于长文解释",
+      "AI 用来放大判断与创造，不是加速垃圾生产"
+    ],
+    "shiftStatement": "从知道概念名字，升级为看清概念关系与系统结构。"
+  },
+  "paths": [
+    {
+      "id": "full-path",
+      "title": "系统学习",
+      "description": "完整走完 12 章链路",
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03",
+        "s04",
+        "s05",
+        "s06",
+        "s07",
+        "s08",
+        "s09",
+        "s10",
+        "s11",
+        "s12"
+      ]
+    },
+    {
+      "id": "core-mechanism",
+      "title": "核心机制",
+      "description": "先掌握 token、embedding、attention、Transformer",
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03",
+        "s04"
+      ]
+    },
+    {
+      "id": "application-path",
+      "title": "应用导向",
+      "description": "关注对齐、prompt 与上下文窗口",
+      "moduleIds": [
+        "s07",
+        "s08",
+        "s11",
+        "s12"
+      ]
+    }
+  ],
+  "moduleGraph": {
+    "order": [
+      "s01",
+      "s02",
+      "s03",
+      "s04",
+      "s05",
+      "s06",
+      "s07",
+      "s08",
+      "s09",
+      "s10",
+      "s11",
+      "s12"
+    ],
+    "edges": [
+      {
+        "from": "s01",
+        "to": "s02",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s02",
+        "to": "s03",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s03",
+        "to": "s04",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s04",
+        "to": "s05",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s05",
+        "to": "s06",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s06",
+        "to": "s07",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s07",
+        "to": "s08",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s08",
+        "to": "s09",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s09",
+        "to": "s10",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s10",
+        "to": "s11",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      },
+      {
+        "from": "s11",
+        "to": "s12",
+        "type": "prerequisite",
+        "note": "默认线性主路径"
+      }
+    ]
+  },
+  "modules": [
+    "s01",
+    "s02",
+    "s03",
+    "s04",
+    "s05",
+    "s06",
+    "s07",
+    "s08",
+    "s09",
+    "s10",
+    "s11",
+    "s12"
+  ]
+}

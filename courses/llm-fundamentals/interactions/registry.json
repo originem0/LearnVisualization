@@ -1,0 +1,170 @@
+{
+  "s01": {
+    "heroInteractive": {
+      "capability": "simulate",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "TokenizerPlayground"
+    },
+    "secondaryInteractive": {
+      "capability": "step-through",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "BPESimulator"
+    }
+  },
+  "s02": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "VectorArithmetic"
+    },
+    "secondaryInteractive": {
+      "capability": "trace",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "EmbeddingLookup"
+    }
+  },
+  "s03": {
+    "heroInteractive": {
+      "capability": "simulate",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "AttentionHeatmap"
+    },
+    "secondaryInteractive": {
+      "capability": "step-through",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "QKVStepper"
+    }
+  },
+  "s04": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "TransformerFlow"
+    },
+    "secondaryInteractive": {
+      "capability": "compare",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "ArchitectureCompare"
+    }
+  },
+  "s05": {
+    "heroInteractive": {
+      "capability": "simulate",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "NextWordGame"
+    },
+    "secondaryInteractive": {
+      "capability": "compare",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "MLMvsCLM"
+    }
+  },
+  "s06": {
+    "heroInteractive": {
+      "capability": "simulate",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "LossLandscape"
+    },
+    "secondaryInteractive": {
+      "capability": "parameter-play",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "LRScheduleViz"
+    }
+  },
+  "s07": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "AlignmentCompare"
+    },
+    "secondaryInteractive": {
+      "capability": "parameter-play",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "LoRACalculator"
+    }
+  },
+  "s08": {
+    "heroInteractive": {
+      "capability": "simulate",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "PromptWorkshop"
+    },
+    "secondaryInteractive": {
+      "capability": "compare",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "FewShotBuilder"
+    }
+  },
+  "s09": {
+    "heroInteractive": {
+      "capability": "simulate",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "ScalingLawPlotter"
+    },
+    "secondaryInteractive": {
+      "capability": "parameter-play",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "TrainingBudgetCalc"
+    }
+  },
+  "s10": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "EmergenceStaircase"
+    },
+    "secondaryInteractive": {
+      "capability": "compare",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "CoTToggle"
+    }
+  },
+  "s11": {
+    "heroInteractive": {
+      "capability": "parameter-play",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "ContextLengthCalc"
+    },
+    "secondaryInteractive": {
+      "capability": "classify",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "ContextFitCalc"
+    }
+  },
+  "s12": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "FullPipelineTracer"
+    },
+    "secondaryInteractive": {
+      "capability": "retrieve",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "KnowledgeNetwork"
+    }
+  }
+}

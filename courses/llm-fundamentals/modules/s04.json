@@ -1,0 +1,195 @@
+{
+  "id": "s04",
+  "number": 4,
+  "title": "Transformer 结构",
+  "subtitle": "编码器与解码器的协奏",
+  "category": "architecture",
+  "focusQuestion": "为什么“只有注意力”不够？",
+  "quote": "残差连接和层归一化是深层网络的生命线",
+  "keyInsight": "Transformer 的突破不只是注意力，而是把 Attention、FFN、Residual、LayerNorm 装配成一个可以稳定堆叠、持续放大的标准积木。",
+  "opening": "《Attention Is All You Need》这个标题有点会骗人。\n\n如果你真的把模型只剩注意力层，它不会更优雅，只会更难训。\n\nTransformer 真正厉害的地方，是它把通信、加工、稳定性和堆叠方式装进了一个可复制的标准模板。",
+  "concepts": [
+    {
+      "name": "Self-Attention Block",
+      "note": "Transformer 的核心积木。"
+    },
+    {
+      "name": "Residual Connection",
+      "note": "保留原始信息，让深层训练更稳定。"
+    },
+    {
+      "name": "LayerNorm",
+      "note": "稳定数值分布，减轻训练震荡。"
+    },
+    {
+      "name": "FFN 前馈网络",
+      "note": "对每个位置做非线性变换。"
+    },
+    {
+      "name": "Stacking",
+      "note": "多个 block 叠加，逐层提炼表示。"
+    },
+    {
+      "name": "Encoder-Decoder",
+      "note": "经典翻译架构。"
+    },
+    {
+      "name": "Decoder-only",
+      "note": "现代大语言模型最常见范式。"
+    }
+  ],
+  "logicChain": [
+    "Transformer block 由注意力、FFN、残差、归一化组成",
+    "注意力负责跨 token 交流",
+    "FFN 负责逐位置加工",
+    "残差和 LayerNorm 负责可训练性",
+    "统一 block 让深层堆叠和并行训练成为可能"
+  ],
+  "examples": [
+    "BERT 主要是 encoder，用于理解类任务",
+    "GPT 主要是 decoder-only，用于续写和生成"
+  ],
+  "counterexamples": [
+    "“Attention is all you need” 不是说只要注意力层就够了",
+    "FFN 和归一化不是配角，它们是规模化训练的前提"
+  ],
+  "pitfalls": [
+    {
+      "point": "把 FFN、残差、LayerNorm 当成可有可无的配件",
+      "rootCause": "只记住了注意力的概念冲击，却没意识到训练稳定性本身就是架构设计的一半"
+    },
+    {
+      "point": "把 Encoder-Decoder、Decoder-only 只当成“结构不同”",
+      "rootCause": "没有从信息流方向和任务接口去理解两者为何会分化出不同用途"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "如果把 Transformer 拆开看，一个标准 block 并不神秘：注意力层负责跨 token 交流，前馈网络负责逐位置变换，残差连接负责保留和绕行信息，层归一化负责让数值分布稳定。\n\n关键不是任一模块“单点最强”，而是它们刚好形成一套可堆叠、可训练、可并行放大的组合。"
+    },
+    {
+      "type": "diagram",
+      "label": "基础 Block",
+      "content": "输入\n  ↓\nSelf-Attention\n  + Residual\n  + LayerNorm\n  ↓\nFFN\n  + Residual\n  + LayerNorm\n  ↓\n输出"
+    },
+    {
+      "type": "heading",
+      "content": "一个 block 里信息到底怎么走？"
+    },
+    {
+      "type": "steps",
+      "label": "单个 Block 的一次加工",
+      "content": "",
+      "steps": [
+        {
+          "title": "先做自注意力",
+          "description": "当前位置先从整段上下文收集它需要的信息",
+          "visual": "x\n↓ Self-Attention\nattn(x)",
+          "highlight": "Self-Attention"
+        },
+        {
+          "title": "再走残差旁路",
+          "description": "新信息和旧表示相加，避免“学不到就全丢”",
+          "visual": "x + attn(x)",
+          "highlight": "x +"
+        },
+        {
+          "title": "LayerNorm 稳住分布",
+          "description": "把数值拉回可控范围，方便后面的层继续学",
+          "visual": "LayerNorm(x + attn(x))",
+          "highlight": "LayerNorm"
+        },
+        {
+          "title": "FFN 做逐位置加工",
+          "description": "对每个 token 单独升维、激活、再压回去",
+          "visual": "h\n↓ FFN\nffn(h)",
+          "highlight": "FFN"
+        },
+        {
+          "title": "再一次残差 + 归一化",
+          "description": "让新特征叠加到旧表示里，而不是粗暴替换",
+          "visual": "LayerNorm(h + ffn(h))",
+          "highlight": "h + ffn(h)"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "content": "残差连接为什么关键？"
+    },
+    {
+      "type": "text",
+      "content": "深层网络最怕信息和梯度被一层层“磨掉”。残差连接相当于给每层开了一条旁路：你可以在当前层学到新东西，也可以在学不到的时候至少把旧信息传过去。\n\n这使得“堆很多层”变得现实。没有它，深度通常很快变成负担。"
+    },
+    {
+      "type": "heading",
+      "content": "层归一化在稳定什么？"
+    },
+    {
+      "type": "text",
+      "content": "每层输出的统计分布如果不停漂移，后面的层就很难学。LayerNorm 在 token 维度上做标准化，让每层都在更可控的数值范围内工作。\n\n它不是提高表达能力的模块，而是保证整个系统训练得下去的基础设施。"
+    },
+    {
+      "type": "comparison",
+      "label": "两类子层分工",
+      "content": "Self-Attention：负责跨 token 建模关系，决定该从别的词收集什么信息\nFFN：负责对每个位置单独做非线性变换，把收集来的信息加工成更高层表示"
+    },
+    {
+      "type": "heading",
+      "content": "为什么 FFN 不能省？"
+    },
+    {
+      "type": "text",
+      "content": "注意力负责“路由信息”，但不擅长做充分的逐位置变换。FFN 把每个 token 的表示先升维、激活、再压回去，相当于在每个位置上做一小段 MLP 计算。\n\n没有 FFN，模型会更像一个单纯的信息混合器，而不是能提炼特征的深层网络。"
+    },
+    {
+      "type": "heading",
+      "content": "Encoder、Decoder、Decoder-only 有什么区别？"
+    },
+    {
+      "type": "text",
+      "content": "原始 Transformer 是编码器—解码器架构：编码器双向读输入，解码器带因果遮罩逐步生成输出，并通过交叉注意力读取编码器结果。\n\n后来 BERT 走了 encoder 路线，更适合理解任务；GPT 走了 decoder-only 路线，更适合统一生成接口。今天的大语言模型主流几乎都站在 decoder-only 这一侧。"
+    },
+    {
+      "type": "comparison",
+      "label": "两条主流分支",
+      "content": "Encoder / Encoder-Decoder：更擅长理解输入、对齐输入输出，适合理解和翻译类任务\nDecoder-only：统一成“看左边、预测下一个 token”，接口简单，最适合大规模语言生成"
+    },
+    {
+      "type": "callout",
+      "content": "Transformer 的突破，不是“某个天才公式”，而是把表示、通信、稳定性和可扩展性装配成一个统一模板。"
+    },
+    {
+      "type": "heading",
+      "content": "为什么它适合规模化？"
+    },
+    {
+      "type": "text",
+      "content": "因为它的结构高度规则：同样的 block 可以重复堆叠；注意力和 FFN 都适合 GPU 并行；残差和归一化又让深层训练更稳定。\n\n一旦模板成立，剩下的就是“堆更多层、喂更多数据、用更多算力”。这也就自然把我们带到预训练阶段。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s04-concept-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "首屏核心理解交互",
+      "priority": "core",
+      "componentHint": "TransformerFlow"
+    },
+    {
+      "capability": "compare",
+      "purpose": "补充对比 / 步骤 / 演示交互",
+      "priority": "secondary",
+      "componentHint": "ArchitectureCompare"
+    }
+  ],
+  "bridgeTo": "结构现在搭好了，但它还只是一个空壳。\n\n问题变成了：没有人工标注，怎么让这样一个巨大的网络从海量文本里自己长出语言能力？\n\n答案不是“背规则”，而是设计预训练目标。",
+  "nextModuleId": "s05"
+}
