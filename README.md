@@ -119,6 +119,13 @@ npm run build
 
 构建成功后，`out/` 刷新即上线，**不需要 reload nginx**。
 
+## 研究工作流
+
+默认研究/search 工作流见：
+
+- `RESEARCH_WORKFLOW.md`
+- `DEEP_RESEARCH_PROMPTS.md`
+
 ## 设计原则
 
 核心设计约束来自：
