@@ -16,12 +16,12 @@ export default function Header({ project, locale }: HeaderProps) {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-4">
           <Link href={`/${locale}/`} className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color:var(--color-panel)] text-sm font-semibold text-[color:var(--color-text)] shadow-sm">
-              L
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white shadow-sm">
+              LL
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold text-[color:var(--color-text)]">{project.title}</div>
-              <div className="text-xs text-[color:var(--color-muted)] line-clamp-1">{project.goal}</div>
+              <div className="hidden text-xs text-[color:var(--color-muted)] line-clamp-1 sm:block">{project.goal}</div>
             </div>
           </Link>
           <nav className="hidden items-center gap-4 text-sm text-[color:var(--color-muted)] lg:flex">

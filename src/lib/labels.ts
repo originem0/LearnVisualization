@@ -2,7 +2,7 @@ import type { Locale } from './i18n';
 
 export const labels = {
   zh: {
-    nav: { timeline: '学习路径', compare: '版本对比', layers: '架构层' },
+    nav: { timeline: '学习路径', layers: '知识地图' },
     buttons: { learnMore: '了解更多', expand: '展开细节', collapse: '收起细节' },
     tabs: { learn: '学习', interactive: '交互', deepDive: '深入' },
     sections: {
@@ -37,7 +37,7 @@ export const labels = {
     theme: { dark: '深色模式', light: '浅色模式' },
   },
   en: {
-    nav: { timeline: 'Timeline', compare: 'Compare', layers: 'Layers' },
+    nav: { timeline: 'Timeline', layers: 'Knowledge Map' },
     buttons: { learnMore: 'Learn more', expand: 'Expand', collapse: 'Collapse' },
     tabs: { learn: 'Learn', interactive: 'Interactive', deepDive: 'Deep Dive' },
     sections: {
