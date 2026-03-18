@@ -9,6 +9,7 @@ import PitfallList from './PitfallList';
 import { NarrativeBlockRenderer } from './NarrativeRenderer';
 import ModuleNav from './ModuleNav';
 import { getModuleComponents } from '@/lib/module-registry';
+import ConceptMapRenderer from './ConceptMapRenderer';
 import type { Locale } from '@/lib/i18n';
 import { getModuleSlug } from '@/lib/data';
 import { getLabels } from '@/lib/labels';
@@ -45,7 +46,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
   /* ── Components from registry ── */
   const HeroInteractive = registry?.heroInteractive ?? null;
   const SecondaryInteractive = registry?.secondaryInteractive ?? null;
-  const ConceptMap = registry?.conceptMap ?? null;
+  const conceptMapSchema = registry?.conceptMapSchema ?? null;
 
   /* ── Opening section ── */
   const openingSection = module.opening ? (
@@ -140,7 +141,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
         {/* Learn tab */}
         <div className="space-y-10">
           {openingSection}
-          {ConceptMap && <ConceptMap />}
+          {conceptMapSchema && <ConceptMapRenderer schema={conceptMapSchema} color={category.color} />}
           {narrativeBody}
           {bridgeSection}
         </div>

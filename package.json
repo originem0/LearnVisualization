@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "check": "node scripts/check-content.mjs",
-    "prebuild": "node scripts/check-content.mjs",
+    "check": "node scripts/check-content.mjs && node scripts/check-registry.mjs",
+    "prebuild": "node scripts/check-content.mjs && node scripts/check-registry.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

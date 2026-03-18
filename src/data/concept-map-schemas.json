@@ -1,0 +1,1977 @@
+{
+  "1": {
+    "nodes": [
+      {
+        "id": "raw",
+        "label": [
+          "原始文本"
+        ],
+        "x": 280,
+        "y": 30,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "char",
+        "label": [
+          "字符级",
+          "分词"
+        ],
+        "x": 140,
+        "y": 140,
+        "w": 110,
+        "h": 56
+      },
+      {
+        "id": "word",
+        "label": [
+          "词级",
+          "分词"
+        ],
+        "x": 420,
+        "y": 140,
+        "w": 110,
+        "h": 56
+      },
+      {
+        "id": "bpe",
+        "label": [
+          "BPE",
+          "子词分词"
+        ],
+        "x": 280,
+        "y": 278,
+        "w": 130,
+        "h": 56
+      },
+      {
+        "id": "sub",
+        "label": [
+          "子词片段"
+        ],
+        "x": 120,
+        "y": 380,
+        "w": 110,
+        "h": 44
+      },
+      {
+        "id": "full",
+        "label": [
+          "高频完整词"
+        ],
+        "x": 280,
+        "y": 380,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "fallback",
+        "label": [
+          "字符兜底"
+        ],
+        "x": 440,
+        "y": 380,
+        "w": 110,
+        "h": 44
+      },
+      {
+        "id": "vocab",
+        "label": [
+          "词表 (50k–100k)"
+        ],
+        "x": 280,
+        "y": 460,
+        "w": 170,
+        "h": 44
+      },
+      {
+        "id": "ids",
+        "label": [
+          "Token IDs",
+          "[无语义]"
+        ],
+        "x": 280,
+        "y": 540,
+        "w": 150,
+        "h": 56
+      },
+      {
+        "id": "emb",
+        "label": [
+          "→ s02 Embedding"
+        ],
+        "x": 280,
+        "y": 640,
+        "w": 180,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "raw",
+        "to": "char",
+        "label": "需要变成数字"
+      },
+      {
+        "from": "raw",
+        "to": "word",
+        "label": "需要变成数字"
+      },
+      {
+        "from": "char",
+        "to": "bpe",
+        "label": "序列太长 O(n²)"
+      },
+      {
+        "from": "word",
+        "to": "bpe",
+        "label": "OOV 覆盖不全"
+      },
+      {
+        "from": "bpe",
+        "to": "sub"
+      },
+      {
+        "from": "bpe",
+        "to": "full"
+      },
+      {
+        "from": "bpe",
+        "to": "fallback"
+      },
+      {
+        "from": "full",
+        "to": "vocab"
+      },
+      {
+        "from": "vocab",
+        "to": "ids",
+        "label": "每个 token → 整数 ID"
+      },
+      {
+        "from": "ids",
+        "to": "emb",
+        "label": "需要语义表示"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 690,
+    "ariaLabel": "Token 与词表 概念关系图",
+    "title": "概念关系图",
+    "annotations": [
+      {
+        "type": "text",
+        "x": 280,
+        "y": 225,
+        "text": "需要平衡"
+      },
+      {
+        "type": "text",
+        "x": 280,
+        "y": 345,
+        "text": "产出"
+      }
+    ]
+  },
+  "2": {
+    "nodes": [
+      {
+        "id": "tokenid",
+        "label": [
+          "Token ID"
+        ],
+        "x": 280,
+        "y": 30,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "embed",
+        "label": [
+          "Embedding 矩阵",
+          "(查表)"
+        ],
+        "x": 280,
+        "y": 140,
+        "w": 170,
+        "h": 56
+      },
+      {
+        "id": "vector",
+        "label": [
+          "语义向量"
+        ],
+        "x": 280,
+        "y": 240,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "similar",
+        "label": [
+          "语义相似度",
+          "余弦距离"
+        ],
+        "x": 120,
+        "y": 340,
+        "w": 140,
+        "h": 56
+      },
+      {
+        "id": "analogy",
+        "label": [
+          "类比关系",
+          "平行四边形"
+        ],
+        "x": 440,
+        "y": 340,
+        "w": 140,
+        "h": 56
+      },
+      {
+        "id": "posenc",
+        "label": [
+          "位置编码"
+        ],
+        "x": 280,
+        "y": 440,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "sincos",
+        "label": [
+          "正弦编码"
+        ],
+        "x": 120,
+        "y": 530,
+        "w": 110,
+        "h": 44
+      },
+      {
+        "id": "learned",
+        "label": [
+          "可学习编码"
+        ],
+        "x": 280,
+        "y": 530,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "rope",
+        "label": [
+          "RoPE"
+        ],
+        "x": 440,
+        "y": 530,
+        "w": 100,
+        "h": 44
+      },
+      {
+        "id": "output",
+        "label": [
+          "输入表示"
+        ],
+        "x": 280,
+        "y": 620,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s03 注意力"
+        ],
+        "x": 280,
+        "y": 710,
+        "w": 160,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "tokenid",
+        "to": "embed",
+        "label": "one-hot × 矩阵"
+      },
+      {
+        "from": "embed",
+        "to": "vector",
+        "label": "取出一行"
+      },
+      {
+        "from": "vector",
+        "to": "similar",
+        "label": "距离度量"
+      },
+      {
+        "from": "vector",
+        "to": "analogy",
+        "label": "向量运算"
+      },
+      {
+        "from": "vector",
+        "to": "posenc",
+        "label": "需要位置信息"
+      },
+      {
+        "from": "posenc",
+        "to": "sincos"
+      },
+      {
+        "from": "posenc",
+        "to": "learned"
+      },
+      {
+        "from": "posenc",
+        "to": "rope"
+      },
+      {
+        "from": "learned",
+        "to": "output",
+        "label": "叠加到 embedding"
+      },
+      {
+        "from": "output",
+        "to": "next",
+        "label": "完整的 token 表示"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 760,
+    "ariaLabel": "Embedding 空间概念关系图",
+    "title": "概念关系图",
+    "annotations": [
+      {
+        "type": "text",
+        "x": 280,
+        "y": 490,
+        "text": "三种方案"
+      }
+    ]
+  },
+  "3": {
+    "nodes": [
+      {
+        "id": "input",
+        "label": [
+          "输入向量"
+        ],
+        "x": 280,
+        "y": 30,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "qkv",
+        "label": [
+          "Q / K / V 投影"
+        ],
+        "x": 280,
+        "y": 120,
+        "w": 150,
+        "h": 44
+      },
+      {
+        "id": "qkt",
+        "label": [
+          "Q · K^T",
+          "相似度"
+        ],
+        "x": 280,
+        "y": 220,
+        "w": 140,
+        "h": 56
+      },
+      {
+        "id": "scale",
+        "label": [
+          "÷ √d_k",
+          "缩放"
+        ],
+        "x": 280,
+        "y": 310,
+        "w": 120,
+        "h": 56
+      },
+      {
+        "id": "mask",
+        "label": [
+          "因果遮罩"
+        ],
+        "x": 440,
+        "y": 310,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "softmax",
+        "label": [
+          "Softmax",
+          "概率分布"
+        ],
+        "x": 280,
+        "y": 400,
+        "w": 130,
+        "h": 56
+      },
+      {
+        "id": "attnv",
+        "label": [
+          "× V",
+          "加权聚合"
+        ],
+        "x": 280,
+        "y": 490,
+        "w": 130,
+        "h": 56
+      },
+      {
+        "id": "output",
+        "label": [
+          "注意力输出"
+        ],
+        "x": 280,
+        "y": 580,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "multi",
+        "label": [
+          "多头注意力",
+          "并行多组 QKV"
+        ],
+        "x": 280,
+        "y": 670,
+        "w": 170,
+        "h": 56
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s04 Transformer"
+        ],
+        "x": 280,
+        "y": 760,
+        "w": 180,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "input",
+        "to": "qkv",
+        "label": "线性投影"
+      },
+      {
+        "from": "qkv",
+        "to": "qkt",
+        "label": "匹配度计算"
+      },
+      {
+        "from": "qkt",
+        "to": "scale",
+        "label": "防止数值过大"
+      },
+      {
+        "from": "mask",
+        "to": "scale",
+        "label": "生成时屏蔽未来"
+      },
+      {
+        "from": "scale",
+        "to": "softmax",
+        "label": "归一化"
+      },
+      {
+        "from": "softmax",
+        "to": "attnv",
+        "label": "加权"
+      },
+      {
+        "from": "attnv",
+        "to": "output"
+      },
+      {
+        "from": "output",
+        "to": "multi",
+        "label": "h 个头 concat"
+      },
+      {
+        "from": "multi",
+        "to": "next",
+        "label": "+ 线性投影"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 810,
+    "ariaLabel": "注意力机制概念关系图",
+    "title": "概念关系图"
+  },
+  "4": {
+    "nodes": [
+      {
+        "id": "input",
+        "label": [
+          "输入"
+        ],
+        "x": 280,
+        "y": 30,
+        "w": 100,
+        "h": 44
+      },
+      {
+        "id": "attn",
+        "label": [
+          "Self-Attention"
+        ],
+        "x": 280,
+        "y": 120,
+        "w": 150,
+        "h": 44
+      },
+      {
+        "id": "res1",
+        "label": [
+          "+ 残差连接"
+        ],
+        "x": 280,
+        "y": 200,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "norm1",
+        "label": [
+          "层归一化"
+        ],
+        "x": 280,
+        "y": 270,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "ffn",
+        "label": [
+          "前馈网络",
+          "FFN (ReLU/GeLU)"
+        ],
+        "x": 280,
+        "y": 360,
+        "w": 170,
+        "h": 56
+      },
+      {
+        "id": "res2",
+        "label": [
+          "+ 残差连接"
+        ],
+        "x": 280,
+        "y": 450,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "norm2",
+        "label": [
+          "层归一化"
+        ],
+        "x": 280,
+        "y": 520,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "block",
+        "label": [
+          "= 1 个 Block"
+        ],
+        "x": 280,
+        "y": 600,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "stack",
+        "label": [
+          "N 层堆叠",
+          "(6–96 层)"
+        ],
+        "x": 280,
+        "y": 690,
+        "w": 140,
+        "h": 56
+      },
+      {
+        "id": "encdec",
+        "label": [
+          "Encoder-Decoder"
+        ],
+        "x": 130,
+        "y": 790,
+        "w": 160,
+        "h": 44
+      },
+      {
+        "id": "deconly",
+        "label": [
+          "Decoder-only"
+        ],
+        "x": 430,
+        "y": 790,
+        "w": 150,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s05 预训练"
+        ],
+        "x": 280,
+        "y": 880,
+        "w": 160,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "input",
+        "to": "attn"
+      },
+      {
+        "from": "attn",
+        "to": "res1",
+        "label": "保留原始信息"
+      },
+      {
+        "from": "res1",
+        "to": "norm1",
+        "label": "稳定分布"
+      },
+      {
+        "from": "norm1",
+        "to": "ffn",
+        "label": "非线性变换"
+      },
+      {
+        "from": "ffn",
+        "to": "res2",
+        "label": "保留原始信息"
+      },
+      {
+        "from": "res2",
+        "to": "norm2",
+        "label": "稳定分布"
+      },
+      {
+        "from": "norm2",
+        "to": "block"
+      },
+      {
+        "from": "block",
+        "to": "stack",
+        "label": "重复 N 次"
+      },
+      {
+        "from": "stack",
+        "to": "encdec"
+      },
+      {
+        "from": "stack",
+        "to": "deconly"
+      },
+      {
+        "from": "encdec",
+        "to": "next"
+      },
+      {
+        "from": "deconly",
+        "to": "next"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 930,
+    "ariaLabel": "Transformer 结构概念关系图",
+    "title": "概念关系图"
+  },
+  "5": {
+    "nodes": [
+      {
+        "id": "text",
+        "label": [
+          "原始文本"
+        ],
+        "x": 280,
+        "y": 40,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "signal",
+        "label": [
+          "自监督信号",
+          "（不需要标签）"
+        ],
+        "x": 280,
+        "y": 140,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "clm",
+        "label": [
+          "CLM",
+          "预测下一个词"
+        ],
+        "x": 160,
+        "y": 260,
+        "w": 150,
+        "h": 56
+      },
+      {
+        "id": "mlm",
+        "label": [
+          "MLM",
+          "预测被遮的词"
+        ],
+        "x": 400,
+        "y": 260,
+        "w": 150,
+        "h": 56
+      },
+      {
+        "id": "loss",
+        "label": [
+          "交叉熵损失"
+        ],
+        "x": 280,
+        "y": 380,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "backprop",
+        "label": [
+          "反向传播"
+        ],
+        "x": 280,
+        "y": 470,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "update",
+        "label": [
+          "参数更新"
+        ],
+        "x": 280,
+        "y": 560,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s06 损失与优化"
+        ],
+        "x": 280,
+        "y": 660,
+        "w": 170,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "text",
+        "to": "signal",
+        "label": "构造训练对"
+      },
+      {
+        "from": "signal",
+        "to": "clm"
+      },
+      {
+        "from": "signal",
+        "to": "mlm"
+      },
+      {
+        "from": "clm",
+        "to": "loss",
+        "label": "左→右预测"
+      },
+      {
+        "from": "mlm",
+        "to": "loss",
+        "label": "双向预测"
+      },
+      {
+        "from": "loss",
+        "to": "backprop",
+        "label": "计算梯度"
+      },
+      {
+        "from": "backprop",
+        "to": "update",
+        "label": "更新权重"
+      },
+      {
+        "from": "update",
+        "to": "next"
+      }
+    ],
+    "svgW": 560,
+    "svgH": 710,
+    "ariaLabel": "预训练目标概念关系图",
+    "title": "概念关系图"
+  },
+  "6": {
+    "nodes": [
+      {
+        "id": "pred",
+        "label": [
+          "预测"
+        ],
+        "x": 280,
+        "y": 30,
+        "w": 100,
+        "h": 44
+      },
+      {
+        "id": "compare",
+        "label": [
+          "与真实比较"
+        ],
+        "x": 280,
+        "y": 120,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "loss",
+        "label": [
+          "交叉熵损失",
+          "Cross-Entropy"
+        ],
+        "x": 280,
+        "y": 220,
+        "w": 170,
+        "h": 56
+      },
+      {
+        "id": "backprop",
+        "label": [
+          "反向传播",
+          "（链式法则）"
+        ],
+        "x": 280,
+        "y": 320,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "grad",
+        "label": [
+          "梯度"
+        ],
+        "x": 280,
+        "y": 420,
+        "w": 100,
+        "h": 44
+      },
+      {
+        "id": "optim",
+        "label": [
+          "优化器",
+          "SGD / Adam"
+        ],
+        "x": 280,
+        "y": 520,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "schedule",
+        "label": [
+          "学习率调度"
+        ],
+        "x": 280,
+        "y": 620,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "update",
+        "label": [
+          "参数更新"
+        ],
+        "x": 280,
+        "y": 710,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s07 微调"
+        ],
+        "x": 280,
+        "y": 800,
+        "w": 140,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "pred",
+        "to": "compare",
+        "label": "模型输出"
+      },
+      {
+        "from": "compare",
+        "to": "loss",
+        "label": "衡量差距"
+      },
+      {
+        "from": "loss",
+        "to": "backprop",
+        "label": "计算误差信号"
+      },
+      {
+        "from": "backprop",
+        "to": "grad",
+        "label": "逐层分解"
+      },
+      {
+        "from": "grad",
+        "to": "optim",
+        "label": "指明方向"
+      },
+      {
+        "from": "optim",
+        "to": "schedule",
+        "label": "控制步幅"
+      },
+      {
+        "from": "schedule",
+        "to": "update"
+      },
+      {
+        "from": "update",
+        "to": "next"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 850,
+    "ariaLabel": "损失与优化概念关系图",
+    "title": "概念关系图"
+  },
+  "7": {
+    "nodes": [
+      {
+        "id": "pretrain",
+        "label": [
+          "预训练模型"
+        ],
+        "x": 300,
+        "y": 40,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "sft",
+        "label": [
+          "SFT",
+          "指令微调"
+        ],
+        "x": 300,
+        "y": 140,
+        "w": 150,
+        "h": 56
+      },
+      {
+        "id": "rlhf",
+        "label": [
+          "RLHF",
+          "人类反馈强化学习"
+        ],
+        "x": 300,
+        "y": 250,
+        "w": 190,
+        "h": 56
+      },
+      {
+        "id": "rm",
+        "label": [
+          "奖励模型 + PPO"
+        ],
+        "x": 300,
+        "y": 350,
+        "w": 170,
+        "h": 44
+      },
+      {
+        "id": "aligned",
+        "label": [
+          "对齐的模型"
+        ],
+        "x": 300,
+        "y": 440,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "peft",
+        "label": [
+          "参数高效方法",
+          "LoRA / QLoRA"
+        ],
+        "x": 100,
+        "y": 250,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s08 Prompt"
+        ],
+        "x": 300,
+        "y": 540,
+        "w": 160,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "pretrain",
+        "to": "sft",
+        "label": "标注数据"
+      },
+      {
+        "from": "sft",
+        "to": "rlhf",
+        "label": "人类偏好"
+      },
+      {
+        "from": "rlhf",
+        "to": "rm",
+        "label": "训练奖励信号"
+      },
+      {
+        "from": "rm",
+        "to": "aligned",
+        "label": "策略优化"
+      },
+      {
+        "from": "aligned",
+        "to": "next"
+      },
+      {
+        "from": "peft",
+        "to": "sft",
+        "label": "低秩适配"
+      }
+    ],
+    "svgW": 560,
+    "svgH": 590,
+    "ariaLabel": "微调与对齐概念关系图",
+    "title": "概念关系图"
+  },
+  "8": {
+    "nodes": [
+      {
+        "id": "intent",
+        "label": [
+          "用户意图"
+        ],
+        "x": 280,
+        "y": 30,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "compose",
+        "label": [
+          "Prompt 构成"
+        ],
+        "x": 280,
+        "y": 130,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "role",
+        "label": [
+          "角色",
+          "Role"
+        ],
+        "x": 80,
+        "y": 230,
+        "w": 100,
+        "h": 56
+      },
+      {
+        "id": "context",
+        "label": [
+          "上下文",
+          "Context"
+        ],
+        "x": 200,
+        "y": 230,
+        "w": 110,
+        "h": 56
+      },
+      {
+        "id": "task",
+        "label": [
+          "任务",
+          "Task"
+        ],
+        "x": 310,
+        "y": 230,
+        "w": 100,
+        "h": 56
+      },
+      {
+        "id": "format",
+        "label": [
+          "格式",
+          "Format"
+        ],
+        "x": 420,
+        "y": 230,
+        "w": 100,
+        "h": 56
+      },
+      {
+        "id": "examples",
+        "label": [
+          "示例",
+          "Examples"
+        ],
+        "x": 530,
+        "y": 230,
+        "w": 110,
+        "h": 56
+      },
+      {
+        "id": "techniques",
+        "label": [
+          "Prompt 技巧"
+        ],
+        "x": 280,
+        "y": 350,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "cot",
+        "label": [
+          "Chain-of-Thought",
+          "思维链"
+        ],
+        "x": 120,
+        "y": 450,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "fewshot",
+        "label": [
+          "Few-shot",
+          "少样本示例"
+        ],
+        "x": 310,
+        "y": 450,
+        "w": 150,
+        "h": 56
+      },
+      {
+        "id": "selfcons",
+        "label": [
+          "Self-consistency",
+          "自洽性采样"
+        ],
+        "x": 500,
+        "y": 450,
+        "w": 170,
+        "h": 56
+      },
+      {
+        "id": "output",
+        "label": [
+          "模型输出"
+        ],
+        "x": 280,
+        "y": 560,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "quality",
+        "label": [
+          "输出质量"
+        ],
+        "x": 280,
+        "y": 650,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s09 Scaling"
+        ],
+        "x": 280,
+        "y": 740,
+        "w": 160,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "intent",
+        "to": "compose",
+        "label": "表达为"
+      },
+      {
+        "from": "compose",
+        "to": "role"
+      },
+      {
+        "from": "compose",
+        "to": "context"
+      },
+      {
+        "from": "compose",
+        "to": "task"
+      },
+      {
+        "from": "compose",
+        "to": "format"
+      },
+      {
+        "from": "compose",
+        "to": "examples"
+      },
+      {
+        "from": "role",
+        "to": "techniques"
+      },
+      {
+        "from": "context",
+        "to": "techniques"
+      },
+      {
+        "from": "task",
+        "to": "techniques"
+      },
+      {
+        "from": "format",
+        "to": "techniques"
+      },
+      {
+        "from": "examples",
+        "to": "techniques"
+      },
+      {
+        "from": "techniques",
+        "to": "cot"
+      },
+      {
+        "from": "techniques",
+        "to": "fewshot"
+      },
+      {
+        "from": "techniques",
+        "to": "selfcons"
+      },
+      {
+        "from": "cot",
+        "to": "output"
+      },
+      {
+        "from": "fewshot",
+        "to": "output"
+      },
+      {
+        "from": "selfcons",
+        "to": "output"
+      },
+      {
+        "from": "output",
+        "to": "quality",
+        "label": "评估"
+      },
+      {
+        "from": "quality",
+        "to": "next",
+        "label": "更大的模型？"
+      }
+    ],
+    "svgW": 640,
+    "svgH": 790,
+    "ariaLabel": "Prompt Engineering 概念关系图",
+    "title": "概念关系图"
+  },
+  "9": {
+    "nodes": [
+      {
+        "id": "params",
+        "label": [
+          "参数量 N"
+        ],
+        "x": 120,
+        "y": 50,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "data",
+        "label": [
+          "数据量 D"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "compute",
+        "label": [
+          "算力 C"
+        ],
+        "x": 480,
+        "y": 50,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "powerlaw",
+        "label": [
+          "幂律关系",
+          "Power Law"
+        ],
+        "x": 300,
+        "y": 170,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "loss",
+        "label": [
+          "损失预测"
+        ],
+        "x": 300,
+        "y": 290,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "chinchilla",
+        "label": [
+          "Chinchilla",
+          "最优比"
+        ],
+        "x": 120,
+        "y": 290,
+        "w": 140,
+        "h": 56
+      },
+      {
+        "id": "planning",
+        "label": [
+          "训练规划"
+        ],
+        "x": 480,
+        "y": 290,
+        "w": 120,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s10 涌现"
+        ],
+        "x": 300,
+        "y": 400,
+        "w": 140,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "params",
+        "to": "powerlaw"
+      },
+      {
+        "from": "data",
+        "to": "powerlaw"
+      },
+      {
+        "from": "compute",
+        "to": "powerlaw"
+      },
+      {
+        "from": "powerlaw",
+        "to": "loss",
+        "label": "L(N,D,C)"
+      },
+      {
+        "from": "powerlaw",
+        "to": "chinchilla",
+        "label": "D ≈ 20N"
+      },
+      {
+        "from": "powerlaw",
+        "to": "planning"
+      },
+      {
+        "from": "chinchilla",
+        "to": "loss"
+      },
+      {
+        "from": "loss",
+        "to": "next",
+        "label": "更大→更好？"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 450,
+    "ariaLabel": "Scaling Laws 概念关系图",
+    "title": "概念关系图",
+    "annotations": [
+      {
+        "type": "rect",
+        "x": 60,
+        "y": 18,
+        "w": 500,
+        "h": 60,
+        "rx": 16,
+        "text": "三大要素"
+      }
+    ]
+  },
+  "10": {
+    "nodes": [
+      {
+        "id": "scale",
+        "label": [
+          "模型规模增长"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 160,
+        "h": 44
+      },
+      {
+        "id": "smooth",
+        "label": [
+          "平滑提升",
+          "记忆 / 流畅度"
+        ],
+        "x": 130,
+        "y": 170,
+        "w": 150,
+        "h": 56
+      },
+      {
+        "id": "emergent",
+        "label": [
+          "突然涌现",
+          "推理 / 少样本学习"
+        ],
+        "x": 470,
+        "y": 170,
+        "w": 170,
+        "h": 56
+      },
+      {
+        "id": "abilities",
+        "label": [
+          "涌现能力"
+        ],
+        "x": 470,
+        "y": 290,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "cot",
+        "label": [
+          "Chain-of-Thought",
+          "思维链"
+        ],
+        "x": 300,
+        "y": 390,
+        "w": 170,
+        "h": 56
+      },
+      {
+        "id": "reasoning",
+        "label": [
+          "推理能力"
+        ],
+        "x": 300,
+        "y": 500,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s11 上下文"
+        ],
+        "x": 300,
+        "y": 590,
+        "w": 150,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "scale",
+        "to": "smooth",
+        "label": "渐进"
+      },
+      {
+        "from": "scale",
+        "to": "emergent",
+        "label": "阶梯跳变"
+      },
+      {
+        "from": "emergent",
+        "to": "abilities"
+      },
+      {
+        "from": "abilities",
+        "to": "cot",
+        "label": "解锁"
+      },
+      {
+        "from": "smooth",
+        "to": "cot"
+      },
+      {
+        "from": "cot",
+        "to": "reasoning",
+        "label": "逐步推理"
+      },
+      {
+        "from": "reasoning",
+        "to": "next",
+        "label": "长推理需要大窗口"
+      }
+    ],
+    "svgW": 620,
+    "svgH": 640,
+    "ariaLabel": "涌现与推理 概念关系图",
+    "title": "概念关系图",
+    "annotations": [
+      {
+        "type": "rect",
+        "x": 50,
+        "y": 135,
+        "w": 530,
+        "h": 75,
+        "rx": 16,
+        "text": "两种增长模式"
+      }
+    ]
+  },
+  "11": {
+    "nodes": [
+      {
+        "id": "context",
+        "label": [
+          "上下文窗口"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 150,
+        "h": 44
+      },
+      {
+        "id": "attn",
+        "label": [
+          "注意力矩阵",
+          "O(n²)"
+        ],
+        "x": 300,
+        "y": 160,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "vram",
+        "label": [
+          "显存瓶颈"
+        ],
+        "x": 140,
+        "y": 270,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "compute",
+        "label": [
+          "计算瓶颈"
+        ],
+        "x": 460,
+        "y": 270,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "sparse",
+        "label": [
+          "稀疏注意力",
+          "Sparse Attention"
+        ],
+        "x": 100,
+        "y": 390,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "sliding",
+        "label": [
+          "滑动窗口",
+          "Sliding Window"
+        ],
+        "x": 300,
+        "y": 390,
+        "w": 160,
+        "h": 56
+      },
+      {
+        "id": "rope",
+        "label": [
+          "RoPE 外推"
+        ],
+        "x": 500,
+        "y": 390,
+        "w": 130,
+        "h": 44
+      },
+      {
+        "id": "longctx",
+        "label": [
+          "长文本能力"
+        ],
+        "x": 300,
+        "y": 510,
+        "w": 140,
+        "h": 44
+      },
+      {
+        "id": "next",
+        "label": [
+          "→ s12 回顾"
+        ],
+        "x": 300,
+        "y": 600,
+        "w": 140,
+        "h": 44
+      }
+    ],
+    "edges": [
+      {
+        "from": "context",
+        "to": "attn",
+        "label": "n 增大"
+      },
+      {
+        "from": "attn",
+        "to": "vram",
+        "label": "KV Cache"
+      },
+      {
+        "from": "attn",
+        "to": "compute",
+        "label": "计算量 ∝ n²"
+      },
+      {
+        "from": "vram",
+        "to": "sparse"
+      },
+      {
+        "from": "compute",
+        "to": "sliding"
+      },
+      {
+        "from": "compute",
+        "to": "rope"
+      },
+      {
+        "from": "vram",
+        "to": "sliding"
+      },
+      {
+        "from": "sparse",
+        "to": "longctx"
+      },
+      {
+        "from": "sliding",
+        "to": "longctx"
+      },
+      {
+        "from": "rope",
+        "to": "longctx"
+      },
+      {
+        "from": "longctx",
+        "to": "next",
+        "label": "完整拼图"
+      }
+    ],
+    "svgW": 620,
+    "svgH": 650,
+    "ariaLabel": "上下文窗口 概念关系图",
+    "title": "概念关系图",
+    "annotations": [
+      {
+        "type": "rect",
+        "x": 30,
+        "y": 355,
+        "w": 560,
+        "h": 75,
+        "rx": 16,
+        "text": "解决方案"
+      }
+    ]
+  },
+  "12": {
+    "nodes": [
+      {
+        "id": "input",
+        "label": [
+          "输入文本"
+        ],
+        "x": 80,
+        "y": 50,
+        "w": 110,
+        "h": 40
+      },
+      {
+        "id": "s01",
+        "label": [
+          "s01 分词"
+        ],
+        "x": 210,
+        "y": 50,
+        "w": 100,
+        "h": 40
+      },
+      {
+        "id": "s02",
+        "label": [
+          "s02 嵌入"
+        ],
+        "x": 340,
+        "y": 50,
+        "w": 100,
+        "h": 40
+      },
+      {
+        "id": "s03",
+        "label": [
+          "s03 注意力"
+        ],
+        "x": 470,
+        "y": 50,
+        "w": 110,
+        "h": 40
+      },
+      {
+        "id": "s04",
+        "label": [
+          "s04 Transformer"
+        ],
+        "x": 470,
+        "y": 150,
+        "w": 130,
+        "h": 40
+      },
+      {
+        "id": "s05",
+        "label": [
+          "s05 预训练"
+        ],
+        "x": 300,
+        "y": 240,
+        "w": 110,
+        "h": 40
+      },
+      {
+        "id": "s06",
+        "label": [
+          "s06 优化"
+        ],
+        "x": 160,
+        "y": 240,
+        "w": 100,
+        "h": 40
+      },
+      {
+        "id": "s07",
+        "label": [
+          "s07 对齐"
+        ],
+        "x": 440,
+        "y": 240,
+        "w": 100,
+        "h": 40
+      },
+      {
+        "id": "s08",
+        "label": [
+          "s08 Prompt"
+        ],
+        "x": 300,
+        "y": 330,
+        "w": 110,
+        "h": 40
+      },
+      {
+        "id": "output",
+        "label": [
+          "输出"
+        ],
+        "x": 300,
+        "y": 420,
+        "w": 80,
+        "h": 40
+      },
+      {
+        "id": "s09",
+        "label": [
+          "s09 规模"
+        ],
+        "x": 80,
+        "y": 150,
+        "w": 100,
+        "h": 40
+      },
+      {
+        "id": "s10",
+        "label": [
+          "s10 涌现"
+        ],
+        "x": 80,
+        "y": 240,
+        "w": 100,
+        "h": 40
+      },
+      {
+        "id": "s11",
+        "label": [
+          "s11 上下文"
+        ],
+        "x": 80,
+        "y": 330,
+        "w": 110,
+        "h": 40
+      },
+      {
+        "id": "full",
+        "label": [
+          "完整理解"
+        ],
+        "x": 300,
+        "y": 510,
+        "w": 120,
+        "h": 40,
+        "accent": true
+      }
+    ],
+    "edges": [
+      {
+        "from": "input",
+        "to": "s01"
+      },
+      {
+        "from": "s01",
+        "to": "s02"
+      },
+      {
+        "from": "s02",
+        "to": "s03"
+      },
+      {
+        "from": "s03",
+        "to": "s04"
+      },
+      {
+        "from": "s04",
+        "to": "s05"
+      },
+      {
+        "from": "s05",
+        "to": "s06"
+      },
+      {
+        "from": "s05",
+        "to": "s07"
+      },
+      {
+        "from": "s06",
+        "to": "s08",
+        "label": "训练后"
+      },
+      {
+        "from": "s07",
+        "to": "s08"
+      },
+      {
+        "from": "s08",
+        "to": "output"
+      },
+      {
+        "from": "s09",
+        "to": "s10",
+        "dashed": true
+      },
+      {
+        "from": "s10",
+        "to": "s11",
+        "dashed": true
+      },
+      {
+        "from": "output",
+        "to": "full"
+      },
+      {
+        "from": "s11",
+        "to": "full",
+        "dashed": true
+      }
+    ],
+    "svgW": 580,
+    "svgH": 560,
+    "ariaLabel": "系统化回顾 概念关系图",
+    "title": "概念关系图 — 全局视角",
+    "annotations": [
+      {
+        "type": "rect",
+        "x": 140,
+        "y": 20,
+        "w": 420,
+        "h": 430,
+        "rx": 20,
+        "text": "主流水线"
+      },
+      {
+        "type": "rect",
+        "x": 20,
+        "y": 120,
+        "w": 120,
+        "h": 250,
+        "rx": 16,
+        "text": "全局视角"
+      }
+    ]
+  }
+}

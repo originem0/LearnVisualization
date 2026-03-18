@@ -1,27 +1,13 @@
 /**
  * Module Registry — single source of truth for module → component mapping.
  *
- * Adding a new module? Add ONE entry here. That's it.
- * ModuleDetail and all other consumers read from this registry.
+ * Adding a new module? Add ONE entry here.
  */
 
 import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
-
-/* ── Concept Maps (static, SSR-safe) ── */
-
-import ConceptMapS01 from '@/components/ConceptMapS01';
-import ConceptMapS02 from '@/components/ConceptMapS02';
-import ConceptMapS03 from '@/components/ConceptMapS03';
-import ConceptMapS04 from '@/components/ConceptMapS04';
-import ConceptMapS05 from '@/components/ConceptMapS05';
-import ConceptMapS06 from '@/components/ConceptMapS06';
-import ConceptMapS07 from '@/components/ConceptMapS07';
-import ConceptMapS08 from '@/components/ConceptMapS08';
-import ConceptMapS09 from '@/components/ConceptMapS09';
-import ConceptMapS10 from '@/components/ConceptMapS10';
-import ConceptMapS11 from '@/components/ConceptMapS11';
-import ConceptMapS12 from '@/components/ConceptMapS12';
+import type { ConceptMapSchema } from '@/components/ConceptMapRenderer';
+import { conceptMapSchemas } from '@/lib/concept-map-schemas';
 
 /* ── Interactive Components (client-only, dynamic import) ── */
 
@@ -50,80 +36,74 @@ const ContextFitCalc = dynamic(() => import('@/components/interactive/ContextFit
 const FullPipelineTracer = dynamic(() => import('@/components/interactive/FullPipelineTracer'), { ssr: false });
 const KnowledgeNetwork = dynamic(() => import('@/components/interactive/KnowledgeNetwork'), { ssr: false });
 
-/* ── Registry type ── */
-
 export interface ModuleRegistryEntry {
-  conceptMap: ComponentType;
+  conceptMapSchema: ConceptMapSchema;
   heroInteractive: ComponentType;
   secondaryInteractive: ComponentType;
 }
 
-/* ── The Registry ── */
-
 export const moduleRegistry: Record<number, ModuleRegistryEntry> = {
   1: {
-    conceptMap: ConceptMapS01,
+    conceptMapSchema: conceptMapSchemas[1],
     heroInteractive: TokenizerPlayground,
     secondaryInteractive: BPESimulator,
   },
   2: {
-    conceptMap: ConceptMapS02,
+    conceptMapSchema: conceptMapSchemas[2],
     heroInteractive: VectorArithmetic,
     secondaryInteractive: EmbeddingLookup,
   },
   3: {
-    conceptMap: ConceptMapS03,
+    conceptMapSchema: conceptMapSchemas[3],
     heroInteractive: AttentionHeatmap,
     secondaryInteractive: QKVStepper,
   },
   4: {
-    conceptMap: ConceptMapS04,
+    conceptMapSchema: conceptMapSchemas[4],
     heroInteractive: TransformerFlow,
     secondaryInteractive: ArchitectureCompare,
   },
   5: {
-    conceptMap: ConceptMapS05,
+    conceptMapSchema: conceptMapSchemas[5],
     heroInteractive: NextWordGame,
     secondaryInteractive: MLMvsCLM,
   },
   6: {
-    conceptMap: ConceptMapS06,
+    conceptMapSchema: conceptMapSchemas[6],
     heroInteractive: LossLandscape,
     secondaryInteractive: LRScheduleViz,
   },
   7: {
-    conceptMap: ConceptMapS07,
+    conceptMapSchema: conceptMapSchemas[7],
     heroInteractive: AlignmentCompare,
     secondaryInteractive: LoRACalculator,
   },
   8: {
-    conceptMap: ConceptMapS08,
+    conceptMapSchema: conceptMapSchemas[8],
     heroInteractive: PromptWorkshop,
     secondaryInteractive: FewShotBuilder,
   },
   9: {
-    conceptMap: ConceptMapS09,
+    conceptMapSchema: conceptMapSchemas[9],
     heroInteractive: ScalingLawPlotter,
     secondaryInteractive: TrainingBudgetCalc,
   },
   10: {
-    conceptMap: ConceptMapS10,
+    conceptMapSchema: conceptMapSchemas[10],
     heroInteractive: EmergenceStaircase,
     secondaryInteractive: CoTToggle,
   },
   11: {
-    conceptMap: ConceptMapS11,
+    conceptMapSchema: conceptMapSchemas[11],
     heroInteractive: ContextLengthCalc,
     secondaryInteractive: ContextFitCalc,
   },
   12: {
-    conceptMap: ConceptMapS12,
+    conceptMapSchema: conceptMapSchemas[12],
     heroInteractive: FullPipelineTracer,
     secondaryInteractive: KnowledgeNetwork,
   },
 };
-
-/* ── Helper ── */
 
 export function getModuleComponents(moduleId: number): ModuleRegistryEntry | null {
   return moduleRegistry[moduleId] ?? null;
