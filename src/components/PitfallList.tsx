@@ -14,11 +14,11 @@ export default function PitfallList({ items, locale }: PitfallListProps) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {items.map((item, index) => (
-        <div key={`${item.point}-${index}`} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3">
+        <div key={`${item.point}-${index}`} className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/8">
           <div className="text-sm font-semibold text-[color:var(--color-text)]">{item.point}</div>
-          <div className="mt-1 text-xs text-[color:var(--color-muted)]">{labels.misc.rootCause}：{item.rootCause}</div>
+          <div className="mt-2 text-xs leading-6 text-[color:var(--color-muted)]">{labels.misc.rootCause}：{item.rootCause}</div>
         </div>
       ))}
     </div>
