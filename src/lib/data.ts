@@ -3,12 +3,26 @@ import { getMirroredStateData } from '@/lib/course-package-adapter';
 import type { Category, Module, StateData } from './types';
 import type { Locale } from './i18n';
 
+export type RuntimeDataSource = 'legacy' | 'mirrored';
+
 const datasets: Record<Locale, StateData> = {
   zh: zh as StateData,
 };
 
-export function getData(locale: Locale): StateData {
+export function getRuntimeDataSource(): RuntimeDataSource {
+  return process.env.LEARNING_SITE_DATA_SOURCE === 'mirrored' ? 'mirrored' : 'legacy';
+}
+
+export function getLegacyData(locale: Locale): StateData {
   return datasets[locale] ?? datasets.zh;
+}
+
+export function getData(locale: Locale): StateData {
+  if (locale === 'zh' && getRuntimeDataSource() === 'mirrored') {
+    return getMirroredStateData('llm-fundamentals');
+  }
+
+  return getLegacyData(locale);
 }
 
 export function getCategoriesById(data: StateData): Record<string, Category> {

@@ -52,9 +52,10 @@
 - 建立读取适配层
 - 保持站点继续跑旧源
 
-### Phase 2（下一步）
-- 增加 `USE_MIRRORED_COURSE_PACKAGE` 这种显式开关（或内部 helper）
-- 在本地验证从镜像源读取是否能完整渲染当前站点
+### Phase 2（已完成）
+- 增加显式开关：`LEARNING_SITE_DATA_SOURCE=mirrored`
+- `src/lib/data.ts` 支持在 runtime 选择旧源或镜像课程包
+- 已在本地验证从镜像源读取仍可完整 build 当前站点
 
 ### Phase 3
 - 让校验脚本同时检查：
