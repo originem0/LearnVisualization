@@ -128,6 +128,9 @@ export interface CoursePackage {
   slug: string;
   title: string;
   subtitle?: string;
+  goal: string;
+  projectType: string;
+  startDate: string;
   topic: string;
   language: CourseLanguage;
   status: CourseStatus;

@@ -1,4 +1,5 @@
 import zh from '@/content/zh';
+import { getMirroredStateData } from '@/lib/course-package-adapter';
 import type { Category, Module, StateData } from './types';
 import type { Locale } from './i18n';
 
@@ -28,3 +29,7 @@ export function getModuleSlug(id: number): string {
   return `s${String(id).padStart(2, '0')}`;
 }
 
+
+export function getMirroredData() {
+  return getMirroredStateData('llm-fundamentals');
+}

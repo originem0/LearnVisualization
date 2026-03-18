@@ -391,5 +391,8 @@
       "name": "前沿探索",
       "color": "red"
     }
-  ]
+  ],
+  "goal": "理解 Transformer 架构如何实现语言理解与生成，并能运用于实际任务",
+  "projectType": "mixed",
+  "startDate": "2026-03-10"
 }
