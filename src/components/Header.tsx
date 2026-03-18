@@ -30,7 +30,6 @@ export default function Header({ project, locale }: HeaderProps) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          {/* LanguageToggle disabled — en content incomplete */}
           <ThemeToggle locale={locale} />
         </div>
       </div>

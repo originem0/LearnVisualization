@@ -1,11 +1,9 @@
 import zh from '@/content/zh';
-import en from '@/data/state.en.json';
 import type { Category, Module, StateData } from './types';
 import type { Locale } from './i18n';
 
 const datasets: Record<Locale, StateData> = {
   zh: zh as StateData,
-  en: en as StateData,
 };
 
 export function getData(locale: Locale): StateData {
