@@ -10,7 +10,7 @@ const datasets: Record<Locale, StateData> = {
 };
 
 export function getRuntimeDataSource(): RuntimeDataSource {
-  return process.env.LEARNING_SITE_DATA_SOURCE === 'mirrored' ? 'mirrored' : 'legacy';
+  return process.env.LEARNING_SITE_DATA_SOURCE === 'legacy' ? 'legacy' : 'mirrored';
 }
 
 export function getLegacyData(locale: Locale): StateData {

@@ -64,9 +64,10 @@
   - 镜像课程包
 - 已新增 `scripts/compare-course-sources.mjs` 作为双源对照脚本
 
-### Phase 4
-- 当镜像课程包与运行站点完全一致时，切换默认读取源
-- 旧 `src/content/zh` 进入兼容期，最终下线
+### Phase 4（已进入）
+- 默认读取源已切换为镜像课程包
+- `LEARNING_SITE_DATA_SOURCE=legacy` 仍保留为显式回退开关
+- 旧 `src/content/zh` 进入兼容期，待后续彻底下线
 
 ---
 
