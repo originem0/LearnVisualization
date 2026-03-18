@@ -42,7 +42,7 @@ courses/llm-fundamentals/
     s12.json
 ```
 
-`src/content/zh/` 目前仅作为 legacy 兼容层保留。
+`src/content/zh/` 目前仅作为 legacy 兼容层保留，未来应由课程包再生成而不是继续人工维护。
 
 每个模块包含：
 

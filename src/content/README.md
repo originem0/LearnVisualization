@@ -15,7 +15,7 @@ courses/llm-fundamentals/
 ```
 
 `src/content/zh/` 目前仍然保留，但已经处于 **legacy compatibility** 状态，
-不应再作为新增内容的主写入位置。
+不应再作为新增内容的主写入位置。未来应优先把它视为一个可再生成的兼容层。
 
 ## Narrative blocks
 
