@@ -36,7 +36,7 @@
     ]
   },
   "quote": "残差连接和层归一化是深层网络的生命线",
-  "keyInsight": null,
+  "keyInsight": "Transformer 的突破不是“只有注意力就够了”，而是把跨 token 通信、逐位置加工、训练稳定性和可堆叠模板装进了同一层积木。",
   "logicChain": [
     "Transformer block 由注意力、FFN、残差、归一化组成",
     "注意力负责跨 token 交流",
@@ -52,80 +52,109 @@
     "“Attention is all you need” 不是说只要注意力层就够了",
     "FFN 和归一化不是配角，它们是规模化训练的前提"
   ],
-  "opening": "论文标题叫《Attention Is All You Need》。\n\n但如果你真的只保留注意力层，模型大概率训练不稳，深一点就崩。\n\nTransformer 真正厉害的地方，不只是注意力本身，而是它把一堆看似不起眼的部件，拼成了一个可以规模化堆叠的积木系统。",
+  "opening": "《Attention Is All You Need》这个标题有点会骗人。\n\n如果你真的把模型只剩注意力层，它不会更优雅，只会更难训。\n\nTransformer 真正厉害的地方，是它把通信、加工、稳定性和堆叠方式装进了一个可复制的标准模板。",
   "narrative": [
     {
       "type": "heading",
-      "content": "一个 Transformer Block 里到底有什么？"
+      "content": "一个 Transformer Block 不是一个点子，而是一套流水线"
     },
     {
       "type": "text",
-      "content": "如果把 Transformer 拆开看，一个标准 block 并不神秘：注意力层负责跨 token 交流，前馈网络负责逐位置变换，残差连接负责保留和绕行信息，层归一化负责让数值分布稳定。\n\n真正的威力来自它们的组合，而不是某一个单件孤立地伟大。"
+      "content": "把 Transformer 拆开看，你会发现它并不神秘：注意力负责跨 token 交流，前馈网络负责逐位置加工，残差连接负责让旧信息有旁路可走，LayerNorm 负责把数值分布维持在可训练区间。\n\n真正重要的不是某一个零件单独伟大，而是这些零件被组装成了可以反复堆叠的标准块。"
     },
     {
-      "type": "diagram",
-      "label": "基础 Block",
-      "content": "输入\n  ↓\nSelf-Attention\n  + Residual\n  + LayerNorm\n  ↓\nFFN\n  + Residual\n  + LayerNorm\n  ↓\n输出"
-    },
-    {
-      "type": "heading",
-      "content": "残差连接为什么关键？"
-    },
-    {
-      "type": "text",
-      "content": "深层网络最怕信息和梯度被一层层“磨掉”。残差连接相当于给每层开了一条旁路：你可以在当前层学到新东西，也可以在学不到的时候至少把旧信息传过去。\n\n这使得“堆很多层”变得现实。没有它，深度通常很快变成负担。"
-    },
-    {
-      "type": "heading",
-      "content": "层归一化在稳定什么？"
-    },
-    {
-      "type": "text",
-      "content": "每层输出的统计分布如果不停漂移，后面的层就很难学。LayerNorm 在 token 维度上做标准化，让每层都在更可控的数值范围内工作。\n\n它不是提高表达能力的模块，而是保证整个系统训练得下去的基础设施。"
+      "type": "steps",
+      "label": "一层 Block 里实际发生的事",
+      "content": "",
+      "steps": [
+        {
+          "title": "Self-Attention",
+          "description": "先决定每个 token 该从别的 token 收多少信息",
+          "visual": "输入表示\n   ↓\nSelf-Attention\n= 跨 token 交流",
+          "highlight": "Self-Attention"
+        },
+        {
+          "title": "Residual 跳连",
+          "description": "把旧信息和新信息并在一起，避免一层算坏就全丢",
+          "visual": "旧表示 + 注意力输出\n= 仍保留原始通路",
+          "highlight": "+"
+        },
+        {
+          "title": "LayerNorm 稳定数值",
+          "description": "让下一层接收到更可控的分布",
+          "visual": "Residual 输出\n   ↓\nLayerNorm",
+          "highlight": "LayerNorm"
+        },
+        {
+          "title": "FFN 逐位置加工",
+          "description": "每个 token 再单独做一次非线性变换",
+          "visual": "每个位置独立\nLinear → 激活 → Linear",
+          "highlight": "FFN"
+        },
+        {
+          "title": "再来一次 Residual + Norm",
+          "description": "把这一层整理成可继续堆叠的输出",
+          "visual": "FFN 输出 + 原输入\n   ↓\nLayerNorm\n   ↓\n下一层 Block",
+          "highlight": "下一层 Block"
+        }
+      ]
     },
     {
       "type": "comparison",
       "label": "两类子层分工",
-      "content": "Self-Attention：负责跨 token 建模关系，决定该从别的词收集什么信息\nFFN：负责对每个位置单独做非线性变换，把收集来的信息加工成更高层表示"
+      "content": "Self-Attention：负责跨 token 建模关系，决定该从谁那里拿信息\nFFN：负责对每个位置做非线性加工，把拿到的信息提炼成更高层表示"
     },
     {
       "type": "heading",
-      "content": "为什么 FFN 不能省？"
+      "content": "残差连接为什么像“深度许可证”"
     },
     {
       "type": "text",
-      "content": "注意力负责“路由信息”，但不擅长做充分的逐位置变换。FFN 把每个 token 的表示先升维、激活、再压回去，相当于在每个位置上做一小段 MLP 计算。\n\n没有 FFN，模型会更像一个单纯的信息混合器，而不是能提炼特征的深层网络。"
+      "content": "深层网络最怕两件事：信息被一层层磨损，梯度也被一层层耗散。残差连接等于给每层开了一条保底旁路：就算这一层暂时学得不好，也至少不会把已有表示完全破坏。\n\n这不是锦上添花，而是“能不能堆很多层”的前提。没有残差，深度很快会从资产变成负担。"
     },
     {
       "type": "heading",
-      "content": "Encoder、Decoder、Decoder-only 有什么区别？"
+      "content": "LayerNorm 在保护什么"
     },
     {
       "type": "text",
-      "content": "原始 Transformer 是编码器—解码器架构：编码器双向读输入，解码器带因果遮罩逐步生成输出，并通过交叉注意力读取编码器结果。\n\n后来 BERT 走了 encoder 路线，更适合理解任务；GPT 走了 decoder-only 路线，更适合统一生成接口。今天的大语言模型主流几乎都站在 decoder-only 这一侧。"
+      "content": "每一层输出的统计分布如果不停漂移，后面所有层都要追着变，训练会很不稳。LayerNorm 不是为了增加表达能力，而是为了减少系统性晃动，让每层都在较稳定的数值范围里工作。\n\n你可以把它理解成：不是让模型更聪明，而是让模型别发疯。"
+    },
+    {
+      "type": "heading",
+      "content": "为什么 FFN 不能省"
+    },
+    {
+      "type": "text",
+      "content": "注意力擅长“路由信息”，不擅长充分地“加工信息”。如果只有注意力，模型更像一个复杂的信息交换系统；加上 FFN，每个 token 才能在拿到上下文之后，进一步完成逐位置的非线性变换。\n\nTransformer 强，不是因为它会传话，而是因为它能在传话之后继续提炼表示。"
+    },
+    {
+      "type": "comparison",
+      "label": "两种主流架构",
+      "content": "Encoder-Decoder：编码器先充分理解输入，解码器再带着交叉注意力逐步生成输出，适合翻译和序列到序列任务\nDecoder-only：统一用带因果遮罩的堆叠 block 做生成，接口更简单，也更适合扩成今天的大语言模型"
     },
     {
       "type": "callout",
-      "content": "Transformer 的突破，不是“某个天才公式”，而是把表示、通信、稳定性和可扩展性装配成一个统一模板。"
+      "content": "Transformer 的革命，不是某个公式特别神，而是它终于给“深、稳、并行、可复制”这四件事找到了同一个模板。"
     },
     {
       "type": "heading",
-      "content": "为什么它适合规模化？"
+      "content": "为什么它天然适合规模化"
     },
     {
       "type": "text",
-      "content": "因为它的结构高度规则：同样的 block 可以重复堆叠；注意力和 FFN 都适合 GPU 并行；残差和归一化又让深层训练更稳定。\n\n一旦模板成立，剩下的就是“堆更多层、喂更多数据、用更多算力”。这也就自然把我们带到预训练阶段。"
+      "content": "因为它的每一层都长得差不多：同样的 block 重复堆叠，注意力和 FFN 又都适合 GPU 并行，残差和归一化负责把深层训练稳定住。\n\n一旦这个模板成立，后面的路线就很自然了：堆更多层，喂更多数据，消耗更多算力。也就是下一章要谈的预训练。"
     }
   ],
-  "bridgeTo": "结构搭好了，但模型还只是一个空壳。\n\n问题来了：没有人工标注，怎么让这样一个庞大的网络从海量文本里自己学会语言？\n\n答案是预训练目标。",
+  "bridgeTo": "结构现在搭好了，但它还只是一个空壳。\n\n问题变成了：没有人工标注，怎么让这样一个巨大的网络从海量文本里自己长出语言能力？\n\n答案不是“背规则”，而是设计预训练目标。",
   "pitfalls": [
     {
-      "point": "交叉注意力与自注意力的信息流方向混淆",
-      "rootCause": "概念关系未建立"
+      "point": "把 FFN、残差、LayerNorm 当成可有可无的配件",
+      "rootCause": "只记住了注意力的概念冲击，却没意识到训练稳定性本身就是架构设计的一半"
     },
     {
-      "point": "Pre-Norm vs Post-Norm 的训练稳定性差异",
-      "rootCause": "前知识不足"
+      "point": "把 Encoder-Decoder、Decoder-only 只当成“结构不同”",
+      "rootCause": "没有从信息流方向和任务接口去理解两者为何会分化出不同用途"
     }
   ]
 }
