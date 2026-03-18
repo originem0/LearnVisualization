@@ -177,5 +177,7 @@
     }
   ],
   "bridgeTo": "到这里，token 已经学会彼此通信了。\n\n但“一次注意力”还不等于“一个完整模型”。信息还要经过残差连接、归一化、前馈网络，再一层层堆起来，才会变成真正可扩展的 Transformer。",
-  "nextModuleId": "s04"
+  "nextModuleId": "s04",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace"
 }

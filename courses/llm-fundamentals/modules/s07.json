@@ -174,5 +174,7 @@
     }
   ],
   "bridgeTo": "当模型已经被对齐成一个像助手的系统，用户真正握在手里的接口就剩下 prompt。\n\n同一个模型，换一种提问方式，结果可能天差地别。\n\n怎么用自然语言把模型的能力调出来，就是 Prompt Engineering。",
-  "nextModuleId": "s08"
+  "nextModuleId": "s08",
+  "moduleKind": "system-overview",
+  "primaryCognitiveAction": "compare"
 }

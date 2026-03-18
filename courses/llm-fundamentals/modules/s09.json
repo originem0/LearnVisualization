@@ -156,5 +156,7 @@
     }
   ],
   "bridgeTo": "Scaling Laws 告诉我们损失在平滑下降。但模型的能力并不总是平滑提升。\n\n一个 10B 的模型完全无法做三位数加法。100B 还是不行。但到 1000B——突然就会了。准确率不是从 50% 涨到 60%，而是从接近 0% 直接跳到 90%+。\n\n这种“突然学会”的现象叫涌现。它挑战了 Scaling Laws 的平滑假设。",
-  "nextModuleId": "s10"
+  "nextModuleId": "s10",
+  "moduleKind": "system-overview",
+  "primaryCognitiveAction": "compare"
 }

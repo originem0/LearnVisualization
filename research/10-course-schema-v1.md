@@ -35,6 +35,11 @@ v1 先固定 5 层：
 4. `VisualSpec`
 5. `InteractionRequirement`
 
+另外，v1 明确加入两个比当前 LLM 样板更高阶的字段：
+
+- `moduleKind`：这一章属于哪种教学模式
+- `primaryCognitiveAction`：这一章主要训练什么认知动作
+
 补充说明：
 - narrative blocks 仍然属于 Module 内部
 - visual / interaction 先独立成引用层，而不是全部塞进 module 主体
@@ -184,6 +189,8 @@ interface Module {
   title: string;
   subtitle?: string;
   category: string;
+  moduleKind: ModuleKind;
+  primaryCognitiveAction: CognitiveAction;
 
   focusQuestion: string;
   misconception?: string;
@@ -215,6 +222,8 @@ interface Module {
 
 相对当前代码库，v1 schema 需要显式新增：
 
+- `moduleKind`
+- `primaryCognitiveAction`
 - `focusQuestion`
 - `misconception`
 - `priorKnowledge`

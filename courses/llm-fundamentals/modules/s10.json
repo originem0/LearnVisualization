@@ -146,5 +146,7 @@
     }
   ],
   "bridgeTo": "涌现告诉我们，模型足够大就能解锁新能力。但能力还受另一个关键因素限制：模型一次能“看到”多少信息。\n\n一个推理问题可能需要同时考虑文章的开头和结尾。一个代码 bug 可能跨越几百行。如果上下文窗口太小，模型就像一个只能看到面前两行的读者——有推理能力也使不出来。\n\n上下文窗口的长度是怎么决定的？为什么加长它这么难？",
-  "nextModuleId": "s11"
+  "nextModuleId": "s11",
+  "moduleKind": "meta-reflection",
+  "primaryCognitiveAction": "reflect"
 }

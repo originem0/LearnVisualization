@@ -180,5 +180,7 @@
     }
   ],
   "bridgeTo": "到这里，我们已经能解释“怎么把模型用起来”。\n\n但还有更大的问题悬在上面：模型为什么一大就突然会更多东西？规模到底在改变什么？为什么上下文窗口总还是不够？\n\n接下来，我们把视角抬高到系统层。",
-  "nextModuleId": "s09"
+  "nextModuleId": "s09",
+  "moduleKind": "case-study",
+  "primaryCognitiveAction": "simulate"
 }

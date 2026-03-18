@@ -168,5 +168,7 @@
     }
   ],
   "bridgeTo": "预训练告诉模型“该猜什么”。\n\n但要让模型真的变强，还需要一个反向的问题：猜错了以后，怎么把这个错误量化，并把它传回几十亿个参数里？\n\n这就是损失与优化的问题。",
-  "nextModuleId": "s06"
+  "nextModuleId": "s06",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace"
 }

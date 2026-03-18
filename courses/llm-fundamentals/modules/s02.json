@@ -168,5 +168,7 @@
     }
   ],
   "bridgeTo": "现在每个 token 都有了向量，也知道了自己在序列里的位置。\n\n但它仍然是孤立的。它不知道句子里谁和谁相关，不知道“it”该指向谁，也不知道当前词应该重点看前面哪些词。\n\n让 token 彼此交流的机制，就是注意力。",
-  "nextModuleId": "s03"
+  "nextModuleId": "s03",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace"
 }

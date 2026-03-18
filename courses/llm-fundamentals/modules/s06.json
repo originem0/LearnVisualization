@@ -173,5 +173,7 @@
     }
   ],
   "bridgeTo": "到这里，模型已经能通过损失和优化在海量文本上慢慢学会语言。\n\n但预训练出来的模型仍然只是一个“会续写的基础模型”。它不一定服从指令，不一定安全，也不一定真的像助手。\n\n怎么把它从“通用语言模型”变成“可控系统”，就是微调与对齐。",
-  "nextModuleId": "s07"
+  "nextModuleId": "s07",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace"
 }

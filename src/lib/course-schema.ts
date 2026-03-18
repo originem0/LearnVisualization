@@ -23,6 +23,22 @@ export interface LearningPath {
   moduleIds: string[];
 }
 
+export type ModuleKind =
+  | 'concept-clarification'
+  | 'mechanism-walkthrough'
+  | 'system-overview'
+  | 'case-study'
+  | 'meta-reflection'
+  | 'integration-review';
+
+export type CognitiveAction =
+  | 'distinguish'
+  | 'trace'
+  | 'compare'
+  | 'simulate'
+  | 'rebuild'
+  | 'reflect';
+
 export type ModuleEdgeType = 'prerequisite' | 'bridge' | 'recommended';
 
 export interface ModuleEdge {
@@ -79,6 +95,8 @@ export interface CourseModule {
   title: string;
   subtitle?: string;
   category: string;
+  moduleKind: ModuleKind;
+  primaryCognitiveAction: CognitiveAction;
 
   focusQuestion: string;
   misconception?: string;

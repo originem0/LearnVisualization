@@ -154,5 +154,7 @@
     }
   ],
   "bridgeTo": "现在文本已经被切开，也被编号了。\n\n但编号本身没有任何语义。25105 和 25106 之间，并不比 25105 和 9 更“相近”。\n\n离散整数怎么变成能表达相似性、方向和意义的向量？这就是 Embedding 要解决的问题。",
-  "nextModuleId": "s02"
+  "nextModuleId": "s02",
+  "moduleKind": "concept-clarification",
+  "primaryCognitiveAction": "distinguish"
 }

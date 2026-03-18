@@ -1,4 +1,4 @@
-import type { CourseModule, InteractionRequirement, LearningPath, ModuleEdge, RetrievalPrompt, VisualRef } from '@/lib/course-schema';
+import type { CognitiveAction, CourseModule, InteractionRequirement, LearningPath, ModuleEdge, ModuleKind, RetrievalPrompt, VisualRef } from '@/lib/course-schema';
 import type { NarrativeBlock } from '@/lib/types';
 
 export type ReviewRequirement = 'required' | 'recommended' | 'optional';
@@ -15,6 +15,8 @@ export interface TopicFramingOutput {
 export interface PlannedModule {
   id: string;
   title: string;
+  moduleKind: ModuleKind;
+  primaryCognitiveAction: CognitiveAction;
   focusQuestion: string;
   misconception?: string;
   prerequisites?: string[];
@@ -48,6 +50,8 @@ export interface ModuleCompositionOutput {
   id: string;
   title: string;
   subtitle?: string;
+  moduleKind: ModuleKind;
+  primaryCognitiveAction: CognitiveAction;
   focusQuestion: string;
   misconception?: string;
   quote?: string;

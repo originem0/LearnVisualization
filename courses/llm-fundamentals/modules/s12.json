@@ -151,5 +151,7 @@
     }
   ],
   "bridgeTo": null,
-  "nextModuleId": null
+  "nextModuleId": null,
+  "moduleKind": "integration-review",
+  "primaryCognitiveAction": "rebuild"
 }

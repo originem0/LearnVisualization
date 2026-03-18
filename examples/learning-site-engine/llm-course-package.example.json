@@ -175,7 +175,9 @@
         }
       ],
       "bridgeTo": "编号本身没有语义，下一章进入 embedding。",
-      "nextModuleId": "s02"
+      "nextModuleId": "s02",
+      "moduleKind": "concept-clarification",
+      "primaryCognitiveAction": "distinguish"
     },
     {
       "id": "s02",
@@ -265,7 +267,9 @@
         }
       ],
       "bridgeTo": "输入表示有了，下一章进入 token 之间如何彼此交流。",
-      "nextModuleId": "s03"
+      "nextModuleId": "s03",
+      "moduleKind": "mechanism-walkthrough",
+      "primaryCognitiveAction": "trace"
     },
     {
       "id": "s03",
@@ -356,7 +360,9 @@
         }
       ],
       "bridgeTo": "一次注意力还不等于完整模型，下一章进入 block 结构。",
-      "nextModuleId": null
+      "nextModuleId": null,
+      "moduleKind": "mechanism-walkthrough",
+      "primaryCognitiveAction": "trace"
     }
   ],
   "categories": [

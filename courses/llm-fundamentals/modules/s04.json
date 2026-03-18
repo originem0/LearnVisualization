@@ -191,5 +191,7 @@
     }
   ],
   "bridgeTo": "结构现在搭好了，但它还只是一个空壳。\n\n问题变成了：没有人工标注，怎么让这样一个巨大的网络从海量文本里自己长出语言能力？\n\n答案不是“背规则”，而是设计预训练目标。",
-  "nextModuleId": "s05"
+  "nextModuleId": "s05",
+  "moduleKind": "system-overview",
+  "primaryCognitiveAction": "trace"
 }

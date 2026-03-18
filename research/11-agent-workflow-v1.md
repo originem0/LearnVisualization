@@ -208,6 +208,8 @@ interface ModuleCompositionOutput {
   id: string;
   title: string;
   subtitle?: string;
+  moduleKind: ModuleKind;
+  primaryCognitiveAction: CognitiveAction;
   focusQuestion: string;
   misconception?: string;
   quote?: string;

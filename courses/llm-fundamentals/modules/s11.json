@@ -179,5 +179,7 @@
     }
   ],
   "bridgeTo": "你现在知道了 LLM 的每一个零件：分词、嵌入、注意力、Transformer、预训练、优化、微调、Prompt、Scaling Laws、涌现、上下文。\n\n但零件和机器是两回事。让我们把所有东西串起来——追踪一个 prompt 从输入到输出的完整旅程。这是最后一步：从理解零件到理解整个系统。",
-  "nextModuleId": "s12"
+  "nextModuleId": "s12",
+  "moduleKind": "system-overview",
+  "primaryCognitiveAction": "compare"
 }

@@ -11,31 +11,45 @@
       "title": "Token 与词表",
       "focusQuestion": "模型为什么不能直接读文本？",
       "misconception": "模型一上来看到的就是自然语言本身。",
-      "targetChunk": "文本 -> token -> 词表 -> ID"
+      "targetChunk": "文本 -> token -> 词表 -> ID",
+      "moduleKind": "concept-clarification",
+      "primaryCognitiveAction": "distinguish"
     },
     {
       "id": "s02",
       "title": "Embedding 空间",
       "focusQuestion": "离散 token ID 怎么变成可计算的表示？",
       "misconception": "数字编号本身就携带语义。",
-      "prerequisites": ["s01"],
-      "targetChunk": "ID -> embedding -> position"
+      "prerequisites": [
+        "s01"
+      ],
+      "targetChunk": "ID -> embedding -> position",
+      "moduleKind": "mechanism-walkthrough",
+      "primaryCognitiveAction": "trace"
     },
     {
       "id": "s03",
       "title": "注意力机制",
       "focusQuestion": "一个词到底怎么决定该看谁？",
       "misconception": "注意力只是把知识存进某个词里。",
-      "prerequisites": ["s02"],
-      "targetChunk": "Q/K/V -> 分数 -> 权重 -> 聚合"
+      "prerequisites": [
+        "s02"
+      ],
+      "targetChunk": "Q/K/V -> 分数 -> 权重 -> 聚合",
+      "moduleKind": "mechanism-walkthrough",
+      "primaryCognitiveAction": "trace"
     },
     {
       "id": "s04",
       "title": "Transformer 结构",
       "focusQuestion": "为什么只有注意力还不够？",
       "misconception": "Transformer 只是把注意力层叠很多次。",
-      "prerequisites": ["s03"],
-      "targetChunk": "attention + residual + norm + ffn"
+      "prerequisites": [
+        "s03"
+      ],
+      "targetChunk": "attention + residual + norm + ffn",
+      "moduleKind": "system-overview",
+      "primaryCognitiveAction": "trace"
     }
   ],
   "edges": [
@@ -63,7 +77,12 @@
       "id": "core-mechanism",
       "title": "核心机制",
       "description": "先掌握表示与交互的最短路径",
-      "moduleIds": ["s01", "s02", "s03", "s04"]
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03",
+        "s04"
+      ]
     }
   ]
 }
