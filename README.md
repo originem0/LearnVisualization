@@ -14,27 +14,35 @@
 ## 项目结构
 
 ```txt
+courses/             课程包（未来主内容源）
+engine/              引擎边界与架构说明
+examples/            schema / workflow / package examples
+research/            研究与设计输入文档
 src/
-  app/                 路由与页面
-  components/          页面组件与交互组件
-  content/zh/          中文内容源（project / categories / modules）
-  data/                narrative spec / concept map schemas
-  lib/                 数据读取、类型、标签、registry
-scripts/               内容校验、结构校验、脚手架
+  app/               路由与页面
+  components/        页面组件与交互组件
+  content/zh/        legacy 兼容内容源
+  data/              narrative spec / concept map schemas
+  lib/               数据读取、类型、schema、adapter
+scripts/             内容校验、结构校验、脚手架
 ```
 
 ## 内容系统
 
 当前站点为 **zh-only**。
 
-模块内容拆分在：
+当前主内容源已经迁移到 course package 路径：
 
 ```txt
-src/content/zh/modules/
-  s01.json
-  ...
-  s12.json
+courses/llm-fundamentals/
+  course.json
+  modules/
+    s01.json
+    ...
+    s12.json
 ```
+
+`src/content/zh/` 目前仅作为 legacy 兼容层保留。
 
 每个模块包含：
 
@@ -100,11 +108,15 @@ npm run build
 node scripts/new-module.mjs --id 13 --category frontier --title "你的标题" --subtitle "你的副标题"
 ```
 
+默认会写入：
+
+- `courses/llm-fundamentals/modules/s13.json`
+
 之后还需要：
 
 1. 填真实内容
-2. 在 `src/data/concept-map-schemas.json` 增加概念图 schema
-3. 在 `src/lib/module-registry.ts` 里接入交互组件
+2. 补 `courses/<course>/visuals/` 下的可视化数据
+3. 补 `courses/<course>/interactions/` 下的交互 hints / registry
 4. 再跑一次 `npm run check`
 
 ## 部署
