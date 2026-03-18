@@ -64,10 +64,14 @@
   - 镜像课程包
 - 已新增 `scripts/compare-course-sources.mjs` 作为双源对照脚本
 
-### Phase 4（已进入）
+### Phase 4（已完成）
 - 默认读取源已切换为镜像课程包
 - `LEARNING_SITE_DATA_SOURCE=legacy` 仍保留为显式回退开关
-- 旧 `src/content/zh` 进入兼容期，待后续彻底下线
+- 旧 `src/content/zh` 已进入兼容期，待后续彻底下线
+
+### Phase 5（下一步）
+- 调整 authoring / validation / docs，让课程包成为唯一主写入路径
+- 阻止新内容继续写入 legacy source
 
 ---
 
