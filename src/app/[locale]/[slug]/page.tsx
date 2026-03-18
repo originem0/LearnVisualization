@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import ModuleDetail from '@/components/ModuleDetail';
 import { getData, getCategoriesById, getModuleSlug } from '@/lib/data';
 import { enabledLocales, type Locale } from '@/lib/i18n';
@@ -18,6 +19,38 @@ export function generateStaticParams() {
 
 interface ModulePageProps {
   params: { locale: Locale; slug: string };
+}
+
+export function generateMetadata({ params }: ModulePageProps): Metadata {
+  const { locale, slug } = params;
+  const data = getData(locale);
+  const id = Number(slug.replace(/^s/, ''));
+  const mod = data.modules.find((m) => m.id === id);
+  if (!mod) return {};
+
+  const categoriesById = getCategoriesById(data);
+  const category = categoriesById[mod.category];
+  const title = `${getModuleSlug(mod.id)} ${mod.title} — ${data.project.title}`;
+  const description = mod.subtitle;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      locale: locale === 'zh' ? 'zh_CN' : 'en_US',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+    other: {
+      'article:section': category?.name ?? '',
+    },
+  };
 }
 
 export default function ModulePage({ params }: ModulePageProps) {

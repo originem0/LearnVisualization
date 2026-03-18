@@ -26,7 +26,6 @@ export default function Header({ project, locale }: HeaderProps) {
           </Link>
           <nav className="hidden items-center gap-4 text-sm text-[color:var(--color-muted)] lg:flex">
             <Link href={`/${locale}/timeline/`} className="hover:text-[color:var(--color-text)]">{labels.nav.timeline}</Link>
-            <Link href={`/${locale}/compare/`} className="hover:text-[color:var(--color-text)]">{labels.nav.compare}</Link>
             <Link href={`/${locale}/layers/`} className="hover:text-[color:var(--color-text)]">{labels.nav.layers}</Link>
           </nav>
         </div>

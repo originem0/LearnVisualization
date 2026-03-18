@@ -8,6 +8,11 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
   const isZh = params.locale === 'zh';
   const firstModule = data.modules[0];
 
+  // Compute real numbers instead of hardcoding
+  const moduleCount = data.modules.length;
+  const layerCount = data.categories.length;
+  const interactiveCount = moduleCount * 2; // hero + secondary per module
+
   const grouped = data.categories.map((category) => ({
     ...category,
     modules: data.modules.filter((module) => module.category === category.id),
@@ -20,7 +25,7 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
         <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.25fr_0.95fr] lg:p-10">
           <div>
             <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
-              {isZh ? '可视化学习路径' : 'Visual Learning Path'}
+              {isZh ? '可视化交互学习' : 'Visual Interactive Learning'}
             </div>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-5xl">
               {data.project.title}
@@ -28,7 +33,7 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
             <p className="mt-4 max-w-2xl text-base leading-8 text-[color:var(--color-muted)] sm:text-lg">
               {isZh
                 ? '不是术语堆砌，不是静态文档。这里把 LLM 从 token、embedding、注意力、Transformer，到训练、对齐、涌现与上下文窗口，拆成可以看、可以玩、可以一层层穿透的学习页面。'
-                : 'Not a glossary dump and not static docs. This path turns LLMs into a visual, interactive learning experience — from tokens and embeddings to attention, training, alignment, emergence, and context windows.'}
+                : 'Not a glossary dump and not static docs. This path turns LLMs into a visual, interactive learning experience.'}
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3 text-sm">
@@ -39,28 +44,28 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
                 {isZh ? '从第一章开始' : 'Start from Chapter 1'}
               </Link>
               <Link
-                href={`/${params.locale}/timeline/`}
+                href={`/${params.locale}/layers/`}
                 className="rounded-full border border-[color:var(--color-border)] px-5 py-2.5 font-semibold text-[color:var(--color-text)] transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900"
               >
-                {isZh ? '查看完整路径' : 'Open full path'}
+                {isZh ? '查看知识地图' : 'Knowledge map'}
               </Link>
             </div>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-zinc-50 p-4 dark:bg-zinc-900/60">
-                <div className="text-2xl font-bold text-[color:var(--color-text)]">{data.modules.length}</div>
+                <div className="text-2xl font-bold text-[color:var(--color-text)]">{moduleCount}</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-[color:var(--color-muted)]">
                   {isZh ? '模块' : 'Modules'}
                 </div>
               </div>
               <div className="rounded-xl bg-zinc-50 p-4 dark:bg-zinc-900/60">
-                <div className="text-2xl font-bold text-[color:var(--color-text)]">{data.categories.length}</div>
+                <div className="text-2xl font-bold text-[color:var(--color-text)]">{layerCount}</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-[color:var(--color-muted)]">
                   {isZh ? '知识层' : 'Layers'}
                 </div>
               </div>
               <div className="rounded-xl bg-zinc-50 p-4 dark:bg-zinc-900/60">
-                <div className="text-2xl font-bold text-[color:var(--color-text)]">24+</div>
+                <div className="text-2xl font-bold text-[color:var(--color-text)]">{interactiveCount}</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-[color:var(--color-muted)]">
                   {isZh ? '交互演示' : 'Interactive demos'}
                 </div>
@@ -68,124 +73,112 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
             </div>
           </div>
 
+          {/* Mini knowledge map — replaces static ASCII panel */}
           <div className="rounded-2xl border border-zinc-200 bg-zinc-950 p-5 text-zinc-100 dark:border-zinc-800">
-            <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
+            <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-zinc-500">
               <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />
               {isZh ? '核心路径' : 'Core path'}
             </div>
-            <pre className="overflow-x-auto text-sm leading-7 text-zinc-200">
-              <code>{`原始文本
-   ↓ 分词
-Token IDs
-   ↓ Embedding
-向量表示
-   ↓ Attention
-上下文聚合
-   ↓ Transformer
-层层加工
-   ↓ Pretrain / Align
-能力成形
-   ↓ Prompt + Context
-输出结果`}</code>
-            </pre>
-            <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/80 p-4">
-              <div className="font-mono text-xs text-zinc-500">while learning:</div>
-              <pre className="mt-2 overflow-x-auto text-sm leading-6 text-zinc-300">
-                <code>{`see the structure()
-play with the mechanism()
-understand the trade-off()
-connect it to the next layer()`}</code>
-              </pre>
+            <div className="space-y-2">
+              {grouped.map((group, layerIdx) => {
+                const isLast = layerIdx === grouped.length - 1;
+                return (
+                  <div key={group.id}>
+                    <div className="flex items-center gap-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${categoryStyles[group.color].dot}`} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{group.name}</span>
+                    </div>
+                    <div className="ml-4 mt-1 flex flex-wrap items-center gap-1">
+                      {group.modules.map((mod, i) => (
+                        <span key={mod.id} className="flex items-center">
+                          <Link
+                            href={`/${params.locale}/${getModuleSlug(mod.id)}/`}
+                            className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-xs text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white"
+                          >
+                            {getModuleSlug(mod.id)}
+                          </Link>
+                          {i < group.modules.length - 1 && (
+                            <span className="mx-0.5 text-xs text-zinc-600">→</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                    {!isLast && (
+                      <div className="ml-5 h-3 border-l border-zinc-700" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Core idea */}
-      <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 sm:p-8">
-          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
-            {isZh ? '核心模式' : 'Core pattern'}
-          </div>
-          <h2 className="mt-3 text-2xl font-bold text-[color:var(--color-text)]">
-            {isZh ? '先看到全貌，再动手理解局部' : 'See the whole, then manipulate the parts'}
-          </h2>
-          <p className="mt-4 text-sm leading-7 text-[color:var(--color-muted)] sm:text-base">
+      {/* Learning path routing — 3 personas */}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <Link
+          href={`/${params.locale}/s01/`}
+          className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 transition-colors hover:border-[color:var(--color-muted)]/60"
+        >
+          <div className="text-2xl">🔰</div>
+          <h3 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">
+            {isZh ? '系统学习' : 'Full path'}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
             {isZh
-              ? '这个项目不是把 LLM 知识拆成 12 篇孤立文章，而是把它做成一条连续的学习链。每一页都会给你一个核心问题、一张概念关系图、至少一个交互演示，以及通向下一页的桥。'
-              : 'This project is not a pile of disconnected articles. Each page gives you a core question, a concept map, at least one interactive demo, and a bridge to the next layer.'}
+              ? '从 s01 顺着走到 s12。每一章为下一章铺路，概念层层递进。适合想完整理解 LLM 的人。'
+              : 'Walk from s01 to s12. Each chapter sets up the next. For those who want complete understanding.'}
           </p>
+          <div className="mt-4 font-mono text-xs text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)]">
+            s01 → s02 → … → s12
+          </div>
+        </Link>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {[
-              {
-                title: isZh ? '看结构' : 'See structure',
-                desc: isZh ? '用概念图先抓住系统骨架，而不是先背定义。' : 'Start from concept maps, not isolated definitions.',
-              },
-              {
-                title: isZh ? '做实验' : 'Run experiments',
-                desc: isZh ? '自己输入、拖动、点下一步，让机制在眼前发生。' : 'Type, drag, toggle, and step through the mechanism yourself.',
-              },
-              {
-                title: isZh ? '看权衡' : 'See trade-offs',
-                desc: isZh ? '每一页都强调“为什么这样设计，而不是那样设计”。' : 'Every page explains why this design, not some other one.',
-              },
-              {
-                title: isZh ? '连到下一层' : 'Bridge forward',
-                desc: isZh ? '每个概念都不是终点，而是下一层的前提。' : 'Every concept becomes a prerequisite for the next layer.',
-              },
-            ].map((item) => (
-              <div key={item.title} className="rounded-xl bg-zinc-50 p-4 dark:bg-zinc-900/60">
-                <div className="font-semibold text-[color:var(--color-text)]">{item.title}</div>
-                <div className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">{item.desc}</div>
-              </div>
-            ))}
+        <Link
+          href={`/${params.locale}/s01/`}
+          className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 transition-colors hover:border-[color:var(--color-muted)]/60"
+        >
+          <div className="text-2xl">⚡</div>
+          <h3 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">
+            {isZh ? '只看核心机制' : 'Core mechanism'}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
+            {isZh
+              ? '4 章搞定 LLM 核心原理：token 化 → 注意力 → Transformer → 预训练。最小知识量，最大密度。'
+              : 'Four chapters for the core: tokens → attention → transformer → pre-training. Minimum effort, maximum density.'}
+          </p>
+          <div className="mt-4 font-mono text-xs text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)]">
+            s01 → s03 → s04 → s05
           </div>
-        </div>
+        </Link>
 
-        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 sm:p-8">
-          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
-            {isZh ? '推荐入口' : 'Suggested entries'}
+        <Link
+          href={`/${params.locale}/s07/`}
+          className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-6 transition-colors hover:border-[color:var(--color-muted)]/60"
+        >
+          <div className="text-2xl">🎯</div>
+          <h3 className="mt-3 text-lg font-bold text-[color:var(--color-text)]">
+            {isZh ? '应用导向' : 'Application-focused'}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
+            {isZh
+              ? '已经会用但想知道为什么？对齐 → Prompt → 上下文窗口，直接讲你每天在用的东西。'
+              : 'Already using LLMs and want to know why? Alignment → Prompting → Context windows.'}
+          </p>
+          <div className="mt-4 font-mono text-xs text-[color:var(--color-muted)] group-hover:text-[color:var(--color-text)]">
+            s07 → s08 → s11
           </div>
-          <div className="mt-4 space-y-3">
-            {[
-              {
-                href: `/${params.locale}/s01/`,
-                title: isZh ? '从 Token 开始' : 'Start with Tokens',
-                desc: isZh ? '先搞清“模型看到的不是字，而是整数”。' : 'Begin with the idea that models see integers, not words.',
-              },
-              {
-                href: `/${params.locale}/timeline/`,
-                title: isZh ? '按路径顺着学' : 'Follow the full path',
-                desc: isZh ? '按 12 个模块的顺序，从基础表示走到系统化回顾。' : 'Move from representation to system-level understanding in order.',
-              },
-              {
-                href: `/${params.locale}/layers/`,
-                title: isZh ? '从层级视角看' : 'View by layers',
-                desc: isZh ? '从基础概念、架构、训练、应用、前沿五层来组织理解。' : 'Organize the whole site into five conceptual layers.',
-              },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-xl border border-[color:var(--color-border)] p-4 transition-colors hover:border-[color:var(--color-muted)]/40 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-              >
-                <div className="font-semibold text-[color:var(--color-text)]">{item.title}</div>
-                <div className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">{item.desc}</div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        </Link>
       </section>
 
-      {/* Learning path */}
+      {/* Full module grid by layer */}
       <section className="space-y-6">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
-            {isZh ? '学习路径' : 'Learning path'}
+            {isZh ? '全部模块' : 'All modules'}
           </div>
           <h2 className="mt-3 text-2xl font-bold text-[color:var(--color-text)]">
-            {isZh ? '按知识层走，而不是按术语表走' : 'Move by layers, not by glossary entries'}
+            {isZh ? '按知识层组织' : 'Organized by knowledge layer'}
           </h2>
         </div>
 

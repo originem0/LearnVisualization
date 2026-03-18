@@ -1,40 +1,64 @@
 import { getData } from '@/lib/data';
-import { getLabels } from '@/lib/labels';
 import type { Locale } from '@/lib/i18n';
-import { categoryStyles } from '@/lib/palette';
+import KnowledgeMap from '@/components/KnowledgeMap';
 
 export default function LayersPage({ params }: { params: { locale: Locale } }) {
   const data = getData(params.locale);
-  const labels = getLabels(params.locale);
+  const isZh = params.locale === 'zh';
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <section>
-        <h1 className="text-3xl font-bold text-[color:var(--color-text)]">{labels.nav.layers}</h1>
-        <p className="mt-2 text-sm text-[color:var(--color-muted)]">
-          {params.locale === 'zh'
-            ? '从宏观层次理解知识结构，每一层代表一类能力或机制。'
-            : 'See the macro structure—each layer represents a capability or mechanism.'}
+        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
+          {isZh ? '知识地图' : 'Knowledge Map'}
+        </div>
+        <h1 className="mt-2 text-3xl font-bold text-[color:var(--color-text)]">
+          {isZh ? '五层架构，一条主线' : 'Five Layers, One Thread'}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-[color:var(--color-muted)]">
+          {isZh
+            ? '从文本表示到系统化认知，每一层解决一个关键问题，自然导向下一层。点击任意模块进入学习。'
+            : 'From text representation to system-level cognition. Each layer solves a key problem and leads naturally to the next. Click any module to start learning.'}
         </p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        {data.categories.map((category) => {
-          const styles = categoryStyles[category.color];
-          return (
-            <div key={category.id} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
-              <div className="flex items-center gap-2">
-                <span className={`h-3 w-3 rounded-full ${styles.dot}`} />
-                <h2 className="text-lg font-semibold text-[color:var(--color-text)]">{category.name}</h2>
-              </div>
-              <p className="mt-3 text-sm text-[color:var(--color-muted)]">
-                {params.locale === 'zh'
-                  ? `该层包含 ${data.modules.filter((m) => m.category === category.id).length} 个模块，聚焦于 ${category.name} 相关的核心问题。`
-                  : `This layer has ${data.modules.filter((m) => m.category === category.id).length} modules focusing on ${category.name.toLowerCase()} topics.`}
-              </p>
+      <KnowledgeMap
+        categories={data.categories}
+        modules={data.modules}
+        locale={params.locale}
+      />
+
+      {/* Legend */}
+      <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
+        <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-muted)]">
+          {isZh ? '阅读建议' : 'Reading suggestions'}
+        </div>
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <div>
+            <div className="font-medium text-[color:var(--color-text)]">
+              {isZh ? '🔰 系统学习' : '🔰 Systematic'}
             </div>
-          );
-        })}
+            <div className="mt-1 text-sm text-[color:var(--color-muted)]">
+              {isZh ? '从 s01 顺着箭头走到 s12。每一章都为下一章铺路。' : 'Follow arrows from s01 to s12. Each chapter sets up the next.'}
+            </div>
+          </div>
+          <div>
+            <div className="font-medium text-[color:var(--color-text)]">
+              {isZh ? '⚡ 只看核心机制' : '⚡ Core mechanism only'}
+            </div>
+            <div className="mt-1 text-sm text-[color:var(--color-muted)]">
+              {isZh ? 's01 → s03 → s04 → s05。理解 token、attention、transformer、预训练四件事。' : 's01 → s03 → s04 → s05. Understand tokens, attention, transformers, and pre-training.'}
+            </div>
+          </div>
+          <div>
+            <div className="font-medium text-[color:var(--color-text)]">
+              {isZh ? '🎯 应用导向' : '🎯 Application-focused'}
+            </div>
+            <div className="mt-1 text-sm text-[color:var(--color-muted)]">
+              {isZh ? 's07 → s08 → s11。对齐、Prompt 工程、上下文窗口——直接上手用。' : 's07 → s08 → s11. Alignment, prompting, context windows — hands-on.'}
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   );
