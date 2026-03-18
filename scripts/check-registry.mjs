@@ -1,40 +1,20 @@
 #!/usr/bin/env node
 /**
- * Registry + concept-map schema validation.
+ * Primary course package visual + interaction validation.
  */
 
-import { readFileSync, readdirSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { loadPrimaryCourse } from './lib/course-package-source.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, '..');
-
-function loadJson(path) {
-  return JSON.parse(readFileSync(path, 'utf-8'));
-}
-
-function loadZhModules() {
-  const modulesDir = resolve(root, 'src/content/zh/modules');
-  return readdirSync(modulesDir)
-    .filter((name) => /^s\d\d\.json$/.test(name))
-    .sort()
-    .map((name) => loadJson(resolve(modulesDir, name)));
-}
-
-const modules = loadZhModules();
-const schemas = loadJson(resolve(root, 'src/data/concept-map-schemas.json'));
-
+const { modules, conceptMaps, interactions } = loadPrimaryCourse();
 let hasError = false;
 const fail = (msg) => {
   hasError = true;
   console.error(`❌ ${msg}`);
 };
 
-for (const mod of modules) {
-  const id = mod.id;
-  const slug = `s${String(id).padStart(2, '0')}`;
-  const schema = schemas[id];
+for (const { data: mod } of modules) {
+  const slug = mod.id;
+  const schema = conceptMaps[String(mod.number)];
 
   if (!schema) {
     fail(`${slug}: missing concept-map schema`);
@@ -54,6 +34,11 @@ for (const mod of modules) {
     if (!ids.has(edge.from)) fail(`${slug}: edge.from '${edge.from}' not found in nodes`);
     if (!ids.has(edge.to)) fail(`${slug}: edge.to '${edge.to}' not found in nodes`);
   }
+
+  const reg = interactions[slug];
+  if (!reg) fail(`${slug}: missing interaction registry entry`);
+  if (!reg?.heroInteractive?.componentHint) fail(`${slug}: missing heroInteractive.componentHint`);
+  if (!reg?.secondaryInteractive?.componentHint) fail(`${slug}: missing secondaryInteractive.componentHint`);
 }
 
 if (hasError) {

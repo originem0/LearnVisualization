@@ -1,23 +1,22 @@
 #!/usr/bin/env node
 /**
  * Authoring checks driven by narrative-block-spec.json
+ * against primary course package modules.
  */
 
-import { readFileSync, readdirSync } from 'fs';
+import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { loadPrimaryCourse, root } from './lib/course-package-source.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, '..');
 const spec = JSON.parse(readFileSync(resolve(root, 'src/data/narrative-block-spec.json'), 'utf-8'));
-const modulesDir = resolve(root, 'src/content/zh/modules');
-const moduleFiles = readdirSync(modulesDir).filter((n) => /^s\d\d\.json$/.test(n)).sort();
+const { modules } = loadPrimaryCourse();
 
 let bad = false;
 const fail = (msg) => { bad = true; console.error(`❌ ${msg}`); };
 
-for (const name of moduleFiles) {
-  const mod = JSON.parse(readFileSync(resolve(modulesDir, name), 'utf-8'));
+for (const { name, data: mod } of modules) {
   const blocks = mod.narrative || [];
 
   blocks.forEach((block, idx) => {

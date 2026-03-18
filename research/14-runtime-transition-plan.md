@@ -69,9 +69,11 @@
 - `LEARNING_SITE_DATA_SOURCE=legacy` 仍保留为显式回退开关
 - 旧 `src/content/zh` 已进入兼容期，待后续彻底下线
 
-### Phase 5（下一步）
-- 调整 authoring / validation / docs，让课程包成为唯一主写入路径
-- 阻止新内容继续写入 legacy source
+### Phase 5（已部分完成）
+- authoring 已切到课程包主写入路径
+- validation 主检查路径已切到课程包
+- docs 已开始改写为 `courses/` 主源叙事
+- 剩余工作：继续削弱旧源对照层，并准备最终下线
 
 ---
 

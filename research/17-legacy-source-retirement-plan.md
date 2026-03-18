@@ -99,12 +99,12 @@
 - 不要再让新内容继续流入 legacy 路径
 - 这是最重要的“行为切换点”
 
-### 动作 2
-改 `check-content.mjs` / `check-structure.mjs` 的主检查路径。
+### 动作 2（已完成）
+`check-content.mjs` / `check-structure.mjs` / `check-authoring.mjs` / `check-registry.mjs` 已切到课程包主检查路径。
 
-原因：
-- 校验脚本定义了“什么才算主源”
-- runtime 切了但 guardrails 不切，系统边界还是模糊的
+这意味着：
+- 校验脚本层已经承认课程包是主源
+- 旧源开始真正退居兼容对照层
 
 ### 动作 3
 更新 `README.md` 与 `src/content/README.md`。
