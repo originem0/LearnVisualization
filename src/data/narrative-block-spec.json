@@ -1,0 +1,46 @@
+{
+  "heading": {
+    "required": ["content"],
+    "description": "Section heading. Use to start a new conceptual step.",
+    "notes": [
+      "Should be short.",
+      "Usually followed by a text block."
+    ]
+  },
+  "text": {
+    "required": ["content"],
+    "description": "Main narrative prose.",
+    "notes": [
+      "Can contain multiple paragraphs separated by blank lines."
+    ]
+  },
+  "code": {
+    "required": ["content"],
+    "description": "Code or pseudo-code block."
+  },
+  "diagram": {
+    "required": ["content"],
+    "optional": ["label"],
+    "description": "ASCII or text diagram used for structure explanation."
+  },
+  "comparison": {
+    "required": ["content"],
+    "optional": ["label"],
+    "description": "Two-way contrast block.",
+    "notes": [
+      "Prefer exactly two lines: left vs right.",
+      "Format: 标题：说明"
+    ]
+  },
+  "callout": {
+    "required": ["content"],
+    "description": "High-signal conceptual punchline or warning."
+  },
+  "steps": {
+    "required": ["content", "steps"],
+    "optional": ["label"],
+    "description": "Step-by-step visual progression.",
+    "stepRequired": ["title", "description", "visual"],
+    "stepOptional": ["highlight"]
+  }
+}

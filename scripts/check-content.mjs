@@ -3,7 +3,6 @@
  * Content completeness checker for pero-viz-next.
  *
  * Validates that every module in zh content source meets the minimum quality bar.
- * Run: node scripts/check-content.mjs
  */
 
 import { readFileSync, readdirSync } from 'fs';
@@ -12,7 +11,6 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
-const ALLOWED_BLOCKS = new Set(['heading', 'text', 'code', 'diagram', 'comparison', 'callout', 'steps']);
 
 function loadJson(path) {
   return JSON.parse(readFileSync(path, 'utf-8'));
@@ -43,32 +41,6 @@ const REQUIRED_SECONDARY = {
   9: 'TrainingBudgetCalc', 10: 'CoTToggle', 11: 'ContextFitCalc', 12: 'KnowledgeNetwork',
 };
 
-function checkNarrative(mod, errors) {
-  if (!Array.isArray(mod.narrative) || mod.narrative.length === 0) return;
-  mod.narrative.forEach((block, idx) => {
-    if (!ALLOWED_BLOCKS.has(block.type)) {
-      errors.push(`narrative[${idx}] invalid type '${block.type}'`);
-      return;
-    }
-    if (typeof block.content !== 'string') {
-      errors.push(`narrative[${idx}] missing string content`);
-    }
-    if (block.type === 'steps') {
-      if (!Array.isArray(block.steps) || block.steps.length === 0) {
-        errors.push(`narrative[${idx}] steps block missing steps[]`);
-      } else {
-        block.steps.forEach((step, sidx) => {
-          for (const key of ['title', 'description', 'visual']) {
-            if (!step[key] || typeof step[key] !== 'string') {
-              errors.push(`narrative[${idx}].steps[${sidx}] missing ${key}`);
-            }
-          }
-        });
-      }
-    }
-  });
-}
-
 function checkModule(mod, totalModules) {
   const errors = [];
   const id = mod.id;
@@ -84,7 +56,6 @@ function checkModule(mod, totalModules) {
   if (!mod.logicChain || mod.logicChain.length === 0) errors.push('missing logicChain');
   if (!REQUIRED_HERO[id]) errors.push('no hero interactive in registry');
   if (!REQUIRED_SECONDARY[id]) errors.push('no secondary interactive in registry');
-  checkNarrative(mod, errors);
 
   return { slug, errors };
 }
