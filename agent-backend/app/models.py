@@ -41,6 +41,15 @@ class CurriculumPlanningOutput(BaseModel):
     module_ids: list[str]
     modules: list[PlannedModule]
 
+class DraftCoursePackage(BaseModel):
+    id: str
+    title: str
+    topic: str
+    audience: str
+    learning_goals: list[str]
+    module_graph_order: list[str]
+    modules: list[PlannedModule]
+
 class WorkflowStage(BaseModel):
     id: WorkflowStageId
     title: str
