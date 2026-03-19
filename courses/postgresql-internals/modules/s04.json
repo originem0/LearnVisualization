@@ -21,61 +21,123 @@
   "concepts": [
     {
       "name": "B-Tree page",
-      "note": "索引页本身也是页面结构。"
+      "note": "索引页本身也是 page，只是组织方式和 heap 不同。"
     },
     {
       "name": "root / internal / leaf",
-      "note": "三层节点分工决定查找路径。"
+      "note": "根页决定入口，内部页分流，叶页真正承载键与 TID。"
+    },
+    {
+      "name": "search path",
+      "note": "查找速度来自每层都在缩小搜索空间，而不是来自某种魔法跳转。"
     },
     {
       "name": "page split",
-      "note": "插入导致页满后，会触发分裂与父节点更新。"
+      "note": "插入导致页满后，B-Tree 需要分裂并向上修正结构。"
+    },
+    {
+      "name": "bloat",
+      "note": "写入、删除、版本残留与页分裂共同造成索引膨胀。"
     }
   ],
   "logicChain": [
-    "索引也是 page 结构，而不是抽象元数据",
-    "查找速度来自层级缩小搜索空间",
-    "插入/删除会让这棵树持续演化并产生维护成本"
+    "索引不是 SQL 层的抽象提示，而是另一套 page 组织方式",
+    "B-Tree 通过 root/internal/leaf 逐层缩小搜索空间",
+    "查找为什么快，取决于树的层级与路径，而不是“有索引”这句口号",
+    "插入和删除会改变树形结构，带来 split、维护与膨胀代价",
+    "索引的性能优势与维护成本是一体两面"
   ],
   "examples": [
-    "一次 page split 会改变树形结构和后续查找路径"
+    "一次 page split 会改变树形结构和后续查找路径。",
+    "同一张表上读性能很好的索引，可能会因为大量 UPDATE/DELETE 而慢慢膨胀。"
   ],
   "counterexamples": [
-    "索引不是永远更快，代价要看写入与维护负担"
+    "索引不是永远更快，代价要看写入、维护与选择性。",
+    "索引不是逻辑加速开关，它有真实的 page-level 成本。"
   ],
   "pitfalls": [
     {
       "point": "把索引当作逻辑加速器",
       "rootCause": "没有把它理解成真实的物理结构"
+    },
+    {
+      "point": "只关心“查得快不快”，不关心“维护代价从哪来”",
+      "rootCause": "没有把 split、写放大、dead tuples 与膨胀放进同一张图里"
     }
   ],
   "narrative": [
     {
       "type": "text",
-      "content": "这一章把索引从 SQL 语义层拖回物理世界，看清它为什么快、又为什么贵。"
+      "content": "很多人理解索引，只有一句话：有索引就快。可这句话几乎没法指导你真正理解数据库。\n\n因为索引不是一个抽象“加速开关”，而是一套真实的 page 结构。想理解它为什么快、又为什么会慢下去，必须回到 root / internal / leaf 这些物理节点。"
+    },
+    {
+      "type": "comparison",
+      "label": "两种索引直觉",
+      "content": "逻辑直觉：索引是数据库替你准备好的捷径\n物理直觉：索引是另一棵需要被写入、分裂、维护、回收的 page 树"
+    },
+    {
+      "type": "heading",
+      "content": "为什么 B-Tree 查找会快？"
+    },
+    {
+      "type": "text",
+      "content": "因为它不是在平面里从头扫到尾，而是在层级结构里不断缩小搜索空间。root 给你一个全局分流点，internal pages 继续缩小范围，leaf pages 最终给出键与 TID。\n\n这意味着“索引快”不是黑箱结论，而是一个非常具体的空间组织策略。"
     },
     {
       "type": "steps",
-      "label": "一次 B-Tree 查找与分裂",
+      "label": "一次查找与一次分裂",
       "content": "",
       "steps": [
         {
-          "title": "沿根到叶下降",
-          "description": "每层缩小搜索范围",
-          "visual": "root -> internal -> leaf",
-          "highlight": "leaf"
+          "title": "从 root 进入",
+          "description": "查找先在根页决定该走哪一支",
+          "visual": "root page -> choose branch",
+          "highlight": "root"
         },
         {
-          "title": "叶页写满后分裂",
-          "description": "新键插入触发页面分裂与父节点更新",
+          "title": "internal pages 继续缩小范围",
+          "description": "每一层都把候选空间再砍掉一大块",
+          "visual": "internal -> narrower key range",
+          "highlight": "narrower"
+        },
+        {
+          "title": "leaf page 命中键",
+          "description": "真正找到键以及对应的 TID",
+          "visual": "leaf -> key + TID",
+          "highlight": "TID"
+        },
+        {
+          "title": "叶页写满则分裂",
+          "description": "新键插入可能触发 split，并向父节点回写新边界",
           "visual": "leaf full -> split -> parent update",
           "highlight": "split"
         }
       ]
     },
     {
+      "type": "heading",
+      "content": "为什么索引会越来越“贵”？"
+    },
+    {
+      "type": "text",
+      "content": "因为 B-Tree 不是只读结构。写入会触发分裂，删除和版本残留会让索引里留下 dead entries，长期下来会形成 bloat。\n\n于是索引的故事从来不是“有或没有”，而是“读性能收益”和“写维护代价”之间的动态平衡。"
+    },
+    {
+      "type": "diagram",
+      "label": "索引代价主链",
+      "content": "read query\n  ↓\nsearch path shrinks space\n  ↓\nfast lookup\n\nwrite workload\n  ↓\nsplit / dead entries / bloat\n  ↓\nmaintenance cost"
+    },
+    {
       "type": "callout",
       "content": "索引快，是因为它换了一套组织空间的方式；索引慢，也是因为这套空间必须被持续维护。"
+    },
+    {
+      "type": "heading",
+      "content": "为什么这一章必须放在 Planner 前面？"
+    },
+    {
+      "type": "text",
+      "content": "因为 planner 不是在抽象层里“挑一个有索引的选项”，它是在估算这棵真实结构值不值得走。\n\n如果你不理解索引背后的 page-level 成本与收益，后面看到 plan 变化时，你依然会把它当作玄学。"
     }
   ],
   "visuals": [
@@ -95,7 +157,11 @@
   "retrievalPrompts": [
     {
       "type": "compare-variants",
-      "prompt": "为什么“有索引”不总是意味着“整体系统更快”？"
+      "prompt": "为什么“有索引”不总是意味着“整体系统更快”？请从读收益和写维护成本两面回答。"
+    },
+    {
+      "type": "predict-next-step",
+      "prompt": "如果 leaf page 持续写满，B-Tree 最可能接下来发生什么结构动作？"
     }
   ],
   "bridgeTo": "索引结构本身懂了，接下来该问：planner 到底怎么决定要不要用它？同一条 SQL，为什么执行计划会不同？",
