@@ -21,61 +21,131 @@
   "concepts": [
     {
       "name": "WAL",
-      "note": "Write-Ahead Logging，先写日志再写数据页。"
+      "note": "Write-Ahead Logging：先把可重放变更写入日志，再允许数据页稍后落盘。"
+    },
+    {
+      "name": "redo",
+      "note": "崩溃恢复时，根据 WAL 记录把系统状态补回一致。"
     },
     {
       "name": "checkpoint",
-      "note": "确定一个恢复起点，缩短重放链。"
+      "note": "给恢复划定起点，避免每次都从史前日志重放。"
     },
     {
       "name": "full page write",
-      "note": "避免 torn page 让恢复失去可信物理基底。"
+      "note": "在关键时刻记录整页镜像，避免 torn page 破坏恢复前提。"
+    },
+    {
+      "name": "durability boundary",
+      "note": "很多事务真正“落地”的时刻，不是 page flush，而是 WAL flush。"
     }
   ],
   "logicChain": [
-    "直接写 page 可能留下半套物理状态",
-    "WAL 先记录逻辑/物理变更，再允许 page 落盘",
-    "崩溃恢复就是按 WAL 序列重放到一致状态"
+    "直接写数据页可能留下半套物理状态",
+    "WAL 先记录可重放变更，再允许 page 延迟落盘",
+    "checkpoint 让恢复不必从最远古开始",
+    "redo 让系统从崩溃后的残缺世界补回一致状态",
+    "durability 的真正边界常常在 WAL flush，而不在数据页是否立刻写盘"
   ],
   "examples": [
-    "一次插入事务 commit 前，WAL flush 是 durability 的关键关口"
+    "一次事务 COMMIT 时，客户端拿到“成功”之前，关键是 WAL 先 flush 到安全介质。",
+    "机器在 page 只写了一半时突然断电，重启后仍能依靠 WAL + full page write 恢复。"
   ],
   "counterexamples": [
-    "WAL 不是简单审计日志，它是恢复语义本体"
+    "WAL 不是“顺手记一下发生过什么”的审计日志。",
+    "数据页写盘不是 durability 的唯一判断时刻。"
   ],
   "pitfalls": [
     {
       "point": "把 WAL 看成“顺手记一下”",
       "rootCause": "没意识到 WAL 才是 crash recovery 的一等公民"
+    },
+    {
+      "point": "把 checkpoint 理解成“安全点已经绝对没事”",
+      "rootCause": "忽视了 checkpoint 的作用是缩短恢复链，而不是取消恢复逻辑"
     }
   ],
   "narrative": [
     {
       "type": "text",
-      "content": "这一章从最坏情况出发：机器在 page 尚未完整落盘时突然崩掉，数据库如何回到可用状态。"
+      "content": "数据库真正怕的，不是查询慢一点，而是写到一半机器突然掉电。因为这会把世界撕开：有些 page 写了一半，有些还没落盘，有些状态只存在于内存里。\n\n如果没有额外机制，这个世界在重启后就会变成一团物理残骸。WAL 存在的意义，就是保证这团残骸仍然能被补回一个一致状态。"
+    },
+    {
+      "type": "comparison",
+      "label": "两种持久化直觉",
+      "content": "直觉一：把数据页写盘就是持久化\n更准确的现实：先把可重放变更写进 WAL，数据页可以稍后再慢慢刷盘"
+    },
+    {
+      "type": "heading",
+      "content": "为什么“先写日志”不是保守，而是唯一靠谱的顺序？"
+    },
+    {
+      "type": "text",
+      "content": "因为 page 是物理对象，写盘可能被打断；而 WAL 是“变更序列”，它更适合承担恢复语义。\n\n数据库可以接受 page 晚一点落盘，但不能接受“已经向客户端承诺成功的事务，其恢复所需变更根本没留下来”。所以先写 WAL，再写 page，不是工程癖好，而是 durability 的底线。"
     },
     {
       "type": "steps",
-      "label": "一次崩溃恢复的基本链",
+      "label": "一次写入到一次恢复",
       "content": "",
       "steps": [
         {
-          "title": "先写 WAL",
-          "description": "日志先持久化，再允许脏页晚点刷盘",
-          "visual": "change -> WAL flush -> page flush later",
+          "title": "内存里先发生变化",
+          "description": "buffer page 先被改脏，但这时系统还很脆弱",
+          "visual": "client query -> dirty buffer page",
+          "highlight": "dirty buffer page"
+        },
+        {
+          "title": "WAL 先持久化",
+          "description": "把这次变更写成可重放记录并 flush",
+          "visual": "dirty change -> WAL record -> WAL flush",
           "highlight": "WAL flush"
         },
         {
-          "title": "重启后 redo",
-          "description": "从 checkpoint 起按 WAL 把世界补到一致状态",
-          "visual": "checkpoint -> redo records -> consistent pages",
-          "highlight": "redo"
+          "title": "数据页稍后写盘",
+          "description": "checkpoint / bgwriter 再决定什么时候把 page 真正落到磁盘",
+          "visual": "dirty page -> later page flush",
+          "highlight": "later page flush"
+        },
+        {
+          "title": "崩溃后 redo",
+          "description": "重启时从 checkpoint 起回放 WAL，把世界补齐",
+          "visual": "restart -> checkpoint -> redo WAL -> consistent state",
+          "highlight": "redo WAL"
         }
       ]
     },
     {
+      "type": "heading",
+      "content": "checkpoint 到底在干嘛？"
+    },
+    {
+      "type": "text",
+      "content": "很多人把 checkpoint 想成“系统此刻已经万事大吉”的安全点。更准确的理解是：它帮恢复过程划定起点，让 redo 不必回放到远古。\n\n所以 checkpoint 不是替代 WAL，而是与 WAL 配合，控制恢复成本。"
+    },
+    {
+      "type": "heading",
+      "content": "full page write 为什么重要？"
+    },
+    {
+      "type": "text",
+      "content": "如果机器在 page 写到一半时突然崩掉，磁盘上可能留下 torn page。此时即使有逻辑 redo，也可能因为物理页面已经残缺而无法可信重放。\n\nfull page write 的价值就在这里：它在关键时刻先把整页镜像写进 WAL，给恢复保住一个可信物理起点。"
+    },
+    {
+      "type": "diagram",
+      "label": "恢复语义主链",
+      "content": "change\n  ↓\nWAL record\n  ↓ flush\ncommit acknowledged\n  ↓\npage flush may happen later\n  ↓\ncrash? -> redo from checkpoint"
+    },
+    {
       "type": "callout",
-      "content": "WAL 的真正价值，不是“记录过去”，而是“让未来可恢复”。"
+      "content": "WAL 真正提供的不是“过去发生过什么”的记录，而是“未来怎样把世界补回一致”的能力。"
+    },
+    {
+      "type": "heading",
+      "content": "这一章真正要带走什么？"
+    },
+    {
+      "type": "text",
+      "content": "想理解 PostgreSQL 的持久化，就别再把数据页当成唯一主角。真正的一等公民是“可重放变更序列”。\n\n这也是为什么后面很多性能、一致性、维护问题，最后都会回到 WAL 与 page 之间的权衡。"
     }
   ],
   "visuals": [
@@ -96,6 +166,10 @@
     {
       "type": "fill-gap",
       "prompt": "为什么 PostgreSQL 必须先写 ____ ，再允许数据页晚点落盘？"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "checkpoint 和 WAL 分别解决了恢复链中的什么问题？"
     }
   ],
   "bridgeTo": "当一致性和恢复的世界立住之后，性能问题会立刻跳出来：我们为什么还需要索引，索引在 page 世界里又到底长什么样？",

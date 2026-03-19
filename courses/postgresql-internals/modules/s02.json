@@ -21,38 +21,67 @@
   "concepts": [
     {
       "name": "xmin / xmax",
-      "note": "记录 tuple 的创建与删除事务 ID。"
+      "note": "tuple 记录自己的创建事务与删除事务痕迹。"
     },
     {
       "name": "snapshot",
-      "note": "事务启动时对“哪些事务已提交”的观察切片。"
+      "note": "事务启动时对“谁已提交、谁仍在进行”的局部时间切片。"
     },
     {
       "name": "visibility rule",
-      "note": "基于 xmin/xmax 与 snapshot 判断当前事务能否看见此 tuple。"
+      "note": "当前事务不是问“这行存在吗”，而是问“这行现在对我可见吗”。"
+    },
+    {
+      "name": "UPDATE = DELETE + INSERT",
+      "note": "MVCC 下更新不是原地覆盖，而是制造一个新版本并让旧版本逐步退场。"
+    },
+    {
+      "name": "dead tuple",
+      "note": "对当前事务不可见、但物理上仍留在 heap page 中的旧版本。"
     }
   ],
   "logicChain": [
-    "每个 tuple 带着自己的时间戳痕迹（xmin/xmax）",
-    "每个事务又带着自己的 snapshot",
-    "可见性判断发生在 tuple 层，而不是整表层"
+    "每个 tuple 在 header 里都带着自己的时间痕迹（xmin / xmax）",
+    "每个事务启动时又拿到自己的 snapshot",
+    "可见性判断发生在 tuple 层，而不是整表层",
+    "UPDATE 本质上制造新旧两个版本并交给 snapshot 规则区分",
+    "MVCC 让并发读写成立，但也制造了后续清理债务"
   ],
   "examples": [
-    "一次 UPDATE 在 MVCC 下更像 DELETE + INSERT 新版本"
+    "事务 A UPDATE 一行后，自己能看到新版本；事务 B 若 snapshot 更早，仍可能只看到旧版本。",
+    "同一张表在同一时刻，对两个事务而言可以呈现不同结果。"
   ],
   "counterexamples": [
-    "MVCC 不是“内存里偷偷复制一张表”"
+    "MVCC 不是把整张表复制一份给每个事务。",
+    "事务隔离不是靠“谁都别看”这种整表粗暴封锁来实现。"
   ],
   "pitfalls": [
     {
       "point": "把 MVCC 理解成很多行副本漂在空中",
       "rootCause": "没把可见性与 tuple header 绑定到一起"
+    },
+    {
+      "point": "把 snapshot 当成“当前最新状态”",
+      "rootCause": "忽视了 snapshot 其实是某个事务自己的时间切片"
     }
   ],
   "narrative": [
     {
       "type": "text",
-      "content": "这一章会沿一条 tuple 的生命周期，追踪不同事务为什么会看到不同结果。"
+      "content": "很多人第一次听到 MVCC，会把它记成一句口号：数据库里同时保留多个版本。这个说法不算错，但太粗，粗到几乎没法指导理解。\n\n真正关键的不是“有多个版本”，而是 PostgreSQL 把“谁现在能看到哪个版本”这个问题，压缩成了每条 tuple 自己的局部判断。"
+    },
+    {
+      "type": "comparison",
+      "label": "两种直觉",
+      "content": "锁表直觉：为了不冲突，最安全的办法是大家先别动\nMVCC 直觉：允许世界里暂时存在多个版本，再让每个事务按自己的 snapshot 看到“自己的真相”"
+    },
+    {
+      "type": "heading",
+      "content": "MVCC 的入口不在事务理论，而在 tuple header"
+    },
+    {
+      "type": "text",
+      "content": "如果你不回到 page / tuple 这一层，MVCC 会永远像魔法。因为它真正依赖的不是抽象“版本”这个词，而是 tuple header 里的 xmin / xmax。\n\n它们分别描述：谁把这条 tuple 生出来，谁又试图把它送下场。随后，当前事务拿着自己的 snapshot 进来，不是问“这条数据存不存在”，而是问“它现在对我可见吗”。"
     },
     {
       "type": "steps",
@@ -60,22 +89,55 @@
       "content": "",
       "steps": [
         {
-          "title": "旧 tuple 被标记 xmax",
-          "description": "旧版本不是立刻删掉，而是先标记删除事务",
-          "visual": "old tuple: xmax = tx42",
-          "highlight": "xmax"
+          "title": "原始 tuple 存在",
+          "description": "旧版本先在 heap page 里稳定存在",
+          "visual": "tuple_v1\nxmin = tx10\nxmax = null",
+          "highlight": "xmin = tx10"
         },
         {
-          "title": "新 tuple 插入",
-          "description": "新版本带着新的 xmin 出现",
-          "visual": "new tuple: xmin = tx42",
-          "highlight": "xmin"
+          "title": "事务 A 发起 UPDATE",
+          "description": "旧版本不会被立即抹掉，而是先标记 xmax",
+          "visual": "tuple_v1\nxmin = tx10\nxmax = tx42",
+          "highlight": "xmax = tx42"
+        },
+        {
+          "title": "新版本插入",
+          "description": "UPDATE 更像 DELETE + INSERT，新的 tuple_v2 出现",
+          "visual": "tuple_v2\nxmin = tx42\nxmax = null",
+          "highlight": "tuple_v2"
+        },
+        {
+          "title": "不同事务看见不同世界",
+          "description": "是否看见 v1 或 v2，取决于各自 snapshot 里如何理解 tx42",
+          "visual": "txn A snapshot -> see v2\ntxn B old snapshot -> still see v1",
+          "highlight": "see v2, still see v1"
         }
       ]
     },
     {
+      "type": "heading",
+      "content": "为什么同一时刻会出现两个世界？"
+    },
+    {
+      "type": "text",
+      "content": "因为 snapshot 本身就是一个“局部时间切片”。事务启动时，它记录了自己眼中哪些事务已经提交、哪些还在进行。\n\n于是，事务 A 和事务 B 就算同时看同一条逻辑记录，也可能因为各自 snapshot 不同，而得出完全不同的“这条 tuple 对我是否存在”的结论。"
+    },
+    {
+      "type": "diagram",
+      "label": "最小可见性判断",
+      "content": "tuple header\n  ↓\nxmin / xmax\n  +\ncurrent snapshot\n  ↓\nvisible ? invisible ? dead ?"
+    },
+    {
       "type": "callout",
-      "content": "MVCC 的本质是：把“谁能看到什么”这个问题，压缩到单条 tuple 的局部判断里。"
+      "content": "MVCC 的本质不是“存很多版本”，而是“让每个事务用自己的时间切片解释同一组 tuple”。"
+    },
+    {
+      "type": "heading",
+      "content": "UPDATE 为什么不是原地覆盖？"
+    },
+    {
+      "type": "text",
+      "content": "如果原地覆盖，旧事务就会失去它本来该看到的世界。MVCC 通过“留下旧版本、插入新版本”保住了并发读写时的时间一致性。\n\n代价也很直接：旧版本不会立刻消失。于是死 tuple、膨胀、vacuum 这些后续问题，全都从这里长出来。"
     }
   ],
   "visuals": [
@@ -95,7 +157,11 @@
   "retrievalPrompts": [
     {
       "type": "predict-next-step",
-      "prompt": "如果旧 tuple 已有 xmax，而新 tuple 刚插入，不同事务会看到什么？"
+      "prompt": "如果旧 tuple 已有 xmax，而新 tuple 刚插入，不同 snapshot 下最可能分别看见什么？"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "请不用“多版本”这种口号，而是用 xmin/xmax + snapshot 重新解释一次 MVCC。"
     }
   ],
   "bridgeTo": "如果 tuple 不会立刻消失，那这些旧版本最终怎么被清理？为什么数据库不会无限膨胀？这就把我们推向 Vacuum。",
