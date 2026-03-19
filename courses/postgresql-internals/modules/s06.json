@@ -25,68 +25,131 @@
   "concepts": [
     {
       "name": "dead tuple",
-      "note": "逻辑上已过时，但物理上仍占空间。"
+      "note": "逻辑上已过时，但物理上仍占在 heap page 里的旧版本。"
+    },
+    {
+      "name": "autovacuum",
+      "note": "后台自动触发的 vacuum 机制，避免“没人管”时系统慢慢烂掉。"
     },
     {
       "name": "visibility map",
-      "note": "帮助跳过不必反复检查的页面。"
+      "note": "告诉系统哪些页面上所有 tuple 对所有事务都可见，从而减少不必要检查。"
     },
     {
       "name": "freeze",
-      "note": "处理事务 ID 老化，避免 wraparound 风险。"
+      "note": "把太老的事务可见性状态冻结，防止 xid wraparound 成灾。"
+    },
+    {
+      "name": "bloat",
+      "note": "旧版本与 page 组织残留导致的空间膨胀与性能代价。"
     }
   ],
   "logicChain": [
-    "MVCC 让旧版本暂存，形成空间与年龄债务",
-    "Vacuum 负责回收可回收空间并维护可见性信息",
-    "Freeze 负责处理 xid 老化，避免系统级灾难",
-    "性能、一致性和维护最终在这里闭环"
+    "MVCC 让旧版本暂时留下，从而制造空间债务",
+    "dead tuple 不清理，heap 与 index 都会膨胀",
+    "Vacuum 回收空间、更新可见性元信息，但不等于立即把世界压回最小",
+    "autovacuum 是把这件事制度化，否则数据库会慢慢腐坏",
+    "freeze 不是优化，而是防止 xid 老化演变成系统级灾难"
   ],
   "examples": [
-    "长事务会拖慢 Vacuum 回收旧版本的速度"
+    "长事务会拖慢 Vacuum 回收旧版本的速度，因为旧 snapshot 还可能需要看见它们。",
+    "如果 autovacuum 配置过保守，表会在业务无感知中不断膨胀。"
   ],
   "counterexamples": [
-    "Vacuum 不是“优化器锦上添花”，而是系统生存条件"
+    "Vacuum 不是“优化器锦上添花”，而是系统生存条件。",
+    "DELETE/UPDATE 之后数据不会自然蒸发，旧版本仍占着物理空间。"
   ],
   "pitfalls": [
     {
       "point": "把 Vacuum 当成偶尔跑一下的 housekeeping",
       "rootCause": "没有把它理解为 MVCC 架构的必要偿债机制"
+    },
+    {
+      "point": "把 freeze 理解成纯性能选项",
+      "rootCause": "忽视了 xid wraparound 会把问题从“慢”升级成“危险”"
     }
   ],
   "narrative": [
     {
       "type": "text",
-      "content": "最后一章不是讲一个新零件，而是把前面几章重新闭环：MVCC 造成的旧版本、索引的膨胀、planner 的成本世界，最后都会回到 vacuum。"
+      "content": "MVCC 的优雅不在于“有多个版本”，而在于它允许并发读写时，每个事务都看到自己的时间切片。可这份优雅是有债务的：旧版本不会立刻消失。\n\n只要 UPDATE / DELETE 持续发生，数据库就会持续留下 dead tuples。它们不只占空间，还会改变索引、planner 看到的世界。"
+    },
+    {
+      "type": "comparison",
+      "label": "两种直觉",
+      "content": "天真直觉：删了就是没了，改了就是原地覆盖\nPostgreSQL 现实：旧版本先留下，再由 Vacuum / Freeze 慢慢处理后果"
+    },
+    {
+      "type": "heading",
+      "content": "为什么说 Vacuum 是 MVCC 的偿债机制？"
+    },
+    {
+      "type": "text",
+      "content": "MVCC 把并发冲突从“强行锁住”换成了“允许旧版本暂留”。这当然带来了自由，但也把代价推迟了：空间膨胀、可见性维护、事务 ID 老化。\n\nVacuum 的作用不是简单打扫卫生，而是把这份被推迟的代价一点点偿还掉。"
     },
     {
       "type": "steps",
-      "label": "从 MVCC 债务到系统闭环",
+      "label": "从 UPDATE 到 Vacuum 的闭环",
       "content": "",
       "steps": [
         {
-          "title": "旧版本堆积",
-          "description": "UPDATE/DELETE 让 dead tuples 持续出现",
-          "visual": "MVCC -> dead tuples",
-          "highlight": "dead tuples"
+          "title": "旧版本留下",
+          "description": "UPDATE/DELETE 让 dead tuple 出现，但它不会立刻消失",
+          "visual": "UPDATE -> old tuple becomes dead-ish",
+          "highlight": "dead tuple"
+        },
+        {
+          "title": "空间和索引一起背债",
+          "description": "heap page 变脏，index 也可能持续指向旧世界残影",
+          "visual": "dead tuple -> heap bloat + index bloat",
+          "highlight": "bloat"
         },
         {
           "title": "Vacuum 回收与标记",
-          "description": "清理、更新 visibility map、维护可见性信息",
-          "visual": "dead tuples -> vacuum -> reusable space / visibility map",
-          "highlight": "vacuum"
+          "description": "回收可重用空间，并更新 visibility map 等元信息",
+          "visual": "vacuum -> reusable space + visibility map",
+          "highlight": "visibility map"
         },
         {
-          "title": "Freeze 兜底",
-          "description": "避免事务 ID 老化到 wraparound 风险",
-          "visual": "xid aging -> freeze -> safe horizon",
+          "title": "Freeze 处理时间炸弹",
+          "description": "把过老的 xid 语义冻结，防止 wraparound 风险升级",
+          "visual": "aging xid -> freeze -> safe horizon",
           "highlight": "freeze"
         }
       ]
     },
     {
+      "type": "heading",
+      "content": "Autovacuum 为什么不是“自动保洁”这么简单？"
+    },
+    {
+      "type": "text",
+      "content": "如果把 Vacuum 完全交给人工，很多系统会在“暂时还能用”的假象里悄悄变坏：表越来越胖，索引越来越脏，planner 估计越来越偏。\n\nAutovacuum 的价值就在于把“偿债”制度化。它不是多余的后台线程，而是 MVCC 世界能够长期维持秩序的治理机制。"
+    },
+    {
+      "type": "heading",
+      "content": "Freeze 为什么值得单独拿出来讲？"
+    },
+    {
+      "type": "text",
+      "content": "因为前面那些问题更多是“慢”和“膨胀”，而 xid wraparound 则是“系统级危险”。事务 ID 不是无限的，如果太老的 xid 语义不被冻结，数据库最终会失去对可见性的可靠解释。\n\n所以 freeze 不是为了让数据库更优雅，而是为了让它别死。"
+    },
+    {
+      "type": "diagram",
+      "label": "MVCC 债务循环",
+      "content": "并发自由\n  ↓\n旧版本暂留\n  ↓\ndead tuples / bloat / xid aging\n  ↓\nVacuum / Autovacuum / Freeze\n  ↓\n长期可用性"
+    },
+    {
       "type": "callout",
-      "content": "想真正理解 PostgreSQL，不是记住每个零件，而是看见它们如何在一致性、恢复、性能与维护之间互相制约。"
+      "content": "想真正理解 PostgreSQL，不是记住每个零件，而是看见 MVCC、WAL、Index、Planner、Vacuum 如何互相制约，最后形成一个活着的系统。"
+    },
+    {
+      "type": "heading",
+      "content": "为什么这一章是闭环章？"
+    },
+    {
+      "type": "text",
+      "content": "因为它把前面几章重新绑回一起：page / tuple 是债务发生的物理地点，MVCC 是债务来源，index 与 planner 感受到债务的性能后果，WAL/恢复保证世界在崩溃后还能回到可治理状态，而 Vacuum / Freeze 负责长期偿债。\n\n到这里，你看到的不再是 6 个独立知识点，而是一套数据库内核因果网。"
     }
   ],
   "visuals": [
@@ -106,7 +169,11 @@
   "retrievalPrompts": [
     {
       "type": "rebuild-map",
-      "prompt": "请把 MVCC、WAL、Index、Planner、Vacuum 重新连成闭环，并说出 Vacuum 为什么不是配角。"
+      "prompt": "请把 MVCC、Index、Planner、Vacuum 重新连成因果闭环，并指出哪一环在“偿债”。"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "如果说 MVCC 给了并发自由，那么 Vacuum / Freeze 负责偿还的核心债务分别是什么？"
     }
   ],
   "bridgeTo": null,
