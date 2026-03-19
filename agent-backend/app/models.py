@@ -7,6 +7,18 @@ def _to_str_list(value: Any) -> list[str]:
     return []
 
 
+def _to_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    return default
+
+
 def normalize_topic_request(payload: dict[str, Any] | None) -> dict[str, Any]:
     payload = payload or {}
     topic = str(payload.get("topic") or "").strip()
@@ -34,4 +46,23 @@ def normalize_module_request(payload: dict[str, Any] | None) -> dict[str, Any]:
         "primary_cognitive_action": str(payload.get("primary_cognitive_action") or "").strip() or None,
         "focus_question": str(payload.get("focus_question") or "").strip() or None,
         "prerequisites": _to_str_list(payload.get("prerequisites")),
+    }
+
+
+def normalize_export_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    topic_req = normalize_topic_request(payload)
+    return {
+        **topic_req,
+        "output_slug": str(payload.get("output_slug") or "").strip() or None,
+        "output_root": str(payload.get("output_root") or "").strip() or None,
+    }
+
+
+def normalize_validate_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    return {
+        "mode": str(payload.get("mode") or "repo").strip() or "repo",
+        "package_dir": str(payload.get("package_dir") or "").strip() or None,
+        "run_build": _to_bool(payload.get("run_build"), default=True),
     }

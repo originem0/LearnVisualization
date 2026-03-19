@@ -1,22 +1,50 @@
 import json
 import os
+import subprocess
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 try:
-    from .models import normalize_module_request, normalize_topic_request
+    from .models import (
+        normalize_export_request,
+        normalize_module_request,
+        normalize_topic_request,
+        normalize_validate_request,
+    )
     from .workflow import WORKFLOW_V1, retry_policy
 except ImportError:
-    from models import normalize_module_request, normalize_topic_request
+    from models import (
+        normalize_export_request,
+        normalize_module_request,
+        normalize_topic_request,
+        normalize_validate_request,
+    )
     from workflow import WORKFLOW_V1, retry_policy
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-POSTGRESQL_MODULES_DIR = REPO_ROOT / "courses" / "postgresql-internals" / "modules"
+COURSES_ROOT = REPO_ROOT / "courses"
+POSTGRESQL_ROOT = COURSES_ROOT / "postgresql-internals"
+POSTGRESQL_MODULES_DIR = POSTGRESQL_ROOT / "modules"
+GENERATED_ROOT = REPO_ROOT / "agent-backend" / "generated"
+
+
+def _slugify(text: str) -> str:
+    return "-".join(text.strip().lower().replace("/", " ").replace("_", " ").split())
 
 
 def _default_audience(req: dict) -> str:
     return req.get("audience") or "想系统理解复杂主题的中文学习者"
+
+
+def _read_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _write_json(path: Path, payload: dict | list) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _postgresql_modules() -> list[dict]:
@@ -87,7 +115,19 @@ def _load_postgresql_module(module_id: str) -> dict | None:
     module_path = POSTGRESQL_MODULES_DIR / f"{module_id}.json"
     if not module_path.exists():
         return None
-    return json.loads(module_path.read_text(encoding="utf-8"))
+    return _read_json(module_path)
+
+
+def _load_postgresql_course_package() -> dict:
+    modules = []
+    for module_id in _read_json(POSTGRESQL_ROOT / "course.json")["moduleGraph"]["order"]:
+        modules.append(_load_postgresql_module(module_id))
+    return {
+        "course": _read_json(POSTGRESQL_ROOT / "course.json"),
+        "modules": modules,
+        "concept_maps": _read_json(POSTGRESQL_ROOT / "visuals" / "concept-maps.json"),
+        "interaction_registry": _read_json(POSTGRESQL_ROOT / "interactions" / "registry.json"),
+    }
 
 
 def health() -> dict:
@@ -149,7 +189,7 @@ def draft_course_package_dry_run(req: dict) -> dict:
     framing = topic_framing_dry_run(req)
     plan = curriculum_planning_dry_run(req)
     return {
-        "id": req["topic"].lower().replace(" ", "-").replace("/", "-"),
+        "id": _slugify(req["topic"]),
         "title": req["topic"],
         "topic": req["topic"],
         "audience": framing["audience"],
@@ -166,6 +206,7 @@ def _generic_module_draft(req: dict) -> dict:
     primary_cognitive_action = req.get("primary_cognitive_action") or "trace"
     return {
         "id": req["module_id"],
+        "number": None,
         "title": title,
         "subtitle": "由 agent-backend dry-run 生成的模块草案",
         "category": "generated",
@@ -237,6 +278,204 @@ def module_composition_dry_run(req: dict) -> dict:
     return _generic_module_draft(req)
 
 
+def _build_generic_course_package(req: dict) -> dict:
+    framing = topic_framing_dry_run(req)
+    plan = curriculum_planning_dry_run(req)
+    order = plan["module_ids"]
+    modules = []
+    for index, planned in enumerate(plan["modules"], start=1):
+        module = module_composition_dry_run(
+            {
+                "topic": req["topic"],
+                "audience": req.get("audience"),
+                "goals": req.get("goals", []),
+                "constraints": req.get("constraints", []),
+                "module_id": planned["id"],
+                "title": planned.get("title"),
+                "module_kind": planned.get("module_kind"),
+                "primary_cognitive_action": planned.get("primary_cognitive_action"),
+                "focus_question": planned.get("focus_question"),
+                "prerequisites": planned.get("prerequisites", []),
+            }
+        )
+        module["number"] = index
+        module["nextModuleId"] = order[index] if index < len(order) else None
+        modules.append(module)
+
+    slug = _slugify(req["topic"])
+    concept_maps = {
+        module["id"]: {
+            "type": (module.get("visuals") or [{"type": "stepSequence"}])[0].get("type", "stepSequence"),
+            "title": module["title"],
+        }
+        for module in modules
+    }
+    interaction_registry = {
+        module["id"]: {
+            "heroInteractive": (module.get("interactionRequirements") or [{"capability": "trace", "purpose": "追踪关键机制", "priority": "core"}])[0]
+        }
+        for module in modules
+    }
+    edges = []
+    for module in modules:
+        for prerequisite in module.get("priorKnowledge", []):
+            edges.append(
+                {
+                    "from": prerequisite,
+                    "to": module["id"],
+                    "type": "prerequisite",
+                    "note": f"{prerequisite} -> {module['id']}",
+                }
+            )
+    course = {
+        "id": slug,
+        "slug": slug,
+        "title": req["topic"],
+        "subtitle": f"由 agent-backend 导出的 {req['topic']} 课程包",
+        "goal": framing["learning_goals"][0] if framing["learning_goals"] else f"建立对 {req['topic']} 的结构化理解",
+        "projectType": "mixed",
+        "startDate": date.today().isoformat(),
+        "topic": slug,
+        "language": "zh",
+        "status": "draft",
+        "categories": [{"id": "generated", "name": "生成课程", "color": "slate"}],
+        "audience": {
+            "primaryAudience": framing["audience"],
+            "priorKnowledge": [],
+            "desiredOutcome": framing["scope_statement"],
+        },
+        "learningGoals": framing["learning_goals"],
+        "nonGoals": framing["non_goals"],
+        "assumptions": framing["assumptions"],
+        "philosophy": {
+            "promise": framing["scope_statement"],
+            "corePrinciples": [
+                "先组织认知动作，再组织文本材料",
+                "先输出结构化对象，再考虑最终渲染",
+                "每个阶段都允许失败重试",
+            ],
+            "shiftStatement": f"从零散理解升级为对 {req['topic']} 的结构化掌握。",
+        },
+        "paths": [
+            {
+                "id": "core-path",
+                "title": "核心路径",
+                "description": f"围绕 {req['topic']} 的最小学习闭环",
+                "moduleIds": order,
+            }
+        ],
+        "moduleGraph": {"order": order, "edges": edges},
+        "modules": order,
+    }
+    return {
+        "course": course,
+        "modules": modules,
+        "concept_maps": concept_maps,
+        "interaction_registry": interaction_registry,
+    }
+
+
+def export_course_package_dry_run(req: dict) -> dict:
+    topic = req["topic"].lower()
+    output_slug = req.get("output_slug") or _slugify(req["topic"])
+    if "postgres" in topic:
+        package = _load_postgresql_course_package()
+    else:
+        package = _build_generic_course_package(req)
+    return {
+        "output_slug": output_slug,
+        "target_dir": str((GENERATED_ROOT / output_slug).resolve()),
+        "files": [
+            "course.json",
+            "modules/*.json",
+            "visuals/concept-maps.json",
+            "interactions/registry.json",
+        ],
+        "module_count": len(package["modules"]),
+        "module_ids": [m["id"] for m in package["modules"]],
+        "course_title": package["course"]["title"],
+    }
+
+
+def export_course_package_write(req: dict) -> dict:
+    topic = req["topic"].lower()
+    output_slug = req.get("output_slug") or _slugify(req["topic"])
+    output_root = Path(req.get("output_root") or GENERATED_ROOT)
+    output_dir = output_root / output_slug
+    if "postgres" in topic:
+        package = _load_postgresql_course_package()
+    else:
+        package = _build_generic_course_package(req)
+
+    _write_json(output_dir / "course.json", package["course"])
+    for module in package["modules"]:
+        _write_json(output_dir / "modules" / f"{module['id']}.json", module)
+    _write_json(output_dir / "visuals" / "concept-maps.json", package["concept_maps"])
+    _write_json(output_dir / "interactions" / "registry.json", package["interaction_registry"])
+    return {
+        "written": True,
+        "output_dir": str(output_dir.resolve()),
+        "module_count": len(package["modules"]),
+        "module_ids": [m["id"] for m in package["modules"]],
+    }
+
+
+def _validate_package_dir(package_dir: Path) -> dict:
+    required_files = [
+        package_dir / "course.json",
+        package_dir / "visuals" / "concept-maps.json",
+        package_dir / "interactions" / "registry.json",
+    ]
+    missing = [str(path) for path in required_files if not path.exists()]
+    modules_dir = package_dir / "modules"
+    module_files = sorted([p.name for p in modules_dir.glob("s*.json")]) if modules_dir.exists() else []
+    if not module_files:
+        missing.append(str(modules_dir / "s*.json"))
+    ok = not missing
+    summary = None
+    if ok:
+        course = _read_json(package_dir / "course.json")
+        summary = {
+            "course_id": course.get("id"),
+            "module_count": len(module_files),
+            "module_ids": course.get("modules", []),
+        }
+    return {"ok": ok, "missing": missing, "summary": summary}
+
+
+def _run_command(command: list[str], cwd: Path, timeout: int = 1200) -> dict:
+    completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    return {
+        "command": " ".join(command),
+        "returncode": completed.returncode,
+        "stdout": completed.stdout[-8000:],
+        "stderr": completed.stderr[-8000:],
+        "ok": completed.returncode == 0,
+    }
+
+
+def validate_build_dry_run(req: dict) -> dict:
+    mode = req["mode"]
+    if mode == "package":
+        package_dir = Path(req.get("package_dir") or "")
+        if not package_dir:
+            raise ValueError("package_dir is required when mode=package")
+        return {
+            "mode": "package",
+            "result": _validate_package_dir(package_dir),
+        }
+
+    check_result = _run_command(["npm", "run", "check"], REPO_ROOT)
+    build_result = _run_command(["npm", "run", "build"], REPO_ROOT) if req.get("run_build", True) else None
+    ok = check_result["ok"] and (build_result is None or build_result["ok"])
+    return {
+        "mode": "repo",
+        "ok": ok,
+        "check": check_result,
+        "build": build_result,
+    }
+
+
 class AgentBackendHandler(BaseHTTPRequestHandler):
     def _send_json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -274,11 +513,19 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 return self._send_json(draft_course_package_dry_run(normalize_topic_request(payload)))
             if path == "/module-composition/dry-run":
                 return self._send_json(module_composition_dry_run(normalize_module_request(payload)))
+            if path == "/export-course-package/dry-run":
+                return self._send_json(export_course_package_dry_run(normalize_export_request(payload)))
+            if path == "/export-course-package/write":
+                return self._send_json(export_course_package_write(normalize_export_request(payload)))
+            if path == "/validate-build/dry-run":
+                return self._send_json(validate_build_dry_run(normalize_validate_request(payload)))
             return self._send_json({"error": f"Unknown route: {path}"}, status=404)
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, status=400)
         except FileNotFoundError as exc:
             return self._send_json({"error": str(exc)}, status=404)
+        except subprocess.TimeoutExpired as exc:
+            return self._send_json({"error": f"timeout: {exc.cmd}"}, status=504)
         except Exception as exc:
             return self._send_json({"error": f"internal_error: {exc}"}, status=500)
 

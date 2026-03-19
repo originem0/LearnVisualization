@@ -4,7 +4,7 @@
 
 当前版本优先目标不是“框架漂亮”，而是：
 
-> **在这台机器上真的能跑起来。**
+> **在这台机器上真的能跑起来，并且能把一条最小生成链路串通。**
 
 因此现在采用的是 **Python 标准库零依赖 dev server**，先把后端边界、端点和结构化输出能力立住，再决定后续是否切到 FastAPI / queue / DB。
 
@@ -22,10 +22,17 @@
 - `POST /curriculum-planning/dry-run`
 - `POST /draft-course-package/dry-run`
 - `POST /module-composition/dry-run`
+- `POST /export-course-package/dry-run`
+- `POST /export-course-package/write`
+- `POST /validate-build/dry-run`
 
-其中 `module-composition/dry-run`：
-- 对 `PostgreSQL Internals` 可以直接返回仓库中现有模块 JSON 草案
-- 对通用 topic 会返回一个结构化模块模板
+### 目前已经打通的最小闭环
+
+1. 输入 topic
+2. 产出 framing / curriculum / module draft
+3. 导出 course package 到 `agent-backend/generated/<slug>/`
+4. 对导出目录做结构检查
+5. 对整个 repo 触发 `npm run check` / `npm run build`
 
 ## 运行
 
@@ -48,9 +55,9 @@ python3 -m app.main
 - 真实模型调用
 - provider secrets 管理
 - 队列 / 数据库 / review UI
-- export course package 写回
-- validate/build 自动串联
+- course package 正式写回 `courses/`
+- 与前端 runtime 的自动接线
 
 它现在的价值是：
 
-> 把 Agent 从“设计文档里的概念”推进成“可本地跑、可吐结构化草案的独立后端边界”。
+> 把 Agent 从“设计文档里的概念”推进成“可本地跑、可导出、可校验的独立后端边界”。

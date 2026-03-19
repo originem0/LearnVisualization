@@ -5,7 +5,10 @@ out/
 .venv/
 .DS_Store
 
-tsconfig.tsbuildinfo
-build-progress.log
+agent-backend/generated/
+
 __pycache__/
 *.pyc
+
+tsconfig.tsbuildinfo
+build-progress.log
