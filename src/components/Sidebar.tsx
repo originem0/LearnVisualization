@@ -4,16 +4,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Category, Module } from '@/lib/types';
 import { categoryStyles } from '@/lib/palette';
-import { getModuleSlug } from '@/lib/data';
+import { getModuleSlug } from '@/lib/module-slug';
 import type { Locale } from '@/lib/i18n';
 
 interface SidebarProps {
   categories: Category[];
   modules: Module[];
   locale: Locale;
+  basePath?: string;
 }
 
-export default function Sidebar({ categories, modules, locale }: SidebarProps) {
+export default function Sidebar({ categories, modules, locale, basePath = `/${locale}` }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -23,8 +24,9 @@ export default function Sidebar({ categories, modules, locale }: SidebarProps) {
           const grouped = modules.filter((module) => module.category === category.id);
           const styles = categoryStyles[category.color];
           const hasActiveChild = grouped.some(
-            (m) => pathname === `/${locale}/${getModuleSlug(m.id)}` || pathname === `/${locale}/${getModuleSlug(m.id)}/`
+            (m) => pathname === `${basePath}/${getModuleSlug(m.id)}` || pathname === `${basePath}/${getModuleSlug(m.id)}/`
           );
+
           return (
             <div key={category.id}>
               <div className="flex items-center gap-1.5 pb-1.5">
@@ -39,7 +41,7 @@ export default function Sidebar({ categories, modules, locale }: SidebarProps) {
               </div>
               <ul className="space-y-0.5">
                 {grouped.map((module) => {
-                  const href = `/${locale}/${getModuleSlug(module.id)}/`;
+                  const href = `${basePath}/${getModuleSlug(module.id)}/`;
                   const isActive = pathname === href || pathname === href.replace(/\/$/, '');
                   return (
                     <li key={module.id}>

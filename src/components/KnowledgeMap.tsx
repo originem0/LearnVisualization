@@ -1,10 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import type { Category, Module } from '@/lib/types';
 import { categoryStyles } from '@/lib/palette';
-import { getModuleSlug } from '@/lib/data';
+import { getModuleSlug } from '@/lib/module-slug';
 import type { Locale } from '@/lib/i18n';
 import { useState } from 'react';
 
@@ -12,13 +11,14 @@ interface KnowledgeMapProps {
   categories: Category[];
   modules: Module[];
   locale: Locale;
+  basePath?: string;
 }
 
 /**
  * Interactive vertical knowledge map.
  * Shows layers as horizontal bands with module nodes + inter-layer connections.
  */
-export default function KnowledgeMap({ categories, modules, locale }: KnowledgeMapProps) {
+export default function KnowledgeMap({ categories, modules, locale, basePath = `/${locale}` }: KnowledgeMapProps) {
   const [hovered, setHovered] = useState<number | null>(null);
 
   const grouped = categories.map((cat) => ({

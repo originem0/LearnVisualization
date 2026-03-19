@@ -8,10 +8,10 @@ import ConceptList from './ConceptList';
 import PitfallList from './PitfallList';
 import { NarrativeBlockRenderer } from './NarrativeRenderer';
 import ModuleNav from './ModuleNav';
-import { getModuleComponents } from '@/lib/module-registry';
+import { getModuleComponents, type ModuleRegistryEntry } from '@/lib/module-registry';
 import ConceptMapRenderer from './ConceptMapRenderer';
 import type { Locale } from '@/lib/i18n';
-import { getModuleSlug } from '@/lib/data';
+import { getModuleSlug } from '@/lib/module-slug';
 import { getLabels } from '@/lib/labels';
 
 interface ModuleDetailProps {
@@ -20,13 +20,23 @@ interface ModuleDetailProps {
   locale: Locale;
   prev?: Module;
   next?: Module;
+  basePath?: string;
+  registryEntry?: ModuleRegistryEntry | null;
 }
 
-export default function ModuleDetail({ module, category, locale, prev, next }: ModuleDetailProps) {
+export default function ModuleDetail({
+  module,
+  category,
+  locale,
+  prev,
+  next,
+  basePath = `/${locale}`,
+  registryEntry,
+}: ModuleDetailProps) {
   const styles = categoryStyles[category.color];
   const labels = getLabels(locale);
   const isZh = locale === 'zh';
-  const registry = getModuleComponents(module.id);
+  const registry = registryEntry === undefined ? getModuleComponents(module.id) : registryEntry;
 
   const borderColorMap: Record<string, string> = {
     blue: 'border-l-blue-400 dark:border-l-blue-400',
@@ -125,7 +135,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
         <div className="mt-6 flex items-center gap-2">
           <span className="text-xl text-[color:var(--color-muted)]">↓</span>
           <Link
-            href={`/${locale}/${getModuleSlug(next.id)}/`}
+            href={`${basePath}/${getModuleSlug(next.id)}/`}
             className={`rounded-full px-4 py-2 text-sm font-semibold ${styles.soft} transition-opacity hover:opacity-80`}
           >
             {getModuleSlug(next.id)}: {next.title} →
@@ -264,7 +274,7 @@ export default function ModuleDetail({ module, category, locale, prev, next }: M
       </Tabs>
 
       <div className="pt-10">
-        <ModuleNav locale={locale} prev={prev} next={next} />
+        <ModuleNav locale={locale} prev={prev} next={next} basePath={basePath} />
       </div>
     </div>
   );

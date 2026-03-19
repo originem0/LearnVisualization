@@ -1,30 +1,29 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import ModuleDetail from '@/components/ModuleDetail';
-import { getData, getCategoriesById } from '@/lib/data';
+import { PRIMARY_COURSE_SLUG, getCategoriesById, getCourseData } from '@/lib/data';
 import { getModuleSlug } from '@/lib/module-slug';
+import { listMirroredCourseSlugs } from '@/lib/course-package-adapter';
 import { enabledLocales, type Locale } from '@/lib/i18n';
 
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  const params: { locale: Locale; slug: string }[] = [];
-  enabledLocales.forEach((locale) => {
-    const data = getData(locale);
-    data.modules.forEach((module) => {
-      params.push({ locale, slug: getModuleSlug(module.id) });
-    });
-  });
-  return params;
+  return enabledLocales.flatMap((locale) =>
+    listMirroredCourseSlugs().flatMap((courseSlug) => {
+      const data = getCourseData(locale, courseSlug);
+      return data.modules.map((module) => ({ locale, courseSlug, slug: getModuleSlug(module.id) }));
+    })
+  );
 }
 
 interface ModulePageProps {
-  params: { locale: Locale; slug: string };
+  params: { locale: Locale; courseSlug: string; slug: string };
 }
 
 export function generateMetadata({ params }: ModulePageProps): Metadata {
-  const { locale, slug } = params;
-  const data = getData(locale);
+  const { locale, courseSlug, slug } = params;
+  const data = getCourseData(locale, courseSlug);
   const id = Number(slug.replace(/^s/, ''));
   const mod = data.modules.find((m) => m.id === id);
   if (!mod) return {};
@@ -54,11 +53,12 @@ export function generateMetadata({ params }: ModulePageProps): Metadata {
   };
 }
 
-export default function ModulePage({ params }: ModulePageProps) {
-  const { locale, slug } = params;
-  const data = getData(locale);
-  const categoriesById = getCategoriesById(data);
+export default function CourseModulePage({ params }: ModulePageProps) {
+  const { locale, courseSlug, slug } = params;
+  if (!listMirroredCourseSlugs().includes(courseSlug)) notFound();
 
+  const data = getCourseData(locale, courseSlug);
+  const categoriesById = getCategoriesById(data);
   const id = Number(slug.replace(/^s/, ''));
   const index = data.modules.findIndex((module) => module.id === id);
   if (Number.isNaN(id) || index === -1) {
@@ -69,6 +69,18 @@ export default function ModulePage({ params }: ModulePageProps) {
   const category = categoriesById[module.category];
   const prev = index > 0 ? data.modules[index - 1] : undefined;
   const next = index < data.modules.length - 1 ? data.modules[index + 1] : undefined;
+  const basePath = `/${locale}/courses/${courseSlug}`;
+  const registryEntry = courseSlug === PRIMARY_COURSE_SLUG ? undefined : null;
 
-  return <ModuleDetail module={module} category={category} prev={prev} next={next} locale={locale} />;
+  return (
+    <ModuleDetail
+      module={module}
+      category={category}
+      prev={prev}
+      next={next}
+      locale={locale}
+      basePath={basePath}
+      registryEntry={registryEntry}
+    />
+  );
 }

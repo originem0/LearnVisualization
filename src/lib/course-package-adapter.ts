@@ -1,47 +1,64 @@
+import 'server-only';
+
+import { cache } from 'react';
+import { existsSync, readdirSync, readFileSync } from 'fs';
+import { resolve } from 'path';
 import type { CoursePackage } from '@/lib/course-schema';
 import type { StateData } from '@/lib/types';
 
-import llmCourseMeta from '../../courses/llm-fundamentals/course.json';
-import llmS01 from '../../courses/llm-fundamentals/modules/s01.json';
-import llmS02 from '../../courses/llm-fundamentals/modules/s02.json';
-import llmS03 from '../../courses/llm-fundamentals/modules/s03.json';
-import llmS04 from '../../courses/llm-fundamentals/modules/s04.json';
-import llmS05 from '../../courses/llm-fundamentals/modules/s05.json';
-import llmS06 from '../../courses/llm-fundamentals/modules/s06.json';
-import llmS07 from '../../courses/llm-fundamentals/modules/s07.json';
-import llmS08 from '../../courses/llm-fundamentals/modules/s08.json';
-import llmS09 from '../../courses/llm-fundamentals/modules/s09.json';
-import llmS10 from '../../courses/llm-fundamentals/modules/s10.json';
-import llmS11 from '../../courses/llm-fundamentals/modules/s11.json';
-import llmS12 from '../../courses/llm-fundamentals/modules/s12.json';
+const coursesRoot = resolve(process.cwd(), 'courses');
 
-const llmModules = [
-  llmS01,
-  llmS02,
-  llmS03,
-  llmS04,
-  llmS05,
-  llmS06,
-  llmS07,
-  llmS08,
-  llmS09,
-  llmS10,
-  llmS11,
-  llmS12,
-] as unknown as CoursePackage['modules'];
-
-const mirroredPackages = {
-  'llm-fundamentals': {
-    ...(llmCourseMeta as Omit<CoursePackage, 'modules'>),
-    modules: llmModules,
-  },
-} satisfies Record<string, CoursePackage>;
-
-export type MirroredCourseSlug = keyof typeof mirroredPackages;
-
-export function getMirroredCoursePackage(slug: MirroredCourseSlug): CoursePackage {
-  return mirroredPackages[slug];
+export interface MirroredCourseSummary {
+  slug: string;
+  title: string;
+  subtitle?: string;
+  status: string;
+  moduleCount: number;
 }
+
+type CourseMeta = Omit<CoursePackage, 'modules'> & { modules?: string[] };
+
+const loadJson = <T>(path: string): T => JSON.parse(readFileSync(path, 'utf-8')) as T;
+
+export const listMirroredCourseSlugs = cache((): string[] => {
+  if (!existsSync(coursesRoot)) return [];
+
+  return readdirSync(coursesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(resolve(coursesRoot, entry.name, 'course.json')))
+    .map((entry) => entry.name)
+    .sort();
+});
+
+export const getMirroredCoursePackage = cache((slug: string): CoursePackage => {
+  const courseBase = resolve(coursesRoot, slug);
+  const coursePath = resolve(courseBase, 'course.json');
+  if (!existsSync(coursePath)) {
+    throw new Error(`Unknown mirrored course package: ${slug}`);
+  }
+
+  const course = loadJson<CourseMeta>(coursePath);
+  const modules = (course.moduleGraph?.order ?? course.modules ?? []).map((moduleId) => {
+    return loadJson<CoursePackage['modules'][number]>(resolve(courseBase, 'modules', `${moduleId}.json`));
+  });
+
+  return {
+    ...course,
+    modules,
+  } as CoursePackage;
+});
+
+export const listMirroredCourseSummaries = cache((): MirroredCourseSummary[] => {
+  return listMirroredCourseSlugs().map((slug) => {
+    const pkg = getMirroredCoursePackage(slug);
+    return {
+      slug,
+      title: pkg.title,
+      subtitle: pkg.subtitle,
+      status: pkg.status,
+      moduleCount: pkg.modules.length,
+    };
+  });
+});
 
 export function toStateData(coursePackage: CoursePackage): StateData {
   return {
@@ -74,6 +91,6 @@ export function toStateData(coursePackage: CoursePackage): StateData {
   };
 }
 
-export function getMirroredStateData(slug: MirroredCourseSlug): StateData {
+export function getMirroredStateData(slug: string): StateData {
   return toStateData(getMirroredCoursePackage(slug));
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { getData, getModuleSlug } from '@/lib/data';
+import { getData } from '@/lib/data';
+import { getModuleSlug } from '@/lib/module-slug';
 import { categoryStyles } from '@/lib/palette';
 import type { Locale } from '@/lib/i18n';
 
@@ -46,6 +47,12 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
                 className="rounded-full border border-[color:var(--color-border)] px-5 py-2.5 font-semibold text-[color:var(--color-text)] transition-colors hover:bg-zinc-50 dark:hover:bg-[#0b3a45]"
               >
                 {isZh ? '查看知识地图' : 'Knowledge map'}
+              </Link>
+              <Link
+                href={`/${params.locale}/courses/`}
+                className="rounded-full border border-[color:var(--color-border)] px-5 py-2.5 font-semibold text-[color:var(--color-text)] transition-colors hover:bg-zinc-50 dark:hover:bg-[#0b3a45]"
+              >
+                {isZh ? '专题目录' : 'Course catalog'}
               </Link>
             </div>
 

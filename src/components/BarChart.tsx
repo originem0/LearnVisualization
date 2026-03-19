@@ -1,6 +1,6 @@
 import type { Category, Module } from '@/lib/types';
 import { categoryStyles } from '@/lib/palette';
-import { getModuleSlug } from '@/lib/data';
+import { getModuleSlug } from '@/lib/module-slug';
 import Link from 'next/link';
 import type { Locale } from '@/lib/i18n';
 
@@ -8,10 +8,10 @@ interface BarChartProps {
   modules: Module[];
   categoriesById: Record<string, Category>;
   locale: Locale;
+  basePath?: string;
 }
 
-export default function BarChart({ modules, categoriesById, locale }: BarChartProps) {
-  // Group modules by category
+export default function BarChart({ modules, categoriesById, locale, basePath = `/${locale}` }: BarChartProps) {
   const grouped: Record<string, Module[]> = {};
   for (const m of modules) {
     if (!grouped[m.category]) grouped[m.category] = [];
@@ -37,7 +37,7 @@ export default function BarChart({ modules, categoriesById, locale }: BarChartPr
               {mods.map((m) => (
                 <Link
                   key={m.id}
-                  href={`/${locale}/${getModuleSlug(m.id)}/`}
+                  href={`${basePath}/${getModuleSlug(m.id)}/`}
                   className="block rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] px-3 py-2 text-sm transition-colors hover:border-[color:var(--color-muted)]"
                 >
                   <span className="font-mono text-xs text-[color:var(--color-muted)]">{getModuleSlug(m.id)}</span>
