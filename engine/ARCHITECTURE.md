@@ -28,7 +28,6 @@
 ### Engine
 - 负责编译、校验、转换
 - 负责 course package → runtime data 的适配
-- 当前已支持通过 `LEARNING_SITE_DATA_SOURCE` 在旧源与镜像课程包之间切换读取
 
 ### Agent Backend
 - 负责 research / planning / generation / critique

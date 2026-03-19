@@ -1,11 +1,11 @@
 # Content Authoring
 
-## Current source of truth
+## Source of truth
 
-当前运行中的课程主内容源已经切到 **course package** 路径：
+所有课程内容以 **course package** 格式存放：
 
 ```txt
-courses/llm-fundamentals/
+courses/<slug>/
   course.json
   modules/
     s01.json
@@ -14,8 +14,7 @@ courses/llm-fundamentals/
   interactions/
 ```
 
-`src/content/zh/` 目前仍然保留，但已经处于 **legacy compatibility** 状态，
-不应再作为新增内容的主写入位置。未来应优先把它视为一个可再生成的兼容层。
+Legacy `src/content/zh/` 已移除。
 
 ## Narrative blocks
 
@@ -52,10 +51,9 @@ node scripts/new-module.mjs --id 13 --category frontier --title "你的标题" -
 
 ## Validation layers
 
-`npm run check` 现在会同时验证：
+`npm run check` 验证所有 `courses/` 下的课程包：
 
-1. legacy content completeness
-2. concept-map schema integrity
-3. split-content structure integrity
-4. authoring rules for narrative blocks
-5. mirrored course package integrity
+1. content completeness（字段齐全）
+2. concept-map + interaction registry integrity
+3. structure integrity（模块序号、graph 一致性）
+4. authoring rules（narrative block 类型规范）

@@ -1,53 +1,24 @@
-import TimelineCard from '@/components/TimelineCard';
-import BarChart from '@/components/BarChart';
-import { getData, getCategoriesById } from '@/lib/data';
+import type { Metadata } from 'next';
+import RedirectPage from '@/components/RedirectPage';
 import type { Locale } from '@/lib/i18n';
-import { getLabels } from '@/lib/labels';
-import { categoryStyles } from '@/lib/palette';
 
+const TARGET_PATH = '/courses/llm-fundamentals/timeline/';
+
+export function generateMetadata({ params }: { params: { locale: Locale } }): Metadata {
+  const target = `/${params.locale}${TARGET_PATH}`;
+  return {
+    alternates: { canonical: target },
+    robots: { index: false, follow: true },
+  };
+}
+
+/** Legacy LLM timeline page redirects to course-scoped equivalent. */
 export default function TimelinePage({ params }: { params: { locale: Locale } }) {
-  const data = getData(params.locale);
-  const categoriesById = getCategoriesById(data);
-  const labels = getLabels(params.locale);
-
+  const target = `/${params.locale}${TARGET_PATH}`;
   return (
-    <div className="space-y-10">
-      <section>
-        <h1 className="text-2xl font-bold text-[color:var(--color-text)] sm:text-3xl">{labels.sections.timelineTitle}</h1>
-        <p className="mt-2 text-sm text-[color:var(--color-muted)]">{labels.sections.timelineSubtitle}</p>
-      </section>
-
-      <section className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5">
-        <div className="mb-3 text-sm font-semibold text-[color:var(--color-muted)]">{labels.sections.layersTitle}</div>
-        <div className="flex flex-wrap gap-3">
-          {data.categories.map((category) => {
-            const styles = categoryStyles[category.color];
-            return (
-              <div key={category.id} className="flex items-center gap-2 text-xs font-medium">
-                <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} />
-                <span>{category.name}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-10">
-        {data.modules.map((module, index) => {
-          const category = categoriesById[module.category];
-          return (
-            <TimelineCard
-              key={module.id}
-              module={module}
-              category={category}
-              isLast={index === data.modules.length - 1}
-              locale={params.locale}
-            />
-          );
-        })}
-      </section>
-
-      <BarChart modules={data.modules} categoriesById={categoriesById} locale={params.locale} />
-    </div>
+    <>
+      <meta httpEquiv="refresh" content={`0;url=${target}`} />
+      <RedirectPage to={target} label="此页面已迁移至课程目录。" />
+    </>
   );
 }

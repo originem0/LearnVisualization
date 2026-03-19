@@ -29,6 +29,7 @@ def normalize_topic_request(payload: dict[str, Any] | None) -> dict[str, Any]:
         "audience": str(payload.get("audience") or "").strip() or None,
         "goals": _to_str_list(payload.get("goals")),
         "constraints": _to_str_list(payload.get("constraints")),
+        "topic_type": str(payload.get("topic_type") or "").strip() or None,
     }
 
 
@@ -65,4 +66,16 @@ def normalize_validate_request(payload: dict[str, Any] | None) -> dict[str, Any]
         "mode": str(payload.get("mode") or "repo").strip() or "repo",
         "package_dir": str(payload.get("package_dir") or "").strip() or None,
         "run_build": _to_bool(payload.get("run_build"), default=True),
+    }
+
+
+def normalize_promote_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    source_slug = str(payload.get("source_slug") or "").strip()
+    if not source_slug:
+        raise ValueError("source_slug is required")
+    return {
+        "source_slug": source_slug,
+        "target_slug": str(payload.get("target_slug") or "").strip() or source_slug,
+        "overwrite": _to_bool(payload.get("overwrite"), default=False),
     }

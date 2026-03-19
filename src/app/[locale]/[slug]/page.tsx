@@ -1,7 +1,6 @@
-import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import ModuleDetail from '@/components/ModuleDetail';
-import { getData, getCategoriesById } from '@/lib/data';
+import RedirectPage from '@/components/RedirectPage';
+import { getData } from '@/lib/data';
 import { getModuleSlug } from '@/lib/module-slug';
 import { enabledLocales, type Locale } from '@/lib/i18n';
 
@@ -18,57 +17,29 @@ export function generateStaticParams() {
   return params;
 }
 
-interface ModulePageProps {
-  params: { locale: Locale; slug: string };
+function getTarget(locale: string, slug: string) {
+  return `/${locale}/courses/llm-fundamentals/${slug}/`;
 }
 
-export function generateMetadata({ params }: ModulePageProps): Metadata {
-  const { locale, slug } = params;
-  const data = getData(locale);
-  const id = Number(slug.replace(/^s/, ''));
-  const mod = data.modules.find((m) => m.id === id);
-  if (!mod) return {};
-
-  const categoriesById = getCategoriesById(data);
-  const category = categoriesById[mod.category];
-  const title = `${getModuleSlug(mod.id)} ${mod.title} — ${data.project.title}`;
-  const description = mod.subtitle;
-
+export function generateMetadata({ params }: { params: { locale: Locale; slug: string } }): Metadata {
+  const target = getTarget(params.locale, params.slug);
   return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      type: 'article',
-      locale: locale === 'zh' ? 'zh_CN' : 'en_US',
-    },
-    twitter: {
-      card: 'summary',
-      title,
-      description,
-    },
-    other: {
-      'article:section': category?.name ?? '',
-    },
+    alternates: { canonical: target },
+    other: { 'http-equiv-refresh': `0;url=${target}` },
+    robots: { index: false, follow: true },
   };
 }
 
-export default function ModulePage({ params }: ModulePageProps) {
-  const { locale, slug } = params;
-  const data = getData(locale);
-  const categoriesById = getCategoriesById(data);
-
-  const id = Number(slug.replace(/^s/, ''));
-  const index = data.modules.findIndex((module) => module.id === id);
-  if (Number.isNaN(id) || index === -1) {
-    notFound();
-  }
-
-  const module = data.modules[index];
-  const category = categoriesById[module.category];
-  const prev = index > 0 ? data.modules[index - 1] : undefined;
-  const next = index < data.modules.length - 1 ? data.modules[index + 1] : undefined;
-
-  return <ModuleDetail module={module} category={category} prev={prev} next={next} locale={locale} />;
+/**
+ * Legacy LLM module routes redirect to their course-scoped equivalents.
+ * Renders meta refresh + canonical for SEO, plus JS redirect for browsers.
+ */
+export default function ModulePage({ params }: { params: { locale: Locale; slug: string } }) {
+  const target = getTarget(params.locale, params.slug);
+  return (
+    <>
+      <meta httpEquiv="refresh" content={`0;url=${target}`} />
+      <RedirectPage to={target} label="此页面已迁移至课程目录。" />
+    </>
+  );
 }

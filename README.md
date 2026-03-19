@@ -1,150 +1,105 @@
 # LearnVisualization
 
-一个以**可视化学习**为核心的 LLM 原理网站，围绕 token、embedding、注意力、Transformer、训练、对齐、Prompt、scaling、涌现与上下文窗口，做成可读、可看、可交互的静态站点。
+多专题可视化交互学习平台。把复杂技术拆成可以看、可以玩、可以穿透的交互课程。
 
 线上地址：<https://visualize.sharonzhou.site>
 
 ## 技术栈
 
-- Next.js 14
-- React 18
+- Next.js 14（静态导出）
+- React 18 + TypeScript
 - Tailwind CSS
-- 静态导出（`output: 'export'`）
+- Python agent-backend（零依赖 dev server）
 
 ## 项目结构
 
 ```txt
-courses/             课程包（未来主内容源）
+courses/             课程包（主内容源）
+  llm-fundamentals/  LLM 原理课程（published）
+  postgresql-internals/  PostgreSQL 内部原理（draft）
+agent-backend/       课程生成后端（topic → curriculum → export → promote）
 engine/              引擎边界与架构说明
-examples/            schema / workflow / package examples
 research/            研究与设计输入文档
+scripts/             内容校验、结构校验、脚手架、nginx 规则生成
 src/
   app/               路由与页面
   components/        页面组件与交互组件
-  content/zh/        legacy 兼容内容源
   data/              narrative spec / concept map schemas
   lib/               数据读取、类型、schema、adapter
-scripts/             内容校验、结构校验、脚手架
 ```
 
 ## 内容系统
 
-当前站点为 **zh-only**。
+当前站点为 **zh-only**，支持多课程。
 
-当前主内容源已经迁移到 course package 路径：
+首页 `/zh/` 是课程总入口，列出所有课程。每个课程在 `/zh/courses/{slug}/` 下有独立的首页、模块页、知识地图和时间线。
+
+每个课程包结构：
 
 ```txt
-courses/llm-fundamentals/
-  course.json
-  modules/
-    s01.json
-    ...
-    s12.json
+courses/{slug}/
+  course.json          课程元数据、目标、分类、模块图
+  modules/             模块定义（s01.json, s02.json, ...）
+  visuals/             概念图数据
+  interactions/        交互组件映射
 ```
 
-`src/content/zh/` 目前仅作为 legacy 兼容层保留，未来应由课程包再生成而不是继续人工维护。
+叙事 block 规范：`src/data/narrative-block-spec.json`
 
-每个模块包含：
-
-- `opening`
-- `quote`
-- `keyInsight`
-- `narrative[]`
-- `logicChain`
-- `examples`
-- `counterexamples`
-- `pitfalls`
-- `bridgeTo`
-
-叙事 block 规范见：
-
-- `src/data/narrative-block-spec.json`
-
-内容作者说明见：
-
-- `src/content/README.md`
+内容作者说明：`src/content/README.md`
 
 ## 开发
 
-安装依赖：
-
 ```bash
 npm install
-```
-
-启动开发环境：
-
-```bash
 npm run dev
 ```
 
 ## 校验与构建
 
-内容和结构校验：
-
 ```bash
-npm run check
+npm run check   # 内容、registry、结构、authoring 校验（覆盖所有课程）
+npm run build   # prebuild 校验 + Next.js 构建 + prerender smoke check
 ```
 
-完整构建：
+## Agent Backend
+
+课程生成后端，支持 topic framing → curriculum planning → module composition → export → promote 工作流。
 
 ```bash
-npm run build
+cd agent-backend
+python3 -m app.main   # http://127.0.0.1:8081
 ```
 
-构建链包含：
+主要端点：
 
-- content completeness
-- registry / concept-map schema checks
-- split-content structure checks
-- narrative authoring checks
-- prerender smoke checks
+- `POST /topic-classification/dry-run` — 主题类型分类
+- `POST /curriculum-planning/dry-run` — 按主题类型生成课程骨架
+- `POST /export-course-package/write` — 导出到 generated/
+- `POST /promote-course-package/dry-run` — 预检晋升
+- `POST /promote-course-package/write` — 晋升到 courses/
 
-## 新增模块
-
-使用脚手架：
-
-```bash
-node scripts/new-module.mjs --id 13 --category frontier --title "你的标题" --subtitle "你的副标题"
-```
-
-默认会写入：
-
-- `courses/llm-fundamentals/modules/s13.json`
-
-之后还需要：
-
-1. 填真实内容
-2. 补 `courses/<course>/visuals/` 下的可视化数据
-3. 补 `courses/<course>/interactions/` 下的交互 hints / registry
-4. 再跑一次 `npm run check`
+生成的内容标记 `_scaffold: true`，需要人工审查后才算生产就绪。
 
 ## 部署
 
-当前部署方式是：nginx 直接服务仓库中的 `out/`。
-
-所以发布流程就是：
+nginx 直接服务 `out/` 目录。
 
 ```bash
 npm run build
+# out/ 刷新即上线，不需要 reload nginx
 ```
 
-构建成功后，`out/` 刷新即上线，**不需要 reload nginx**。
+旧 URL 重定向规则：
 
-## 研究工作流
-
-默认研究/search 工作流见：
-
-- `RESEARCH_WORKFLOW.md`
-- `DEEP_RESEARCH_PROMPTS.md`
+```bash
+node scripts/generate-nginx-redirects.mjs > nginx-redirects.conf
+# 在 nginx server block 中 include 即可获得 301 重定向
+```
 
 ## 设计原则
 
-核心设计约束来自：
-
-- `DESIGN.md`
-
-重点不是术语堆砌，而是：
+核心设计约束见 `DESIGN.md`。
 
 - 焦点问题驱动
 - 概念关系可视化

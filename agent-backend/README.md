@@ -1,63 +1,50 @@
-# Agent Backend (MVP Skeleton)
+# Agent Backend
 
-这是 `Learning Site Engine` 的最小独立后端骨架。
+`Learning Site Engine` 的课程生成后端。Python 标准库零依赖 dev server。
 
-当前版本优先目标不是“框架漂亮”，而是：
+## 端点
 
-> **在这台机器上真的能跑起来，并且能把一条最小生成链路串通。**
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/health` | 健康检查 |
+| GET | `/workflow` | 工作流定义 |
+| POST | `/topic-framing/dry-run` | 主题范围分析 |
+| POST | `/topic-classification/dry-run` | 主题类型分类（支持 explicit override） |
+| POST | `/curriculum-planning/dry-run` | 按主题类型生成课程骨架 |
+| POST | `/draft-course-package/dry-run` | 完整课程包预览 |
+| POST | `/module-composition/dry-run` | 单模块内容生成 |
+| POST | `/export-course-package/dry-run` | 导出预览 |
+| POST | `/export-course-package/write` | 导出到 `generated/` |
+| POST | `/validate-build/dry-run` | 运行校验 / 构建 |
+| POST | `/promote-course-package/dry-run` | 晋升预检（含 scaffold 警告） |
+| POST | `/promote-course-package/write` | 晋升到 `courses/`（含 post-promote 验证） |
 
-因此现在采用的是 **Python 标准库零依赖 dev server**，先把后端边界、端点和结构化输出能力立住，再决定后续是否切到 FastAPI / queue / DB。
+## 完整闭环
 
-## 边界
-
-- Frontend：只负责展示
-- Engine：负责 schema / validate / compile
-- Agent Backend：负责 research / planning / generation / critique / review workflow
-
-## 当前可用端点
-
-- `GET /health`
-- `GET /workflow`
-- `POST /topic-framing/dry-run`
-- `POST /curriculum-planning/dry-run`
-- `POST /draft-course-package/dry-run`
-- `POST /module-composition/dry-run`
-- `POST /export-course-package/dry-run`
-- `POST /export-course-package/write`
-- `POST /validate-build/dry-run`
-
-### 目前已经打通的最小闭环
-
-1. 输入 topic
-2. 产出 framing / curriculum / module draft
-3. 导出 course package 到 `agent-backend/generated/<slug>/`
-4. 对导出目录做结构检查
-5. 对整个 repo 触发 `npm run check` / `npm run build`
+1. 输入 topic → 自动分类主题类型（internals / theory / workflow / system-overview / case-study）
+2. 按类型生成不同 archetype 序列的课程骨架
+3. 导出到 `agent-backend/generated/{slug}/`
+4. promote dry-run 预检（结构校验 + scaffold 警告）
+5. promote write 晋升到 `courses/{slug}/`
+6. `npm run check` + `npm run build` 验证主站识别
 
 ## 运行
 
 ```bash
 cd agent-backend
-python3 -m app.main
+python3 -m app.main    # 127.0.0.1:8081
 ```
-
-默认监听：`127.0.0.1:8081`
 
 ## 设计原则
 
 1. Workflow-first, agent-assisted, human-gated
-2. 优先输出结构化对象，不用自由散文充当主交付
+2. 优先输出结构化对象
 3. 每一阶段都允许失败重试
-4. 最终产物要落回 course package
+4. 生成内容标记 `_scaffold: true`，诚实标注质量上限
 
-## 现在还没有
+## 还没有
 
-- 真实模型调用
+- 真实模型调用（当前全是模板 / dry-run）
 - provider secrets 管理
 - 队列 / 数据库 / review UI
-- course package 正式写回 `courses/`
 - 与前端 runtime 的自动接线
-
-它现在的价值是：
-
-> 把 Agent 从“设计文档里的概念”推进成“可本地跑、可导出、可校验的独立后端边界”。

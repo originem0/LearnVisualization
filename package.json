@@ -1,11 +1,11 @@
 {
-  "name": "pero-learn",
+  "name": "learn-visualization",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "check": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs && node scripts/check-authoring.mjs && node scripts/check-course-package.mjs",
-    "prebuild": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs && node scripts/check-authoring.mjs && node scripts/check-course-package.mjs",
+    "check": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs && node scripts/check-authoring.mjs",
+    "prebuild": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs && node scripts/check-authoring.mjs",
     "build": "next build",
     "postbuild": "node scripts/check-prerender.mjs",
     "start": "next start",

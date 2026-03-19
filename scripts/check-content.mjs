@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Content completeness checker for primary course package.
+ * Content completeness checker for all course packages.
  */
 
-import { loadPrimaryCourse } from './lib/course-package-source.mjs';
+import { loadAllCourses } from './lib/course-package-source.mjs';
 
 function checkModule(mod, totalModules) {
   const errors = [];
@@ -28,17 +28,20 @@ function checkModule(mod, totalModules) {
 }
 
 let hasFailures = false;
-const { modules } = loadPrimaryCourse();
-const total = modules.length;
+const allCourses = loadAllCourses();
 
-console.log(`\n=== Checking primary course package (${total} modules) ===\n`);
-const results = modules.map(({ data }) => checkModule(data, total));
-for (const r of results) {
-  const status = r.errors.length === 0 ? '✅' : '❌';
-  const detail = r.errors.length === 0 ? '' : r.errors.join('; ');
-  console.log(`  ${status} ${r.slug}  ${detail}`);
-  if (r.errors.length > 0) hasFailures = true;
+for (const { slug: courseSlug, modules } of allCourses) {
+  const total = modules.length;
+  console.log(`\n=== Checking content: ${courseSlug} (${total} modules) ===\n`);
+  const results = modules.map(({ data }) => checkModule(data, total));
+  for (const r of results) {
+    const status = r.errors.length === 0 ? '✅' : '❌';
+    const detail = r.errors.length === 0 ? '' : r.errors.join('; ');
+    console.log(`  ${status} ${r.slug}  ${detail}`);
+    if (r.errors.length > 0) hasFailures = true;
+  }
 }
+
 console.log('');
 if (hasFailures) {
   console.error('❌ Content check FAILED — fix the issues above before building.');
