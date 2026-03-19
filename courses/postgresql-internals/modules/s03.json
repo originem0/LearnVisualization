@@ -1,0 +1,103 @@
+{
+  "id": "s03",
+  "number": 3,
+  "title": "WAL 与 Crash Recovery",
+  "subtitle": "为什么数据库崩了还能活过来",
+  "category": "consistency",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "PostgreSQL 怎么保证机器崩掉之后，数据状态还能自洽恢复？",
+  "misconception": "把数据页直接写盘就够了，崩溃后重启再读回来。",
+  "quote": "先写日志，再写数据页，这不是保守，是可恢复性的前提。",
+  "keyInsight": "WAL 的核心不是“记日志”这件事本身，而是把‘真正发生过哪些状态变化’做成可重放的持久化序列。",
+  "opening": "数据库最怕什么？不是慢，而是写到一半机器突然断电。\n\n这时候最致命的问题不是“丢了几条数据”，而是“磁盘上留下了半套世界”。WAL 要解决的，就是让这个半套世界还能被补齐。",
+  "priorKnowledge": [
+    "s01"
+  ],
+  "targetChunk": "redo log -> checkpoint -> crash recovery",
+  "chunkDependencies": [
+    "s01"
+  ],
+  "concepts": [
+    {
+      "name": "WAL",
+      "note": "Write-Ahead Logging，先写日志再写数据页。"
+    },
+    {
+      "name": "checkpoint",
+      "note": "确定一个恢复起点，缩短重放链。"
+    },
+    {
+      "name": "full page write",
+      "note": "避免 torn page 让恢复失去可信物理基底。"
+    }
+  ],
+  "logicChain": [
+    "直接写 page 可能留下半套物理状态",
+    "WAL 先记录逻辑/物理变更，再允许 page 落盘",
+    "崩溃恢复就是按 WAL 序列重放到一致状态"
+  ],
+  "examples": [
+    "一次插入事务 commit 前，WAL flush 是 durability 的关键关口"
+  ],
+  "counterexamples": [
+    "WAL 不是简单审计日志，它是恢复语义本体"
+  ],
+  "pitfalls": [
+    {
+      "point": "把 WAL 看成“顺手记一下”",
+      "rootCause": "没意识到 WAL 才是 crash recovery 的一等公民"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "这一章从最坏情况出发：机器在 page 尚未完整落盘时突然崩掉，数据库如何回到可用状态。"
+    },
+    {
+      "type": "steps",
+      "label": "一次崩溃恢复的基本链",
+      "content": "",
+      "steps": [
+        {
+          "title": "先写 WAL",
+          "description": "日志先持久化，再允许脏页晚点刷盘",
+          "visual": "change -> WAL flush -> page flush later",
+          "highlight": "WAL flush"
+        },
+        {
+          "title": "重启后 redo",
+          "description": "从 checkpoint 起按 WAL 把世界补到一致状态",
+          "visual": "checkpoint -> redo records -> consistent pages",
+          "highlight": "redo"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "WAL 的真正价值，不是“记录过去”，而是“让未来可恢复”。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s03-recovery-flow",
+      "type": "processFlow",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "追踪 WAL 与 page flush 的先后关系",
+      "priority": "core"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "为什么 PostgreSQL 必须先写 ____ ，再允许数据页晚点落盘？"
+    }
+  ],
+  "bridgeTo": "当一致性和恢复的世界立住之后，性能问题会立刻跳出来：我们为什么还需要索引，索引在 page 世界里又到底长什么样？",
+  "nextModuleId": "s04"
+}

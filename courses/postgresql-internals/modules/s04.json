@@ -1,0 +1,103 @@
+{
+  "id": "s04",
+  "number": 4,
+  "title": "B-Tree Index Internals",
+  "subtitle": "索引不是魔法捷径，而是另一套存储结构",
+  "category": "performance",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "索引为什么能让查询更快，它又为什么会分裂、膨胀、退化？",
+  "misconception": "索引只是一个抽象加速开关。",
+  "quote": "索引不是 SQL 层的提示，而是另一套 page 组织方式。",
+  "keyInsight": "想理解索引性能，必须把 B-Tree 看成会分裂、会增长、会留下 dead tuples 的物理结构，而不是一个“有/无”的逻辑开关。",
+  "opening": "很多人理解索引只有一句话：有索引就快，没索引就慢。\n\n这句话太粗了。真正的问题是：索引到底快在哪？又是怎么慢下去的？",
+  "priorKnowledge": [
+    "s01"
+  ],
+  "targetChunk": "B-Tree node/page -> search path -> split/bloat",
+  "chunkDependencies": [
+    "s01"
+  ],
+  "concepts": [
+    {
+      "name": "B-Tree page",
+      "note": "索引页本身也是页面结构。"
+    },
+    {
+      "name": "root / internal / leaf",
+      "note": "三层节点分工决定查找路径。"
+    },
+    {
+      "name": "page split",
+      "note": "插入导致页满后，会触发分裂与父节点更新。"
+    }
+  ],
+  "logicChain": [
+    "索引也是 page 结构，而不是抽象元数据",
+    "查找速度来自层级缩小搜索空间",
+    "插入/删除会让这棵树持续演化并产生维护成本"
+  ],
+  "examples": [
+    "一次 page split 会改变树形结构和后续查找路径"
+  ],
+  "counterexamples": [
+    "索引不是永远更快，代价要看写入与维护负担"
+  ],
+  "pitfalls": [
+    {
+      "point": "把索引当作逻辑加速器",
+      "rootCause": "没有把它理解成真实的物理结构"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "这一章把索引从 SQL 语义层拖回物理世界，看清它为什么快、又为什么贵。"
+    },
+    {
+      "type": "steps",
+      "label": "一次 B-Tree 查找与分裂",
+      "content": "",
+      "steps": [
+        {
+          "title": "沿根到叶下降",
+          "description": "每层缩小搜索范围",
+          "visual": "root -> internal -> leaf",
+          "highlight": "leaf"
+        },
+        {
+          "title": "叶页写满后分裂",
+          "description": "新键插入触发页面分裂与父节点更新",
+          "visual": "leaf full -> split -> parent update",
+          "highlight": "split"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "索引快，是因为它换了一套组织空间的方式；索引慢，也是因为这套空间必须被持续维护。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s04-btree-flow",
+      "type": "stepSequence",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "step-through",
+      "purpose": "一步步走 B-Tree 查找和分裂",
+      "priority": "core"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "compare-variants",
+      "prompt": "为什么“有索引”不总是意味着“整体系统更快”？"
+    }
+  ],
+  "bridgeTo": "索引结构本身懂了，接下来该问：planner 到底怎么决定要不要用它？同一条 SQL，为什么执行计划会不同？",
+  "nextModuleId": "s05"
+}

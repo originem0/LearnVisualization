@@ -1,0 +1,99 @@
+{
+  "id": "s01",
+  "number": 1,
+  "title": "Pages, Tuples 与 Heap Storage",
+  "subtitle": "先看磁盘上的世界长什么样",
+  "category": "storage",
+  "moduleKind": "system-overview",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "一行数据写进 PostgreSQL 后，到底以什么形状躺在磁盘里？",
+  "misconception": "一行数据就是一行文本或一个简单对象。",
+  "quote": "数据库不是抽象表格，它首先是页面与字节布局。",
+  "keyInsight": "想理解 PostgreSQL，必须先把“表”还原成 heap pages、tuples、tuple header 和可重用空洞。",
+  "opening": "很多人谈数据库时，脑子里只有 SQL。可 PostgreSQL 真正处理的不是 SQL 文字，而是 page、tuple、offset、header。\n\n如果这一层没长出来，后面 MVCC、WAL、Vacuum 你都会学得像念咒。",
+  "priorKnowledge": [],
+  "targetChunk": "table -> heap page -> tuple -> tuple header",
+  "chunkDependencies": [],
+  "concepts": [
+    {
+      "name": "heap page",
+      "note": "PostgreSQL 的基本磁盘页单位，默认 8KB。"
+    },
+    {
+      "name": "tuple header",
+      "note": "承载 xmin/xmax、状态位、长度等关键信息。"
+    },
+    {
+      "name": "line pointer",
+      "note": "页内槽位，指向真实 tuple 位置。"
+    }
+  ],
+  "logicChain": [
+    "表不是一张抽象网格，而是一组 heap pages",
+    "page 里不直接存“行概念”，而是 line pointer + tuple bytes",
+    "tuple header 是后面 MVCC 可见性判断的根入口"
+  ],
+  "examples": [
+    "一次 INSERT 实际上是在某个 page 里追加 tuple，并更新页内槽位表"
+  ],
+  "counterexamples": [
+    "数据库中的“行”不是语言层的一行文本"
+  ],
+  "pitfalls": [
+    {
+      "point": "把表想成 Excel 网格",
+      "rootCause": "忽视了 page-level storage 才是后续所有机制的物理底座"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "这一章先把表拆开看，建立 page 与 tuple 的空间直觉。"
+    },
+    {
+      "type": "steps",
+      "label": "一次 INSERT 的最小物理旅程",
+      "content": "",
+      "steps": [
+        {
+          "title": "定位 page",
+          "description": "找到可写入页或申请新页",
+          "visual": "heap relation -> page",
+          "highlight": "page"
+        },
+        {
+          "title": "写入 tuple",
+          "description": "把 tuple bytes 放进 page free space",
+          "visual": "page free space -> tuple bytes",
+          "highlight": "tuple"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "后面很多看似抽象的机制，都会回到 tuple header 这几个字节。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s01-page-layout",
+      "type": "processFlow",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "追踪一行数据写入 page 的过程",
+      "priority": "core"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "表 -> ____ -> tuple，是 PostgreSQL 存储直觉的最小主链。"
+    }
+  ],
+  "bridgeTo": "既然 tuple header 里藏着 xmin/xmax，那下一章就该问：它们如何决定一行数据“对我可见”还是“对我不可见”？",
+  "nextModuleId": "s02"
+}

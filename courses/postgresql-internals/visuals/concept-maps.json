@@ -1,0 +1,26 @@
+{
+  "s01": {
+    "type": "processFlow",
+    "title": "Heap Page Layout"
+  },
+  "s02": {
+    "type": "stepSequence",
+    "title": "MVCC Visibility Timeline"
+  },
+  "s03": {
+    "type": "processFlow",
+    "title": "WAL / Recovery Flow"
+  },
+  "s04": {
+    "type": "stepSequence",
+    "title": "B-Tree Search & Split"
+  },
+  "s05": {
+    "type": "comparisonFrame",
+    "title": "Plan Choice Comparison"
+  },
+  "s06": {
+    "type": "processFlow",
+    "title": "MVCC Debt Cycle"
+  }
+}

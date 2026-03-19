@@ -1,0 +1,114 @@
+{
+  "id": "s06",
+  "number": 6,
+  "title": "VACUUM / Autovacuum / Freeze",
+  "subtitle": "MVCC 的债务最终如何被偿还",
+  "category": "operations",
+  "moduleKind": "integration-review",
+  "primaryCognitiveAction": "rebuild",
+  "focusQuestion": "如果 MVCC 不断制造旧版本，PostgreSQL 为什么不会被历史垃圾淹没？",
+  "misconception": "删除就是删掉，更新就是覆盖，系统会自然变干净。",
+  "quote": "VACUUM 不是清洁工，而是 MVCC 世界的偿债机制。",
+  "keyInsight": "MVCC 带来了并发读写的自由，也带来了旧版本、膨胀、事务 ID 老化等债务；Vacuum / Freeze 就是在不断偿还这些债。",
+  "opening": "MVCC 很优雅，但它有代价：旧 tuple 不会立刻消失。\n\n如果没人来收拾，表会膨胀，索引会变脏，事务 ID 会老化到危险边缘。\n\n所以 Vacuum 不是可选保洁，而是 PostgreSQL 维持长期可用的核心机制。",
+  "priorKnowledge": [
+    "s02",
+    "s04",
+    "s05"
+  ],
+  "targetChunk": "MVCC debt -> vacuum / autovacuum / freeze -> long-term health",
+  "chunkDependencies": [
+    "s02",
+    "s04",
+    "s05"
+  ],
+  "concepts": [
+    {
+      "name": "dead tuple",
+      "note": "逻辑上已过时，但物理上仍占空间。"
+    },
+    {
+      "name": "visibility map",
+      "note": "帮助跳过不必反复检查的页面。"
+    },
+    {
+      "name": "freeze",
+      "note": "处理事务 ID 老化，避免 wraparound 风险。"
+    }
+  ],
+  "logicChain": [
+    "MVCC 让旧版本暂存，形成空间与年龄债务",
+    "Vacuum 负责回收可回收空间并维护可见性信息",
+    "Freeze 负责处理 xid 老化，避免系统级灾难",
+    "性能、一致性和维护最终在这里闭环"
+  ],
+  "examples": [
+    "长事务会拖慢 Vacuum 回收旧版本的速度"
+  ],
+  "counterexamples": [
+    "Vacuum 不是“优化器锦上添花”，而是系统生存条件"
+  ],
+  "pitfalls": [
+    {
+      "point": "把 Vacuum 当成偶尔跑一下的 housekeeping",
+      "rootCause": "没有把它理解为 MVCC 架构的必要偿债机制"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "最后一章不是讲一个新零件，而是把前面几章重新闭环：MVCC 造成的旧版本、索引的膨胀、planner 的成本世界，最后都会回到 vacuum。"
+    },
+    {
+      "type": "steps",
+      "label": "从 MVCC 债务到系统闭环",
+      "content": "",
+      "steps": [
+        {
+          "title": "旧版本堆积",
+          "description": "UPDATE/DELETE 让 dead tuples 持续出现",
+          "visual": "MVCC -> dead tuples",
+          "highlight": "dead tuples"
+        },
+        {
+          "title": "Vacuum 回收与标记",
+          "description": "清理、更新 visibility map、维护可见性信息",
+          "visual": "dead tuples -> vacuum -> reusable space / visibility map",
+          "highlight": "vacuum"
+        },
+        {
+          "title": "Freeze 兜底",
+          "description": "避免事务 ID 老化到 wraparound 风险",
+          "visual": "xid aging -> freeze -> safe horizon",
+          "highlight": "freeze"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "想真正理解 PostgreSQL，不是记住每个零件，而是看见它们如何在一致性、恢复、性能与维护之间互相制约。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s06-debt-cycle",
+      "type": "processFlow",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "rebuild",
+      "purpose": "重建 MVCC 到 Vacuum 的闭环",
+      "priority": "core"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "rebuild-map",
+      "prompt": "请把 MVCC、WAL、Index、Planner、Vacuum 重新连成闭环，并说出 Vacuum 为什么不是配角。"
+    }
+  ],
+  "bridgeTo": null,
+  "nextModuleId": null
+}

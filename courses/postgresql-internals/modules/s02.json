@@ -1,0 +1,103 @@
+{
+  "id": "s02",
+  "number": 2,
+  "title": "MVCC 与 Visibility",
+  "subtitle": "同一张表，为什么不同事务看到的是不同世界",
+  "category": "consistency",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "PostgreSQL 怎么让读写并发发生时，每个事务还能看到“自己的真相”？",
+  "misconception": "事务隔离靠整表锁住，别人别看就行。",
+  "quote": "MVCC 不是魔法，它只是把“时间”和“可见性”写进了 tuple。",
+  "keyInsight": "MVCC 的核心不是“有很多版本”这句口号，而是用 xmin/xmax 与 snapshot 规则把可见性判断局部化到 tuple 层。",
+  "opening": "同一时刻，两个事务可以对同一张表看到不同结果。\n\n这不是幻觉，而是 PostgreSQL 故意制造出来的多个“可见性世界”。理解它的关键不是背隔离级别，而是追踪 xmin/xmax 和 snapshot。",
+  "priorKnowledge": [
+    "s01"
+  ],
+  "targetChunk": "xmin/xmax + snapshot -> tuple visibility",
+  "chunkDependencies": [
+    "s01"
+  ],
+  "concepts": [
+    {
+      "name": "xmin / xmax",
+      "note": "记录 tuple 的创建与删除事务 ID。"
+    },
+    {
+      "name": "snapshot",
+      "note": "事务启动时对“哪些事务已提交”的观察切片。"
+    },
+    {
+      "name": "visibility rule",
+      "note": "基于 xmin/xmax 与 snapshot 判断当前事务能否看见此 tuple。"
+    }
+  ],
+  "logicChain": [
+    "每个 tuple 带着自己的时间戳痕迹（xmin/xmax）",
+    "每个事务又带着自己的 snapshot",
+    "可见性判断发生在 tuple 层，而不是整表层"
+  ],
+  "examples": [
+    "一次 UPDATE 在 MVCC 下更像 DELETE + INSERT 新版本"
+  ],
+  "counterexamples": [
+    "MVCC 不是“内存里偷偷复制一张表”"
+  ],
+  "pitfalls": [
+    {
+      "point": "把 MVCC 理解成很多行副本漂在空中",
+      "rootCause": "没把可见性与 tuple header 绑定到一起"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "这一章会沿一条 tuple 的生命周期，追踪不同事务为什么会看到不同结果。"
+    },
+    {
+      "type": "steps",
+      "label": "一次 UPDATE 的可见性变化",
+      "content": "",
+      "steps": [
+        {
+          "title": "旧 tuple 被标记 xmax",
+          "description": "旧版本不是立刻删掉，而是先标记删除事务",
+          "visual": "old tuple: xmax = tx42",
+          "highlight": "xmax"
+        },
+        {
+          "title": "新 tuple 插入",
+          "description": "新版本带着新的 xmin 出现",
+          "visual": "new tuple: xmin = tx42",
+          "highlight": "xmin"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "MVCC 的本质是：把“谁能看到什么”这个问题，压缩到单条 tuple 的局部判断里。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s02-visibility-timeline",
+      "type": "stepSequence",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "simulate",
+      "purpose": "模拟不同 snapshot 下 tuple 可见性",
+      "priority": "core"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "如果旧 tuple 已有 xmax，而新 tuple 刚插入，不同事务会看到什么？"
+    }
+  ],
+  "bridgeTo": "如果 tuple 不会立刻消失，那这些旧版本最终怎么被清理？为什么数据库不会无限膨胀？这就把我们推向 Vacuum。",
+  "nextModuleId": "s03"
+}

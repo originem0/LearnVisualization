@@ -1,0 +1,44 @@
+{
+  "s01": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "追踪一行数据写入 page 的过程",
+      "priority": "core"
+    }
+  },
+  "s02": {
+    "heroInteractive": {
+      "capability": "simulate",
+      "purpose": "模拟不同 snapshot 下 tuple 可见性",
+      "priority": "core"
+    }
+  },
+  "s03": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "追踪 WAL 与 page flush 的先后关系",
+      "priority": "core"
+    }
+  },
+  "s04": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "走一遍 B-Tree 查找与分裂",
+      "priority": "core"
+    }
+  },
+  "s05": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "比较不同统计下的计划选择",
+      "priority": "core"
+    }
+  },
+  "s06": {
+    "heroInteractive": {
+      "capability": "rebuild",
+      "purpose": "重建 MVCC 到 Vacuum 的闭环",
+      "priority": "core"
+    }
+  }
+}

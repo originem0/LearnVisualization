@@ -1,0 +1,136 @@
+{
+  "id": "postgresql-internals",
+  "slug": "postgresql-internals",
+  "title": "PostgreSQL Internals",
+  "subtitle": "把数据库内核机制变成可视化学习对象",
+  "goal": "理解 MVCC / WAL / Index / Planner / Vacuum 如何互相制约，形成 PostgreSQL 的核心一致性与性能模型。",
+  "projectType": "mixed",
+  "startDate": "2026-03-19",
+  "topic": "postgresql",
+  "language": "zh",
+  "status": "draft",
+  "categories": [
+    {
+      "id": "storage",
+      "name": "存储结构",
+      "color": "blue"
+    },
+    {
+      "id": "consistency",
+      "name": "一致性机制",
+      "color": "emerald"
+    },
+    {
+      "id": "performance",
+      "name": "性能与优化",
+      "color": "purple"
+    },
+    {
+      "id": "operations",
+      "name": "维护与治理",
+      "color": "amber"
+    }
+  ],
+  "audience": {
+    "primaryAudience": "想系统理解 PostgreSQL 内核机制的软件工程师",
+    "priorKnowledge": [
+      "会写基本 SQL",
+      "知道数据库有表、索引、事务这些概念"
+    ],
+    "desiredOutcome": "获得从 tuple/page 到 MVCC/WAL/Planner/Vacuum 的整体认知图"
+  },
+  "learningGoals": [
+    "理解 PostgreSQL 的页面、tuple、可见性与事务快照之间的关系",
+    "理解 WAL / checkpoint / crash recovery 的基本因果链",
+    "理解 B-Tree 与 planner 如何影响执行路径与性能",
+    "理解 vacuum / autovacuum / freeze 为什么是 MVCC 的偿债机制"
+  ],
+  "nonGoals": [
+    "不做逐行源码阅读课",
+    "不做 DBA 运维大全",
+    "不覆盖所有索引类型"
+  ],
+  "assumptions": [
+    "用户希望获得结构化理解，而不是只背术语或命令"
+  ],
+  "philosophy": {
+    "promise": "把数据库内核的抽象机制变成可跟踪、可验证、可视化的学习路径",
+    "corePrinciples": [
+      "先看因果链，不先啃源码",
+      "先建立系统图，再进入局部机制",
+      "用实验和可观测性工具验证理解"
+    ],
+    "shiftStatement": "从“知道数据库有事务和 WAL”升级为“知道一次 UPDATE 到底在内核里发生了什么”。"
+  },
+  "paths": [
+    {
+      "id": "core-mechanism",
+      "title": "核心机制路径",
+      "description": "先建立存储、一致性、恢复、索引与清理的闭环",
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03",
+        "s04",
+        "s05",
+        "s06"
+      ]
+    }
+  ],
+  "moduleGraph": {
+    "order": [
+      "s01",
+      "s02",
+      "s03",
+      "s04",
+      "s05",
+      "s06"
+    ],
+    "edges": [
+      {
+        "from": "s01",
+        "to": "s02",
+        "type": "prerequisite",
+        "note": "没有 page/tuple 就谈不清可见性"
+      },
+      {
+        "from": "s01",
+        "to": "s03",
+        "type": "prerequisite",
+        "note": "WAL 记录的对象最终落在 page/tuple 上"
+      },
+      {
+        "from": "s01",
+        "to": "s04",
+        "type": "prerequisite",
+        "note": "索引最终仍然是页面与条目结构"
+      },
+      {
+        "from": "s02",
+        "to": "s06",
+        "type": "prerequisite",
+        "note": "MVCC 产生的债务最终由 vacuum 处理"
+      },
+      {
+        "from": "s04",
+        "to": "s05",
+        "type": "recommended",
+        "note": "planner/executor 需要理解索引代价与访问路径"
+      },
+      {
+        "from": "s03",
+        "to": "s06",
+        "type": "bridge",
+        "note": "恢复、一致性与维护共同构成持久化闭环"
+      }
+    ]
+  },
+  "modules": [
+    "s01",
+    "s02",
+    "s03",
+    "s04",
+    "s05",
+    "s06"
+  ]
+}

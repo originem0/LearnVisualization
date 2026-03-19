@@ -1,0 +1,89 @@
+{
+  "id": "s05",
+  "number": 5,
+  "title": "Planner / Executor Pipeline",
+  "subtitle": "一条 SQL 是怎样被变成执行计划的",
+  "category": "performance",
+  "moduleKind": "system-overview",
+  "primaryCognitiveAction": "compare",
+  "focusQuestion": "同一条 SQL，PostgreSQL 为什么有时用索引，有时顺序扫描？",
+  "misconception": "写了 SQL 就按固定步骤执行，plan 基本不会变。",
+  "quote": "Planner 不是翻译器，它是代价估算器。",
+  "keyInsight": "执行计划不是 SQL 的直接投影，而是 planner 基于统计信息、代价模型和可用路径做出的最优猜测。",
+  "opening": "你写下的是 SQL，但数据库真正执行的是 plan。\n\n这中间隔着一个重要角色：planner。它不是老老实实把 SQL 翻译一下，而是在猜——哪条路最便宜。",
+  "priorKnowledge": [
+    "s04"
+  ],
+  "targetChunk": "SQL -> planner -> plan -> executor",
+  "chunkDependencies": [
+    "s04"
+  ],
+  "concepts": [
+    {
+      "name": "planner",
+      "note": "基于统计与代价选择执行计划。"
+    },
+    {
+      "name": "statistics",
+      "note": "planner 赖以估算行数与选择性的基础。"
+    },
+    {
+      "name": "executor",
+      "note": "真正逐节点执行 plan tree。"
+    }
+  ],
+  "logicChain": [
+    "SQL 不是直接执行，而先变成计划搜索空间",
+    "planner 依靠统计信息做代价估算",
+    "executor 再按选中的 plan tree 真正干活"
+  ],
+  "examples": [
+    "同一条谓词在高/低选择性下可能走不同 plan"
+  ],
+  "counterexamples": [
+    "索引不是 planner 永远偏爱的答案"
+  ],
+  "pitfalls": [
+    {
+      "point": "把 EXPLAIN 当结果展示",
+      "rootCause": "没把 plan tree 看成 planner 下注后的执行脚本"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "这一章的重点不是语法，而是理解 planner 如何在多条路径之间下注。"
+    },
+    {
+      "type": "comparison",
+      "label": "两条可能路径",
+      "content": "高选择性条件：planner 可能偏向 index scan\n低选择性条件：planner 可能认为 seq scan 更便宜"
+    },
+    {
+      "type": "callout",
+      "content": "SQL 是意图，plan 是执行现实；两者之间隔着成本世界。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s05-plan-tree",
+      "type": "comparisonFrame",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "compare",
+      "purpose": "比较不同统计与选择性下的计划分岔",
+      "priority": "core"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "如果统计信息失真，planner 最可能先错在哪一步？"
+    }
+  ],
+  "bridgeTo": "planner 负责选路径，但 MVCC 留下的 dead tuples、可见性图和冻结债务，会持续改变这些路径的真实成本。于是最后一章必须回到 Vacuum。",
+  "nextModuleId": "s06"
+}
