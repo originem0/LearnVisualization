@@ -2,7 +2,10 @@ node_modules/
 .next/
 out/
 .env*
+.venv/
 .DS_Store
 
 tsconfig.tsbuildinfo
 build-progress.log
+__pycache__/
+*.pyc

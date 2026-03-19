@@ -1,57 +1,37 @@
-from typing import Literal
-from pydantic import BaseModel, Field
+from typing import Any
 
-WorkflowStageId = Literal[
-    "topic-framing",
-    "curriculum-planning",
-    "research-synthesis",
-    "module-composition",
-    "visual-mapping",
-    "qa-critique",
-    "human-review-gate",
-    "export-course-package",
-    "validate-build",
-]
 
-class TopicRequest(BaseModel):
-    topic: str = Field(..., description="What the user wants to learn")
-    audience: str | None = None
-    goals: list[str] = Field(default_factory=list)
-    constraints: list[str] = Field(default_factory=list)
+def _to_str_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return []
 
-class TopicFramingOutput(BaseModel):
-    topic: str
-    audience: str
-    learning_goals: list[str]
-    non_goals: list[str]
-    assumptions: list[str]
-    scope_statement: str
 
-class PlannedModule(BaseModel):
-    id: str
-    title: str
-    module_kind: str
-    primary_cognitive_action: str
-    focus_question: str
-    misconception: str | None = None
-    prerequisites: list[str] = Field(default_factory=list)
-    target_chunk: str | None = None
+def normalize_topic_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    topic = str(payload.get("topic") or "").strip()
+    if not topic:
+        raise ValueError("topic is required")
+    return {
+        "topic": topic,
+        "audience": str(payload.get("audience") or "").strip() or None,
+        "goals": _to_str_list(payload.get("goals")),
+        "constraints": _to_str_list(payload.get("constraints")),
+    }
 
-class CurriculumPlanningOutput(BaseModel):
-    module_ids: list[str]
-    modules: list[PlannedModule]
 
-class DraftCoursePackage(BaseModel):
-    id: str
-    title: str
-    topic: str
-    audience: str
-    learning_goals: list[str]
-    module_graph_order: list[str]
-    modules: list[PlannedModule]
-
-class WorkflowStage(BaseModel):
-    id: WorkflowStageId
-    title: str
-    review_requirement: Literal["required", "recommended", "optional"]
-    output_type: str
+def normalize_module_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    topic_req = normalize_topic_request(payload)
+    module_id = str(payload.get("module_id") or "").strip()
+    if not module_id:
+        raise ValueError("module_id is required")
+    return {
+        **topic_req,
+        "module_id": module_id,
+        "title": str(payload.get("title") or "").strip() or None,
+        "module_kind": str(payload.get("module_kind") or "").strip() or None,
+        "primary_cognitive_action": str(payload.get("primary_cognitive_action") or "").strip() or None,
+        "focus_question": str(payload.get("focus_question") or "").strip() or None,
+        "prerequisites": _to_str_list(payload.get("prerequisites")),
+    }

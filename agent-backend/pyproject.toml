@@ -1,15 +1,6 @@
 [project]
 name = "learning-site-agent-backend"
 version = "0.1.0"
-description = "MVP skeleton for Learning Site Engine agent backend"
+description = "Zero-dependency dev server skeleton for Learning Site Engine agent backend"
 requires-python = ">=3.11"
-dependencies = [
-  "fastapi>=0.115.0",
-  "uvicorn>=0.30.0",
-  "pydantic>=2.8.0"
-]
-
-[tool.uvicorn]
-factory = false
-host = "127.0.0.1"
-port = 8081
+dependencies = []

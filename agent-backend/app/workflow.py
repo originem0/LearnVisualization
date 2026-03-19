@@ -1,15 +1,13 @@
-from .models import WorkflowStage
-
-WORKFLOW_V1: list[WorkflowStage] = [
-    WorkflowStage(id="topic-framing", title="Topic Framing", review_requirement="required", output_type="TopicFramingOutput"),
-    WorkflowStage(id="curriculum-planning", title="Curriculum Planning", review_requirement="required", output_type="CurriculumPlanningOutput"),
-    WorkflowStage(id="research-synthesis", title="Research Synthesis", review_requirement="recommended", output_type="ResearchSynthesisOutput"),
-    WorkflowStage(id="module-composition", title="Module Composition", review_requirement="required", output_type="ModuleCompositionOutput"),
-    WorkflowStage(id="visual-mapping", title="Visual Mapping", review_requirement="recommended", output_type="VisualMappingOutput"),
-    WorkflowStage(id="qa-critique", title="QA / Critique", review_requirement="optional", output_type="CritiqueOutput"),
-    WorkflowStage(id="human-review-gate", title="Human Review Gate", review_requirement="required", output_type="approval-decision"),
-    WorkflowStage(id="export-course-package", title="Export to Course Package", review_requirement="optional", output_type="CoursePackage"),
-    WorkflowStage(id="validate-build", title="Validate + Build", review_requirement="optional", output_type="validation-report"),
+WORKFLOW_V1: list[dict[str, str]] = [
+    {"id": "topic-framing", "title": "Topic Framing", "review_requirement": "required", "output_type": "topic-framing"},
+    {"id": "curriculum-planning", "title": "Curriculum Planning", "review_requirement": "required", "output_type": "curriculum-plan"},
+    {"id": "research-synthesis", "title": "Research Synthesis", "review_requirement": "recommended", "output_type": "research-synthesis"},
+    {"id": "module-composition", "title": "Module Composition", "review_requirement": "required", "output_type": "module-draft"},
+    {"id": "visual-mapping", "title": "Visual Mapping", "review_requirement": "recommended", "output_type": "visual-spec"},
+    {"id": "qa-critique", "title": "QA / Critique", "review_requirement": "optional", "output_type": "critique-report"},
+    {"id": "human-review-gate", "title": "Human Review Gate", "review_requirement": "required", "output_type": "approval-decision"},
+    {"id": "export-course-package", "title": "Export to Course Package", "review_requirement": "optional", "output_type": "course-package"},
+    {"id": "validate-build", "title": "Validate + Build", "review_requirement": "optional", "output_type": "validation-report"},
 ]
 
 
