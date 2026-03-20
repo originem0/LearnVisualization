@@ -98,8 +98,8 @@ function TraceRenderer({ data }: { data: InteractionData }) {
         </div>
         <p className="text-sm text-[color:var(--color-text)] leading-relaxed">{step.detail}</p>
         {step.state && (
-          <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-800/60">
-            <pre className="text-xs text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap font-mono">{step.state}</pre>
+          <div className="mt-3 rounded-lg bg-zinc-100 px-3 py-2">
+            <pre className="text-xs text-zinc-800 whitespace-pre-wrap font-mono">{step.state}</pre>
           </div>
         )}
         {step.highlight && (
@@ -183,8 +183,8 @@ function SimulateRenderer({ data }: { data: InteractionData }) {
         </div>
       )}
       {computeDesc && (
-        <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-800/60">
-          <p className="text-xs text-[color:var(--color-muted)] leading-relaxed">{computeDesc}</p>
+        <div className="mt-4 rounded-lg bg-zinc-100 px-3 py-2">
+          <p className="text-xs text-zinc-800 leading-relaxed">{computeDesc}</p>
         </div>
       )}
     </div>
@@ -339,7 +339,7 @@ function RebuildRenderer({ data }: { data: InteractionData }) {
         {checked && !allCorrect && (
           <button
             onClick={() => setChecked(false)}
-            className="flex-1 rounded-lg border border-[color:var(--color-border)] py-2 text-xs font-medium text-[color:var(--color-text)] transition hover:bg-slate-50 dark:hover:bg-zinc-800/50"
+            className="flex-1 rounded-lg border border-[color:var(--color-border)] py-2 text-xs font-medium text-[color:var(--color-text)] transition hover:bg-zinc-100"
           >
             继续调整
           </button>
