@@ -40,6 +40,38 @@ def patch_course(course_dir: Path, whitelist: set[str], dry_run: bool = False) -
                 req["componentHint"] = None
                 stats["hints_nulled"] += 1
                 changed = True
+            # Truncate overly long interactionData fields
+            idata = req.get("interactionData")
+            if isinstance(idata, dict):
+                for field in ("computeDescription", "insight", "description"):
+                    val = idata.get(field, "")
+                    if isinstance(val, str) and len(val) > 100:
+                        idata[field] = val[:97] + "..."
+                        changed = True
+                for item_list_key in ("steps", "items"):
+                    for item in idata.get(item_list_key, []) or []:
+                        if isinstance(item, dict):
+                            detail = item.get("detail", "")
+                            if isinstance(detail, str) and len(detail) > 80:
+                                item["detail"] = detail[:77] + "..."
+                                changed = True
+
+        # Trim interactionRequirements to max 2 (first core + first secondary)
+        reqs = data.get("interactionRequirements") or []
+        if len(reqs) > 2:
+            trimmed = []
+            has_core = has_sec = False
+            for r in reqs:
+                if r.get("priority") == "core" and not has_core:
+                    trimmed.append(r)
+                    has_core = True
+                elif r.get("priority") == "secondary" and not has_sec:
+                    trimmed.append(r)
+                    has_sec = True
+                if len(trimmed) >= 2:
+                    break
+            data["interactionRequirements"] = trimmed
+            changed = True
 
         if changed:
             stats["modules_patched"] += 1

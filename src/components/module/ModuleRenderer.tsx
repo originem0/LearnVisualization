@@ -220,6 +220,9 @@ function renderInteractionSlot(interaction: ResolvedInteraction | null, moduleDa
     }
   }
 
+  // No component and no interactionData — secondary interactions are silently hidden
+  if (interaction.priority === 'secondary') return null;
+
   const isZh = locale === 'zh';
   const meta = [
     interaction.purpose ? `${isZh ? '目标' : 'Purpose'}: ${interaction.purpose}` : '',

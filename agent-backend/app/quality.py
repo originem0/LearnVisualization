@@ -257,14 +257,12 @@ def normalize_module_payload(
         capability = str(requirement.get("capability") or "").strip()
         priority = str(requirement.get("priority") or "core").strip()
         if capability not in ALLOWED_INTERACTION_CAPABILITIES:
-            # Try fuzzy match before rejecting
             capability_lower = capability.lower().replace("-", "").replace("_", "")
             fuzzy_map = {c.lower().replace("-", ""): c for c in ALLOWED_INTERACTION_CAPABILITIES}
             if capability_lower in fuzzy_map:
                 capability = fuzzy_map[capability_lower]
             else:
-                continue  # skip unrecognized capabilities instead of crashing
-        # Normalize priority aliases LLMs commonly produce
+                continue
         if priority in {"primary", "main", "hero", "essential"}:
             priority = "core"
         elif priority not in {"core", "secondary"}:
@@ -277,6 +275,21 @@ def normalize_module_payload(
                 "componentHint": _validate_component_hint(requirement.get("componentHint")),
             }
         )
+
+    # Trim to max 2: first core + first secondary
+    trimmed_interactions: list[dict[str, Any]] = []
+    has_core = False
+    has_secondary = False
+    for req in interaction_requirements:
+        if req["priority"] == "core" and not has_core:
+            trimmed_interactions.append(req)
+            has_core = True
+        elif req["priority"] == "secondary" and not has_secondary:
+            trimmed_interactions.append(req)
+            has_secondary = True
+        if len(trimmed_interactions) >= 2:
+            break
+    interaction_requirements = trimmed_interactions
 
     retrieval_prompts = []
     for prompt in payload.get("retrievalPrompts") or []:

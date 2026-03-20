@@ -498,7 +498,13 @@ def build_interaction_data_prompt(
         "- 内容必须与模块的焦点问题和关键洞见直接相关\n"
         "- 每个交互都要有明确的认知目标（insight 字段）\n"
         "- 数据要具体到真实内容，不能用占位符\n"
-        "- 只输出 JSON\n"
+        "- 只输出 JSON\n\n"
+        "字数约束（严格遵守）：\n"
+        "- description: 1-2 句话，不超过 60 字\n"
+        "- insight: 1 句话，不超过 50 字\n"
+        "- computeDescription: 1-2 句话，不超过 80 字\n"
+        "- steps/items 的 detail: 每项 1-2 句话，不超过 60 字\n"
+        "- 不要写长段落，交互组件是让用户动手操作的，不是阅读长文的\n"
     )
 
     user_prompt = (
