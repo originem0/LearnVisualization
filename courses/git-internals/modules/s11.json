@@ -1,0 +1,170 @@
+{
+  "id": "s11",
+  "number": 11,
+  "title": "为什么 git merge 会产生两个父提交？",
+  "subtitle": "误解：merge 是‘合并内容’，其实是‘创建新提交指向两个祖先’",
+  "category": "linkage",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "为什么 merge commit 的哈希和两个父提交都不同，却能还原所有内容？",
+  "misconception": "认为 merge 是‘取两个分支的平均值’或‘用一个分支覆盖另一个’，就像复制粘贴文件夹一样，结果是‘新内容’取代了旧内容。",
+  "keyInsight": "Git 的 merge 不是内容的运算，而是创建一个全新的提交对象，它记录两个父提交的哈希，让历史图谱形成分叉-汇聚结构；内容是通过‘快照+祖先追溯’动态重建的，不是预先计算的。",
+  "opening": "你可能以为 git merge 是把两个分支的代码‘算出一个最优解’——比如 A 分支改了第 5 行，B 分支改了第 7 行，那 merge 后就是两处都保留。但真相是：Git 从不‘计算’合并结果。它只是在历史图谱上打一个结，说：‘从现在起，这个提交同时来自 A 和 B’。如果你删掉所有分支，只留下这个 merge commit，你依然能完整还原 A 和 B 的所有变更。为什么？因为它不存储‘合并后的代码’，它存储的是‘谁生了它’。",
+  "quote": "“Git 不是版本控制器，它是时间旅行的锚点。” —— 一位 Git 源码贡献者",
+  "concepts": [
+    {
+      "name": "commit 对象",
+      "note": "Git 的基本单元，包含快照哈希、作者、时间戳、消息，以及一个或多个父提交哈希。"
+    },
+    {
+      "name": "父提交（parent）",
+      "note": "一个 commit 可以有 0 个（初始提交）、1 个（普通提交）或 2 个（merge 提交）父提交。父提交是它‘从哪里来’的唯一记录。"
+    },
+    {
+      "name": "快照（snapshot）",
+      "note": "每个 commit 存储的是整个项目在那一刻的完整文件状态，不是差异。合并时，Git 不修改快照，而是通过祖先追溯来重建内容。"
+    },
+    {
+      "name": "合并提交（merge commit）",
+      "note": "一种特殊 commit，拥有两个父提交。它本身不包含‘合并逻辑’，只记录‘我由这两个祖先生成’。"
+    },
+    {
+      "name": "哈希唯一性",
+      "note": "Git 的 commit 哈希由内容（包括父提交哈希）决定。两个父提交不同 → 内容不同 → 哈希必然不同。"
+    }
+  ],
+  "logicChain": [
+    "一个普通提交只有一个父提交，它表示‘从上一个状态演进而来’。",
+    "当两个分支并行开发时，它们的历史分叉成两条独立链。",
+    "执行 git merge 时，Git 不修改任何现有提交，而是创建一个全新的 commit 对象。",
+    "这个新 commit 的快照内容，是通过‘三路合并算法’从两个父提交的共同祖先和两个分支的最新状态计算得出的。",
+    "但这个新 commit 的元数据中，明确记录了两个父提交的哈希值（parent1 和 parent2）。",
+    "因此，这个新提交的哈希值，由它的快照 + 两个父哈希共同决定，必然与任一父提交不同。",
+    "当你查看历史时，Git 通过递归追溯这两个父提交，能重建出两个分支的所有变更，从而完整还原合并前的状态。"
+  ],
+  "examples": [
+    "{'description': '分支 A：提交 A1（修改 README.md 第1行）→ A2（修改 main.js 第10行）；分支 B：提交 B1（修改 README.md 第2行）→ B2（修改 config.json 第5行）。执行 git merge B 后，生成 M，其父为 A2 和 B2。M 的快照包含所有四处修改，但它的哈希 ≠ A2 ≠ B2。', 'visual': 'A1 → A2 → M\\n       ↗\\n      B1 → B2'}",
+    "{'description': '你误删了 feature 分支，但 merge commit M 仍在 main 上。通过 git show M，你看到两个 parent：A2 和 B2。即使 feature 分支指针没了，你仍可通过 git checkout B2 恢复 feature 的完整状态。', 'visual': 'main: ... → A2 → M\\nfeature: (deleted)\\n但 M.parent2 = B2 → 可回溯到 B1, B0'}",
+    "{'description': '两个分支都修改了同一文件的同一行，产生冲突。merge commit 仍被创建，但内容是冲突标记（<<<<<<<）。Git 依然记录两个父提交，只是快照内容是‘未解决状态’。这说明：merge 不是‘智能合并’，而是‘记录来源’。', 'visual': 'M: README.md:\\n<<<<<<< HEAD\\nHello\\n=======\\nHi\\n>>>>>>> feature\\nparent1: A2, parent2: B2'}",
+    "{'description': '你用 --no-ff 执行 merge，生成了 merge commit M。如果用 --ff，Git 会直接移动 main 指针到 B2，不创建新提交。此时没有两个父提交，历史是线性的。这证明：两个父提交是 merge commit 的定义特征。', 'visual': '非快进合并：A1 → A2 → M\\n                   ↗\\n                  B1 → B2\\n快进合并：A1 → A2 → B2（无 M，无双父）'}"
+  ],
+  "counterexamples": [
+    "{'description': '如果 merge 是‘内容合并’，那么两个相同的文件修改应该被‘去重’。但 Git 会保留两个分支对同一文件的独立修改，即使内容相同，也会在快照中重复存储。', 'reason': 'Git 不关心内容语义，只关心‘谁改了什么’。合并是历史结构的构建，不是内容的优化。'}",
+    "{'description': '如果 merge 是‘覆盖’，那么 B 分支的修改会覆盖 A 分支的修改。但实际中，如果 A 和 B 修改不同文件，两者都被保留；如果修改同一文件，Git 会尝试合并，失败时保留冲突标记，而非直接覆盖。', 'reason': '覆盖是命令式操作，而 Git 的 merge 是声明式的历史锚定。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为 merge commit 的内容是‘最终正确版本’，所以不敢修改它。",
+      "rootCause": "混淆了‘历史记录’和‘当前状态’。merge commit 只是历史节点，不是权威版本。后续提交仍可修复它。"
+    },
+    {
+      "point": "删除 merge commit 后以为‘历史被清除了’，但其实父提交还在。",
+      "rootCause": "误以为 commit 的价值在‘内容’，而忽略 Git 的核心是‘引用链’。只要父提交存在，内容就可重建。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "merge 不是合并，是结绳记事"
+    },
+    {
+      "type": "text",
+      "content": "想象你和朋友各自写了一本日记。你写了第1-5页，朋友写了第6-10页。你们决定‘合并’日记。你没有把两本日记撕了重写，而是拿了一张新纸，写上：‘本页内容来自我的第5页和朋友的第10页’。然后你把两本旧日记都保留着。这就是 Git merge。"
+    },
+    {
+      "type": "comparison",
+      "content": "误解：merge 是‘把两个分支的内容算出一个新版本’。真相：merge 是‘创建一个新提交，它说：我来自这两个祖先’。",
+      "label": "误解 vs 真相"
+    },
+    {
+      "type": "steps",
+      "content": "每一步只改变一个变量，观察哈希和父提交如何变化。",
+      "label": "merge 提交的生成过程",
+      "steps": [
+        {
+          "title": "初始状态：两个独立分支",
+          "description": "main 分支在 commit A（哈希：a1b2c3），feature 分支在 commit B（哈希：d4e5f6）。两者无共同父提交。",
+          "visual": "main: a1b2c3 ← [README: \"Hello\"]\nfeature: d4e5f6 ← [README: \"Hi\"]",
+          "highlight": "两个独立提交，哈希不同，无关联"
+        },
+        {
+          "title": "执行 git merge feature",
+          "description": "Git 找到共同祖先（假设是初始提交），计算三路快照，生成新提交 M。",
+          "visual": "main: a1b2c3 ← [README: \"Hello\"]\nfeature: d4e5f6 ← [README: \"Hi\"]\nnew: M ← [README: \"Hello\\nHi\"]",
+          "highlight": "快照内容是合并结果，但尚未记录父关系"
+        },
+        {
+          "title": "创建 merge commit：写入父提交",
+          "description": "Git 在 M 的元数据中写入两个父提交哈希：a1b2c3 和 d4e5f6。",
+          "visual": "M: parent = [a1b2c3, d4e5f6]\ncontent = [README: \"Hello\\nHi\"]",
+          "highlight": "父提交哈希被写入，M 的内容 = 快照 + 双父哈希"
+        },
+        {
+          "title": "计算 M 的哈希",
+          "description": "Git 对 M 的完整内容（快照 + 元数据）做 SHA-1 哈希，得到新值：x7y8z9。",
+          "visual": "hash(M) = SHA1(\"快照: Hello\\nHi\" + \"parent: a1b2c3,d4e5f6\") = x7y8z9",
+          "highlight": "哈希值因双父而唯一，与 a1b2c3 或 d4e5f6 都不同"
+        },
+        {
+          "title": "main 指针移动到 M",
+          "description": "main 分支指针从 a1b2c3 移动到 x7y8z9，历史图谱形成分叉汇聚。",
+          "visual": "main: a1b2c3 → x7y8z9 ← [parent: a1b2c3, d4e5f6]\nfeature: d4e5f6",
+          "highlight": "历史结构被永久记录，内容可追溯"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "注意：即使你删除了 feature 分支，只要 merge commit M 存在，Git 就能通过 M.parent2 回溯到 B，再回溯到 B 的祖先。分支只是指针，提交才是真相。"
+    },
+    {
+      "type": "diagram",
+      "content": "[A: a1b2c3]     [B: d4e5f6]\n         \\           /\n          \\         /\n           [M: x7y8z9]\n           ↑\n        main HEAD\n\nM 的内容：\n- 快照：合并后的文件\n- parent1: a1b2c3\n- parent2: d4e5f6\n- hash: x7y8z9（由以上三者唯一决定）",
+      "label": "merge 提交的结构图"
+    },
+    {
+      "type": "text",
+      "content": "所以，当你问‘为什么 merge commit 能还原所有内容？’——因为它不存储‘合并结果’，它存储的是‘谁生了它’。内容是通过追溯祖先动态重建的。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s11-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "让学生追踪一个 merge commit 的父提交链，还原两个分支的完整变更历史",
+      "priority": "core",
+      "componentHint": "点击 merge commit，展开父提交，逐层回溯"
+    },
+    {
+      "capability": "compare",
+      "purpose": "对比 merge commit 与快进合并（fast-forward）的结构差异，理解双父的必要性",
+      "priority": "secondary",
+      "componentHint": "切换 'merge --no-ff' 和 'merge --ff' 模式，观察历史图谱变化"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "merge commit 的哈希值由三部分决定：快照内容、父提交1的哈希、__________。",
+      "answerShape": "父提交2的哈希"
+    },
+    {
+      "type": "predict-next-step",
+      "prompt": "如果一个 merge commit 的两个父提交都指向同一个提交（即快进合并），那么这个 merge commit 是否可能被创建？为什么？",
+      "answerShape": "不可能。因为快进合并不会创建新提交，而是移动指针。双父是 merge commit 的定义特征。"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "请用文字重建一个 merge commit 的结构：从快照、父提交、哈希三者的关系出发，说明为什么删除分支后仍能恢复内容。",
+      "answerShape": "一个 merge commit 包含：1）一个快照（合并后的文件状态）；2）两个父提交的哈希（指向两个分支的最新提交）；3）一个唯一的哈希值（由以上内容计算得出）。即使删除分支指针，只要 merge commit 存在，Git 就能通过父提交哈希回溯到两个分支的完整历史，重建所有变更。"
+    }
+  ],
+  "bridgeTo": "如果 merge commit 是历史的锚点，那如果 .git 文件夹被删了——这个锚点连同所有父提交都消失了。我们还能从硬盘上捡回这些碎片吗？",
+  "nextModuleId": "s12"
+}

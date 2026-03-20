@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import type { Category, Module } from '@/lib/types';
+import type { Category } from '@/lib/types';
+import type { CourseModule } from '@/lib/course-schema';
 import { categoryStyles } from '@/lib/palette';
 import { getModuleSlug } from '@/lib/module-slug';
 import type { Locale } from '@/lib/i18n';
@@ -9,7 +10,7 @@ import { useState } from 'react';
 
 interface KnowledgeMapProps {
   categories: Category[];
-  modules: Module[];
+  modules: CourseModule[];
   locale: Locale;
   basePath?: string;
 }
@@ -19,7 +20,7 @@ interface KnowledgeMapProps {
  * Shows layers as horizontal bands with module nodes + inter-layer connections.
  */
 export default function KnowledgeMap({ categories, modules, locale, basePath = `/${locale}` }: KnowledgeMapProps) {
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
 
   const grouped = categories.map((cat) => ({
     ...cat,
@@ -73,7 +74,7 @@ export default function KnowledgeMap({ categories, modules, locale, basePath = `
                         {/* Tooltip on hover */}
                         {isHovered && (
                           <div className="absolute left-0 top-full z-10 mt-2 w-56 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-3 shadow-lg">
-                            <div className="text-xs text-[color:var(--color-muted)]">{mod.subtitle}</div>
+                            <div className="text-xs text-[color:var(--color-muted)]">{mod.subtitle ?? ''}</div>
                           </div>
                         )}
                       </Link>

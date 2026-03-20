@@ -3,42 +3,47 @@
  * Content completeness checker for all course packages.
  */
 
-import { loadAllCourses } from './lib/course-package-source.mjs';
+import { getCourseSummary, loadAllCourses, validateCoursePackage } from './lib/course-package-source.mjs';
 
-function checkModule(mod, totalModules) {
-  const errors = [];
-  const slug = mod.id;
+function buildModuleIssueMap(issues, moduleIds) {
+  const byModule = new Map(moduleIds.map((moduleId) => [moduleId, { errors: [], warnings: [] }]));
 
-  if (!mod.title) errors.push('missing title');
-  if (!mod.subtitle) errors.push('missing subtitle');
-  if (!mod.focusQuestion) errors.push('missing focusQuestion');
-  if (!mod.keyInsight) errors.push('missing keyInsight');
-  if (!mod.moduleKind) errors.push('missing moduleKind');
-  if (!mod.primaryCognitiveAction) errors.push('missing primaryCognitiveAction');
-  if (!mod.opening) errors.push('missing opening');
-  if (!mod.narrative || mod.narrative.length === 0) errors.push('missing narrative (empty or absent)');
-  if (mod.narrative && mod.narrative.length < 3) errors.push(`narrative too short (${mod.narrative.length} blocks, need ≥3)`);
-  if (mod.number < totalModules && !mod.bridgeTo) errors.push('missing bridgeTo (not last module)');
-  if (!Array.isArray(mod.concepts) || mod.concepts.length === 0) errors.push('missing concepts');
-  if (!mod.logicChain || mod.logicChain.length === 0) errors.push('missing logicChain');
-  if (!Array.isArray(mod.visuals) || mod.visuals.length === 0) errors.push('missing visuals');
-  if (!Array.isArray(mod.interactionRequirements) || mod.interactionRequirements.length === 0) errors.push('missing interactionRequirements');
+  for (const issue of issues) {
+    if (!issue.moduleId || !byModule.has(issue.moduleId)) continue;
+    if (issue.severity === 'error') {
+      byModule.get(issue.moduleId).errors.push(issue.message);
+    } else {
+      byModule.get(issue.moduleId).warnings.push(issue.message);
+    }
+  }
 
-  return { slug, errors };
+  return byModule;
 }
 
 let hasFailures = false;
-const allCourses = loadAllCourses();
 
-for (const { slug: courseSlug, modules } of allCourses) {
-  const total = modules.length;
-  console.log(`\n=== Checking content: ${courseSlug} (${total} modules) ===\n`);
-  const results = modules.map(({ data }) => checkModule(data, total));
-  for (const r of results) {
-    const status = r.errors.length === 0 ? '✅' : '❌';
-    const detail = r.errors.length === 0 ? '' : r.errors.join('; ');
-    console.log(`  ${status} ${r.slug}  ${detail}`);
-    if (r.errors.length > 0) hasFailures = true;
+for (const source of loadAllCourses()) {
+  const summary = getCourseSummary(source);
+  const result = validateCoursePackage(source);
+  const moduleIssues = buildModuleIssueMap(
+    result.issuesByCategory.content.errors.concat(result.issuesByCategory.content.warnings),
+    summary.moduleIds,
+  );
+
+  console.log(`\n=== Checking content: ${summary.slug} (${summary.moduleCount} modules) ===\n`);
+
+  for (const moduleId of summary.moduleIds) {
+    const entry = moduleIssues.get(moduleId) ?? { errors: [], warnings: [] };
+    const status = entry.errors.length > 0 ? '❌' : entry.warnings.length > 0 ? '⚠️' : '✅';
+    const detail = [
+      entry.errors.length > 0 ? entry.errors.join('; ') : '',
+      entry.warnings.length > 0 ? `warnings: ${entry.warnings.join('; ')}` : '',
+    ].filter(Boolean).join(' | ');
+
+    console.log(`  ${status} ${moduleId}  ${detail}`);
+    if (entry.errors.length > 0) {
+      hasFailures = true;
+    }
   }
 }
 
@@ -46,6 +51,6 @@ console.log('');
 if (hasFailures) {
   console.error('❌ Content check FAILED — fix the issues above before building.');
   process.exit(1);
-} else {
-  console.log('✅ All content checks passed.');
 }
+
+console.log('✅ All content checks passed.');

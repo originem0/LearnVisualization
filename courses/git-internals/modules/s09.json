@@ -1,0 +1,183 @@
+{
+  "id": "s09",
+  "number": 9,
+  "title": "Git 如何在没有数据库的情况下，快速找到任意文件的历史？",
+  "subtitle": "误解：Git 靠索引或数据库加速查询，其实是靠树遍历",
+  "category": "storage",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "为什么 git log -- path/to/file 能瞬间找到所有修改，即使项目有百万文件？",
+  "misconception": "认为 Git 为每个文件维护了一个独立的变更日志表，像 SQL 数据库那样：每次修改都插入一行记录，查询时用 WHERE path = 'src/app.js' 快速索引。",
+  "keyInsight": "Git 没有文件级索引，它通过提交树的递归结构，用路径前缀匹配和对象哈希跳转，在树形结构中逐层向下遍历，仅加载必要路径的节点，实现高效定位。",
+  "opening": "你以为 Git 像数据库一样，为每个文件建了索引表，所以 git log src/app.js 才能秒出结果？错。Git 根本没有文件级索引。它不记得‘谁改过 app.js’，它只记得‘这次提交的根目录长什么样’。当你问‘app.js 的历史’，Git 不是查表，而是从最近的提交开始，像翻一本层层嵌套的目录手册，一页一页往下翻，直到找到那个文件曾经出现过的痕迹。它不快，是因为有索引——它快，是因为它从不试图记住所有事，只记住‘结构’。",
+  "quote": "Git 不是版本控制系统，它是内容寻址的快照链。—— Linus Torvalds",
+  "concepts": [
+    {
+      "name": "commit 对象",
+      "note": "指向一个树对象，代表某次提交时整个项目根目录的快照。"
+    },
+    {
+      "name": "tree 对象",
+      "note": "代表一个目录，包含文件名、文件模式、以及指向 blob（文件内容）或子 tree 的哈希。路径是扁平的，但结构是树形的。"
+    },
+    {
+      "name": "blob 对象",
+      "note": "存储文件内容的哈希值，不包含路径信息。路径只存在于 tree 中。"
+    },
+    {
+      "name": "路径前缀匹配",
+      "note": "Git 在遍历 tree 时，按路径分段（如 src/app.js → src → app.js）逐层匹配，不加载无关分支。"
+    },
+    {
+      "name": "递归遍历",
+      "note": "从目标提交的根 tree 开始，按路径逐级进入子 tree，直到找到目标 blob，过程中只加载必要节点。"
+    }
+  ],
+  "logicChain": [
+    "Git 不存储文件变更日志，只存储提交快照（commit → tree → blob）。",
+    "每个 tree 对象只记录当前目录下所有文件和子目录的名称与哈希，不保留历史。",
+    "要找文件的历史，必须从最近提交开始，反向遍历所有祖先提交的 tree。",
+    "在每个 tree 中，Git 按路径分段匹配：先找 'src'，再在 src 的 tree 中找 'app.js'。",
+    "一旦在某个 tree 中找到目标路径对应的 blob，就记录该提交；继续向上找父提交，重复匹配。",
+    "如果某次提交的 tree 中没有该路径（文件被删除），则跳过，继续找更早的提交。",
+    "整个过程只加载路径上涉及的 tree 和 blob，不读取无关文件，因此即使百万文件，速度也极快。"
+  ],
+  "examples": [
+    "{'description': '文件 src/app.js 在提交 C3 中被修改，C2 中被创建，C1 中不存在。', 'path': 'src/app.js', 'history': ['C3: tree-C3 → src-tree → app.js (blob-123)', 'C2: tree-C2 → src-tree → app.js (blob-456)', 'C1: tree-C1 → src-tree (无 app.js，跳过)']}",
+    "{'description': '文件被移动：从 lib/utils.js → src/utils.js。', 'path': 'src/utils.js', 'history': ['C5: tree-C5 → src → utils.js (blob-789)', 'C4: tree-C4 → lib → utils.js (blob-789) ← 路径不同，不匹配', 'C3: tree-C3 → lib → utils.js (blob-abc)'], 'note': 'Git 不知道这是‘同一个文件移动’，它只看到两个不同路径。所以 log src/utils.js 只显示 C5，要看到完整历史需分别查两个路径。'}",
+    "{'description': '项目有 100 万个文件，但只查 config.json。', 'path': 'config.json', 'history': 'Git 只加载：根 tree → config.json（直接子项），不加载任何 src/、assets/、node_modules/ 的 tree 对象。'}"
+  ],
+  "counterexamples": [
+    "{'description': '如果 Git 用数据库索引，每次新增文件都需更新全局索引表，写入性能会随文件数下降。但 Git 的写入速度与项目大小无关，因为只写新 tree/blob，不改旧结构。', 'reason': '索引式系统需要维护一致性，而 Git 的树结构天然支持追加写入，无锁无更新。'}",
+    "{'description': '如果 Git 为每个文件维护独立日志，删除文件后日志仍存在，但 Git 的 log -- path/to/deleted-file 会停止在删除点，因为后续提交的 tree 中已无该路径。', 'reason': 'Git 的历史是路径在树中的存在性，不是文件的生命周期。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "为什么 git log --follow 不总是有效？",
+      "rootCause": "Git 的 --follow 只能追踪文件重命名的简单情况（单次移动且无冲突），它不识别复杂重构（如拆分、合并、重命名+修改），因为 tree 对象不记录文件身份，只记录路径和内容哈希。"
+    },
+    {
+      "point": "为什么 git log -p 某文件时，有时显示‘重命名’，有时不显示？",
+      "rootCause": "Git 只在内容相似度超过 50% 时才推测重命名，且仅在 diff 阶段做启发式分析，不是在存储层记录。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你以为的 Git：文件级日志表"
+    },
+    {
+      "type": "text",
+      "content": "很多人想象 Git 内部像一个 SQL 数据库：有一张表叫 file_history，字段有 path、commit_hash、timestamp、diff。每次提交，就插入一行。查询时，用索引 WHERE path = 'src/app.js'，瞬间返回结果。"
+    },
+    {
+      "type": "comparison",
+      "content": "错误：文件是独立实体，有专属日志。真实：文件只是树节点，路径是临时标签，历史是树的回溯。",
+      "label": "错误心智模型 vs 真实机制"
+    },
+    {
+      "type": "heading",
+      "content": "真实的 Git：树的回溯之旅"
+    },
+    {
+      "type": "text",
+      "content": "Git 没有文件日志。它只有提交、树、内容。要找一个文件的历史，它必须从当前提交开始，一层一层向上‘翻目录’，直到找到这个路径曾经出现的地方。"
+    },
+    {
+      "type": "steps",
+      "content": "从最近提交开始，逐层回溯，只加载路径上涉及的节点。",
+      "label": "追踪 src/app.js 的历史：每一步只加载一个树对象",
+      "steps": [
+        {
+          "title": "步骤 1：从 HEAD 提交开始",
+          "description": "查询 git log src/app.js，Git 从当前提交 C3 的 tree 开始。",
+          "visual": "C3 (commit)\n  └── tree-C3 (root)\n      ├── src/\n      │   └── app.js → blob-123\n      └── README.md → blob-abc",
+          "highlight": "tree-C3"
+        },
+        {
+          "title": "步骤 2：匹配路径第一段 'src'",
+          "description": "在 tree-C3 中查找 'src'，找到其对应的子 tree（tree-src）。",
+          "visual": "tree-C3\n  └── src/ → tree-src\n      └── app.js → blob-123",
+          "highlight": "tree-src"
+        },
+        {
+          "title": "步骤 3：匹配路径第二段 'app.js'",
+          "description": "在 tree-src 中找到 'app.js'，记录该文件在 C3 的内容哈希 blob-123。",
+          "visual": "tree-src\n  └── app.js → blob-123 ← 记录：C3 修改了 app.js",
+          "highlight": "blob-123"
+        },
+        {
+          "title": "步骤 4：跳到父提交 C2",
+          "description": "进入 C2 的 tree，重复路径匹配：先找 'src'，再找 'app.js'。",
+          "visual": "C2 (commit)\n  └── tree-C2\n      └── src/ → tree-src2\n          └── app.js → blob-456 ← 记录：C2 创建了 app.js",
+          "highlight": "tree-C2, blob-456"
+        },
+        {
+          "title": "步骤 5：跳到父提交 C1",
+          "description": "在 C1 的 tree 中查找 'src/app.js' —— 没有 'src' 目录，路径不匹配，停止。",
+          "visual": "C1 (commit)\n  └── tree-C1\n      └── README.md → blob-def\n      └── lib/ → tree-lib\n          └── utils.js → blob-789\n      ← 没有 src/，跳过",
+          "highlight": "tree-C1 (无 src)"
+        },
+        {
+          "title": "步骤 6：结束遍历",
+          "description": "历史路径已完整：C3 → C2。Git 输出两个提交，仅加载了 3 个 tree 对象和 2 个 blob。",
+          "visual": "历史链：C3 (blob-123) ← C2 (blob-456)\n加载对象：tree-C3, tree-src, blob-123, tree-C2, tree-src2, blob-456\n共 6 个对象，无关文件全未读取。",
+          "highlight": "仅加载路径相关对象"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "关键洞察：Git 的‘快’，不是因为索引，而是因为‘懒’。它只加载你问的路径上必须加载的节点，其他百万文件，它连看都不看一眼。"
+    },
+    {
+      "type": "diagram",
+      "content": "C3 → tree-C3 → src-tree → app.js (blob)\n│\n↓ 父提交\nC2 → tree-C2 → src-tree → app.js (blob)\n│\n↓ 父提交\nC1 → tree-C1 → lib-tree → utils.js (blob) ← 无 src，终止",
+      "label": "tree 遍历路径示意图"
+    },
+    {
+      "type": "text",
+      "content": "这就是为什么：即使你的仓库有 100 万个文件，git log -- src/app.js 依然在 10 毫秒内返回结果。它不是在查表，它是在翻一本只包含你问的那一页的目录册。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s09-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "step-through",
+      "purpose": "让用户手动模拟从 HEAD 向上遍历 tree，每一步选择路径分支，观察哪些对象被加载",
+      "priority": "core",
+      "componentHint": "交互式树导航器，点击路径节点展开子 tree"
+    },
+    {
+      "capability": "trace",
+      "purpose": "让用户输入一个文件路径，系统展示其历史路径在 tree 中的遍历链",
+      "priority": "secondary",
+      "componentHint": "路径追踪器，高亮每一步加载的 tree/blob"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "当前在提交 C4 的 tree 中，路径是 'src/utils.js'，你已匹配 'src'，现在要进入子 tree。下一个步骤应该做什么？",
+      "answerShape": "在当前 tree 中查找 'src' 对应的子 tree 对象哈希，然后进入该 tree，继续匹配 'utils.js'"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "假设你有一个提交树：C3 → C2 → C1。C3 有 src/app.js，C2 有 src/app.js 和 lib/utils.js，C1 只有 README.md。请重建从 C3 向上查找 src/app.js 的路径遍历链，列出每一步加载的 tree 和 blob。",
+      "answerShape": "C3: tree-C3 → tree-src → blob-app.js\nC2: tree-C2 → tree-src → blob-app.js\nC1: tree-C1 → 无 src → 停止"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比两种场景：1）查找一个存在了 100 次提交的文件；2）查找一个只在最后一次提交中出现的文件。它们的遍历步骤数是否相同？为什么？",
+      "answerShape": "相同。无论文件存在多久，Git 都从当前提交开始，逐层向上匹配路径，直到首次出现。步骤数只取决于提交历史深度，不取决于文件活跃度。"
+    }
+  ],
+  "bridgeTo": "如果 Git 从不记录文件身份，只靠路径和哈希，那当你误删一个分支，怎么找回那个曾经存在过的提交？它连名字都没有了，只剩下一个哈希——你该怎么找到它？",
+  "nextModuleId": "s10"
+}

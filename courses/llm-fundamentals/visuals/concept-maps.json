@@ -354,161 +354,162 @@
   "3": {
     "nodes": [
       {
-        "id": "input",
+        "id": "query",
         "label": [
-          "输入向量"
+          "当前位置",
+          "发问 (Query)"
         ],
-        "x": 280,
-        "y": 30,
-        "w": 120,
-        "h": 44
+        "x": 150,
+        "y": 60,
+        "w": 140,
+        "h": 56,
+        "accent": true
       },
       {
-        "id": "qkv",
+        "id": "context",
         "label": [
-          "Q / K / V 投影"
+          "全句 token",
+          "提供 K / V"
         ],
-        "x": 280,
-        "y": 120,
+        "x": 410,
+        "y": 60,
         "w": 150,
-        "h": 44
+        "h": 56
       },
       {
-        "id": "qkt",
+        "id": "match",
         "label": [
           "Q · K^T",
-          "相似度"
+          "相关性打分"
         ],
         "x": 280,
-        "y": 220,
-        "w": 140,
+        "y": 170,
+        "w": 150,
         "h": 56
       },
       {
         "id": "scale",
         "label": [
           "÷ √d_k",
-          "缩放"
+          "稳定数值"
         ],
-        "x": 280,
-        "y": 310,
+        "x": 180,
+        "y": 280,
         "w": 120,
         "h": 56
       },
       {
         "id": "mask",
         "label": [
-          "因果遮罩"
+          "因果遮罩",
+          "只看左边"
         ],
-        "x": 440,
-        "y": 310,
-        "w": 120,
-        "h": 44
+        "x": 380,
+        "y": 280,
+        "w": 130,
+        "h": 56
       },
       {
         "id": "softmax",
         "label": [
           "Softmax",
-          "概率分布"
+          "注意力预算"
         ],
         "x": 280,
-        "y": 400,
-        "w": 130,
+        "y": 390,
+        "w": 150,
         "h": 56
       },
       {
-        "id": "attnv",
+        "id": "aggregate",
         "label": [
-          "× V",
-          "加权聚合"
+          "加权聚合 V",
+          "收集内容"
         ],
         "x": 280,
-        "y": 490,
-        "w": 130,
+        "y": 500,
+        "w": 160,
         "h": 56
       },
       {
         "id": "output",
         "label": [
-          "注意力输出"
+          "上下文化表示"
         ],
         "x": 280,
-        "y": 580,
-        "w": 130,
+        "y": 610,
+        "w": 150,
         "h": 44
-      },
-      {
-        "id": "multi",
-        "label": [
-          "多头注意力",
-          "并行多组 QKV"
-        ],
-        "x": 280,
-        "y": 670,
-        "w": 170,
-        "h": 56
       },
       {
         "id": "next",
         "label": [
-          "→ s04 Transformer"
+          "→ s04 Block 结构"
         ],
         "x": 280,
-        "y": 760,
+        "y": 700,
         "w": 180,
         "h": 44
       }
     ],
     "edges": [
       {
-        "from": "input",
-        "to": "qkv",
-        "label": "线性投影"
+        "from": "query",
+        "to": "match",
+        "label": "拿问题去匹配"
       },
       {
-        "from": "qkv",
-        "to": "qkt",
-        "label": "匹配度计算"
+        "from": "context",
+        "to": "match",
+        "label": "所有 token 的索引线索"
       },
       {
-        "from": "qkt",
+        "from": "match",
         "to": "scale",
-        "label": "防止数值过大"
+        "label": "分数过大要缩放"
       },
       {
         "from": "mask",
-        "to": "scale",
+        "to": "softmax",
         "label": "生成时屏蔽未来"
       },
       {
         "from": "scale",
         "to": "softmax",
-        "label": "归一化"
+        "label": "变成权重"
       },
       {
         "from": "softmax",
-        "to": "attnv",
-        "label": "加权"
+        "to": "aggregate",
+        "label": "决定看谁更多"
       },
       {
-        "from": "attnv",
+        "from": "context",
+        "to": "aggregate",
+        "label": "取回对应 Value"
+      },
+      {
+        "from": "aggregate",
         "to": "output"
       },
       {
         "from": "output",
-        "to": "multi",
-        "label": "h 个头 concat"
-      },
-      {
-        "from": "multi",
         "to": "next",
-        "label": "+ 线性投影"
+        "label": "多头只是并行重复这条链"
       }
     ],
-    "svgW": 600,
-    "svgH": 810,
+    "svgW": 560,
+    "svgH": 750,
     "ariaLabel": "注意力机制概念关系图",
-    "title": "概念关系图"
+    "title": "概念关系图",
+    "annotations": [
+      {
+        "type": "text",
+        "x": 280,
+        "y": 235,
+        "text": "这一章先抓住单头注意力主链"
+      }
+    ]
   },
   "4": {
     "nodes": [
@@ -1087,18 +1088,19 @@
           "用户意图"
         ],
         "x": 280,
-        "y": 30,
+        "y": 40,
         "w": 120,
-        "h": 44
+        "h": 44,
+        "accent": true
       },
       {
-        "id": "compose",
+        "id": "skeleton",
         "label": [
-          "Prompt 构成"
+          "Prompt 骨架"
         ],
         "x": 280,
-        "y": 130,
-        "w": 140,
+        "y": 140,
+        "w": 150,
         "h": 44
       },
       {
@@ -1107,9 +1109,9 @@
           "角色",
           "Role"
         ],
-        "x": 80,
-        "y": 230,
-        "w": 100,
+        "x": 120,
+        "y": 255,
+        "w": 110,
         "h": 56
       },
       {
@@ -1118,105 +1120,52 @@
           "上下文",
           "Context"
         ],
-        "x": 200,
-        "y": 230,
-        "w": 110,
+        "x": 280,
+        "y": 255,
+        "w": 120,
         "h": 56
       },
       {
-        "id": "task",
+        "id": "taskFormat",
         "label": [
-          "任务",
-          "Task"
+          "任务 + 格式",
+          "Task / Format"
         ],
-        "x": 310,
-        "y": 230,
-        "w": 100,
-        "h": 56
-      },
-      {
-        "id": "format",
-        "label": [
-          "格式",
-          "Format"
-        ],
-        "x": 420,
-        "y": 230,
-        "w": 100,
+        "x": 440,
+        "y": 255,
+        "w": 150,
         "h": 56
       },
       {
         "id": "examples",
         "label": [
-          "示例",
-          "Examples"
+          "Few-shot",
+          "示例"
         ],
-        "x": 530,
-        "y": 230,
-        "w": 110,
+        "x": 190,
+        "y": 385,
+        "w": 120,
         "h": 56
-      },
-      {
-        "id": "techniques",
-        "label": [
-          "Prompt 技巧"
-        ],
-        "x": 280,
-        "y": 350,
-        "w": 140,
-        "h": 44
       },
       {
         "id": "cot",
         "label": [
           "Chain-of-Thought",
-          "思维链"
+          "展开步骤"
         ],
-        "x": 120,
-        "y": 450,
-        "w": 160,
-        "h": 56
-      },
-      {
-        "id": "fewshot",
-        "label": [
-          "Few-shot",
-          "少样本示例"
-        ],
-        "x": 310,
-        "y": 450,
-        "w": 150,
-        "h": 56
-      },
-      {
-        "id": "selfcons",
-        "label": [
-          "Self-consistency",
-          "自洽性采样"
-        ],
-        "x": 500,
-        "y": 450,
+        "x": 390,
+        "y": 385,
         "w": 170,
         "h": 56
       },
       {
         "id": "output",
         "label": [
-          "模型输出"
+          "输出更可控"
         ],
         "x": 280,
-        "y": 560,
-        "w": 120,
-        "h": 44
-      },
-      {
-        "id": "quality",
-        "label": [
-          "输出质量"
-        ],
-        "x": 280,
-        "y": 650,
-        "w": 120,
+        "y": 525,
+        "w": 150,
         "h": 44
       },
       {
@@ -1225,7 +1174,7 @@
           "→ s09 Scaling"
         ],
         "x": 280,
-        "y": 740,
+        "y": 620,
         "w": 160,
         "h": 44
       }
@@ -1233,86 +1182,58 @@
     "edges": [
       {
         "from": "intent",
-        "to": "compose",
-        "label": "表达为"
+        "to": "skeleton",
+        "label": "翻成可执行上下文"
       },
       {
-        "from": "compose",
+        "from": "skeleton",
         "to": "role"
       },
       {
-        "from": "compose",
+        "from": "skeleton",
         "to": "context"
       },
       {
-        "from": "compose",
-        "to": "task"
+        "from": "skeleton",
+        "to": "taskFormat"
       },
       {
-        "from": "compose",
-        "to": "format"
-      },
-      {
-        "from": "compose",
+        "from": "skeleton",
         "to": "examples"
       },
       {
-        "from": "role",
-        "to": "techniques"
-      },
-      {
-        "from": "context",
-        "to": "techniques"
-      },
-      {
-        "from": "task",
-        "to": "techniques"
-      },
-      {
-        "from": "format",
-        "to": "techniques"
-      },
-      {
-        "from": "examples",
-        "to": "techniques"
-      },
-      {
-        "from": "techniques",
+        "from": "skeleton",
         "to": "cot"
       },
       {
-        "from": "techniques",
-        "to": "fewshot"
+        "from": "role",
+        "to": "output"
       },
       {
-        "from": "techniques",
-        "to": "selfcons"
+        "from": "context",
+        "to": "output"
+      },
+      {
+        "from": "taskFormat",
+        "to": "output"
+      },
+      {
+        "from": "examples",
+        "to": "output",
+        "label": "用例子消歧"
       },
       {
         "from": "cot",
         "to": "output"
       },
       {
-        "from": "fewshot",
-        "to": "output"
-      },
-      {
-        "from": "selfcons",
-        "to": "output"
-      },
-      {
         "from": "output",
-        "to": "quality",
-        "label": "评估"
-      },
-      {
-        "from": "quality",
         "to": "next",
         "label": "更大的模型？"
       }
     ],
-    "svgW": 640,
-    "svgH": 790,
+    "svgW": 620,
+    "svgH": 670,
     "ariaLabel": "Prompt Engineering 概念关系图",
     "title": "概念关系图"
   },

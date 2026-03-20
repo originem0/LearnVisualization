@@ -1,0 +1,177 @@
+{
+  "id": "s07",
+  "number": 7,
+  "title": "HEAD 是什么？为什么它不指向分支，却能‘跟随’分支？",
+  "subtitle": "你以为 HEAD 是分支的名字，其实它只是个提交的地址簿",
+  "category": "linkage",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "simulate",
+  "focusQuestion": "为什么 detached HEAD 状态下 commit 不会报错，但分支却‘丢失’了？",
+  "misconception": "认为 HEAD 是当前分支的别名，切换分支就是改 HEAD 的名字——就像把‘主路’标签从‘A路’换成‘B路’。所以当 HEAD 指向一个提交时，用户以为它在‘待在’某个分支上，而不知道它只是在‘停在’某个提交点。",
+  "keyInsight": "HEAD 不是分支的指针，而是当前提交的指针；分支只是指向提交的可移动标签。HEAD 可以直接指向提交（detached），也可以指向分支名（attached），而分支名才是提交的‘可追踪容器’。",
+  "opening": "当你执行 git checkout v1.0 时，Git 并没有‘切换到分支 v1.0’——它只是把 HEAD 从一个提交挪到了另一个提交。v1.0 只是一个写着‘这个提交是 v1.0’的便利便签。如果你在 detached HEAD 状态下提交了新代码，Git 会欣然接受，因为它从不关心你是不是‘在分支上’，它只关心你有没有指向一个提交。但当你下次 checkout 别的分支，那个新提交就像被遗忘的信封，没人记得它在哪——它不是‘被删除’，而是‘无人认领’。\n\n这就像你把车停在了高速公路的某个里程桩（提交），而不是停在‘北京出口’（分支）。你当然可以在这个里程桩上修车、加油（commit），但如果你不告诉别人‘我在 127.3 公里处’，下次你回来，系统只会记得‘北京出口’和‘上海出口’，而不会记得你曾经在 127.3 停过。",
+  "quote": "Git 不关心你是不是在分支上——它只关心你指向哪个提交。分支只是给提交起的名字，而 HEAD 是你当前盯着的那个点。",
+  "concepts": [
+    {
+      "name": "HEAD",
+      "note": "一个文件，内容要么是 'ref: refs/heads/xxx'（指向分支），要么是 40 位 commit hash（直接指向提交）"
+    },
+    {
+      "name": "分支（branch）",
+      "note": "一个文件，内容是单个 commit hash，代表该分支当前指向的最新提交"
+    },
+    {
+      "name": "detached HEAD",
+      "note": "HEAD 直接指向一个 commit hash，而不是通过分支名间接引用。此时你不在任何分支上"
+    },
+    {
+      "name": "提交（commit）",
+      "note": "Git 的原子单元，包含快照、父提交、作者、时间戳。HEAD 总是指向一个提交"
+    },
+    {
+      "name": "ref",
+      "note": "引用的统称，包括分支、标签、HEAD。所有 ref 都指向一个 commit hash"
+    }
+  ],
+  "logicChain": [
+    "HEAD 是一个文件，内容是字符串：要么是 'ref: refs/heads/main'，要么是 'a1b2c3d4...'",
+    "分支（如 main）也是一个文件，内容是 commit hash，比如 'a1b2c3d4...'",
+    "当你执行 git checkout main，Git 读取 refs/heads/main 文件，拿到 hash，然后把 HEAD 内容改成该 hash",
+    "当你执行 git checkout v1.0（标签或旧提交），Git 直接把 HEAD 内容设为该提交的 hash，不再引用任何分支",
+    "在 detached HEAD 状态下，你 commit 会创建新提交，HEAD 指向它，但没有任何分支指向它",
+    "当你执行 git checkout main，Git 把 HEAD 改回指向 main 分支的 hash，新提交失去引用，成为‘孤儿提交’",
+    "Git 不删除孤儿提交——它们仍存在 30 天，直到被 git gc 清理"
+  ],
+  "examples": [
+    "{'description': \"你执行 git checkout v2.1（一个标签），HEAD 变成 detached，内容是 'a1b2c3d4...'。你修改文件并 git commit，创建新提交 b5f6g7h8...，HEAD 现在指向 b5f6g7h8，但没有任何分支指向它。\", 'visual': 'HEAD → b5f6g7h8 (新提交)\\nmain → a1b2c3d4\\nv2.1 → a1b2c3d4'}",
+    "{'description': '你执行 git checkout main，然后 git commit，HEAD 指向 main，main 也指向新提交。此时 HEAD 和 main 同步，新提交被分支‘记住’。', 'visual': 'HEAD → c9d0e1f2\\nmain → c9d0e1f2'}",
+    "{'description': '你执行 git checkout HEAD~2，HEAD 指向旧提交。你修改并 commit，创建新提交。此时 HEAD 指向新提交，但 main 仍指向原提交，新提交成为孤儿。', 'visual': 'HEAD → x1y2z3 (新提交)\\nmain → a1b2c3d4 (原提交)\\nv2.1 → a1b2c3d4'}"
+  ],
+  "counterexamples": [
+    "{'description': '有人以为：‘我在分支上，所以 HEAD 是分支’。但如果你执行 git symbolic-ref HEAD refs/heads/main，HEAD 仍只是指向分支名的指针，真正的‘位置’是分支指向的提交。', 'correct': 'HEAD 永远指向提交，分支名只是中间跳板。即使 HEAD 是 ref: refs/heads/main，它最终的‘目的地’仍是那个 hash。'}",
+    "{'description': '有人以为：‘detached HEAD 不能 commit’。但 Git 允许你 commit，只是不告诉你‘你正在脱离分支’，直到你看到警告。', 'correct': 'Git 不阻止你 commit，它只是不帮你记录——因为分支才是‘记忆系统’，HEAD 只是‘当前视线’。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "在 detached HEAD 状态下 commit 后，忘记记录提交 hash，导致工作丢失",
+      "rootCause": "误以为 HEAD 指向分支，所以认为所有 commit 都会被分支自动捕获。实际上，只有分支指向的提交才被持久化记录。"
+    },
+    {
+      "point": "用 git checkout 分支名时，以为 HEAD 会‘继承’分支的‘身份’，结果在 detached 状态下误以为自己在分支上",
+      "rootCause": "混淆了‘引用路径’（HEAD → branch → commit）和‘直接指向’（HEAD → commit）的语义差异"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "HEAD 不是分支，它是你的‘当前视线’"
+    },
+    {
+      "type": "text",
+      "content": "想象你站在一个巨大的图书馆里，每个书架代表一个提交，每本书是一个文件快照。分支是贴在书架上的标签：‘主干线’、‘v1.0’、‘实验分支’。而 HEAD 是你戴的智能眼镜——它不告诉你‘你现在在哪个标签下’，它只显示你正盯着哪本书的编号。"
+    },
+    {
+      "type": "comparison",
+      "content": "HEAD 是‘主干线’这个标签本身。你切换分支，就是换标签。",
+      "label": "你以为的 HEAD"
+    },
+    {
+      "type": "comparison",
+      "content": "HEAD 是你眼镜上显示的书号：'a1b2c3d4'。标签只是方便你记住‘这堆书叫主干线’。",
+      "label": "真实的 HEAD"
+    },
+    {
+      "type": "steps",
+      "content": "我们一步步看 git checkout main 的真实过程",
+      "label": "HEAD 如何‘跟随’分支？",
+      "steps": [
+        {
+          "title": "初始状态：你在 main 分支上",
+          "description": "HEAD 文件内容是 'ref: refs/heads/main'，main 文件内容是 'a1b2c3d4'",
+          "visual": "HEAD → ref: refs/heads/main\nmain → a1b2c3d4",
+          "highlight": "HEAD 指向分支名，不是提交"
+        },
+        {
+          "title": "执行 git checkout main",
+          "description": "Git 读取 refs/heads/main 文件，获取其内容：a1b2c3d4",
+          "visual": "HEAD → ref: refs/heads/main\nmain → a1b2c3d4\n[Git 读取 main → 得到 a1b2c3d4]",
+          "highlight": "Git 解析分支名，获取目标提交"
+        },
+        {
+          "title": "Git 更新 HEAD",
+          "description": "Git 把 HEAD 文件内容从 'ref: refs/heads/main' 改为 'a1b2c3d4'",
+          "visual": "HEAD → a1b2c3d4\nmain → a1b2c3d4",
+          "highlight": "HEAD 现在直接指向提交，但行为与之前一致"
+        },
+        {
+          "title": "你修改并 commit",
+          "description": "你修改文件，git commit 创建新提交 b5f6g7h8",
+          "visual": "HEAD → b5f6g7h8\nmain → a1b2c3d4",
+          "highlight": "HEAD 移动了，但 main 没动！"
+        },
+        {
+          "title": "你执行 git checkout main",
+          "description": "Git 读取 main 文件，得到 a1b2c3d4，然后把 HEAD 改为该值",
+          "visual": "HEAD → a1b2c3d4\nmain → a1b2c3d4",
+          "highlight": "HEAD 回到 main 指向的提交，b5f6g7h8 成为孤儿"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "注意：在步骤 4 中，HEAD 指向了新提交，但 main 没有更新——这意味着你‘脱离’了分支。Git 不会阻止你，但也不会帮你记住它。"
+    },
+    {
+      "type": "text",
+      "content": "这就是为什么 detached HEAD 不报错：Git 不关心你是否‘在分支上’，它只关心你是否指向一个有效的提交。分支只是给提交起的名字，而 HEAD 是你当前凝视的那一个。"
+    },
+    {
+      "type": "heading",
+      "content": "那为什么分支会‘丢失’？"
+    },
+    {
+      "type": "text",
+      "content": "因为分支是‘记忆’，HEAD 是‘视线’。当你在 detached HEAD 状态下 commit，你只是在写一本没人登记的书。Git 会保存它，但除非你用 git branch 新建分支指向它，否则它只是‘幽灵提交’——存在，但找不到。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s07-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "step-through",
+      "purpose": "让用户逐步模拟 HEAD 从 attached 到 detached 再到 orphan 的状态变化",
+      "priority": "core",
+      "componentHint": "交互式 Git 状态模拟器，显示 HEAD 文件内容、分支文件内容、提交图"
+    },
+    {
+      "capability": "simulate",
+      "purpose": "让用户在模拟环境中执行 checkout 和 commit，观察 HEAD 和分支的独立变化",
+      "priority": "secondary",
+      "componentHint": "拖拽式提交图，点击 HEAD 可切换指向分支或直接提交"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "当前 HEAD 指向 commit A，你执行 git checkout v1.0（v1.0 也指向 A），然后你修改文件并 commit。下一个命令 git branch 会显示什么？",
+      "answerShape": "一个分支列表，不包含新提交，新提交未被任何分支引用"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "请重建 HEAD、main 分支和一个新提交之间的关系图：你从 main 出发，执行 git checkout HEAD~1，然后 commit。画出 HEAD、main 和新提交的指向关系。",
+      "answerShape": "HEAD → new_commit, main → original_commit (不指向 new_commit)"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "HEAD 的内容是 ______，而分支的内容是 ______。当 HEAD 直接指向一个 hash 时，我们称其为 ______。",
+      "answerShape": "一个 commit hash 或 ref: refs/heads/xxx；一个 commit hash；detached HEAD"
+    }
+  ],
+  "bridgeTo": "你刚在 detached HEAD 下 commit 了一个新提交，但它没有被任何分支记住。现在你发现它了——但你想把它‘接回’主分支。怎么让一个孤儿提交重新被分支‘认领’？",
+  "nextModuleId": "s08"
+}

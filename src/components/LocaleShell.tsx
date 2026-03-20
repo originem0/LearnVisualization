@@ -2,19 +2,15 @@
 
 import { useSelectedLayoutSegments } from 'next/navigation';
 import Header from '@/components/Header';
-import Sidebar from '@/components/Sidebar';
-import type { StateData } from '@/lib/types';
-import type { ProjectInfo } from '@/lib/types';
 import type { Locale } from '@/lib/i18n';
 
 interface LocaleShellProps {
   children: React.ReactNode;
-  data: StateData;
-  siteProject: ProjectInfo;
+  siteProject: { title: string; goal: string };
   locale: Locale;
 }
 
-export default function LocaleShell({ children, data, siteProject, locale }: LocaleShellProps) {
+export default function LocaleShell({ children, siteProject, locale }: LocaleShellProps) {
   const segments = useSelectedLayoutSegments();
   const isCourseRoute = segments[0] === 'courses' && segments.length > 1;
 
@@ -28,7 +24,7 @@ export default function LocaleShell({ children, data, siteProject, locale }: Loc
     <div className="min-h-screen bg-[color:var(--color-bg)] text-[color:var(--color-text)]">
       <Header project={siteProject} locale={locale} />
       <div className="mx-auto max-w-6xl px-4 pb-12 pt-6">
-        <main className="min-w-0 flex-1">{children}</main>
+        <main id="main-content" className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   );

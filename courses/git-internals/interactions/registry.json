@@ -1,0 +1,196 @@
+{
+  "s01": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户逐步观察一个字符修改如何触发新 blob 创建",
+      "priority": "core",
+      "componentHint": "可交互的 steps 模块"
+    },
+    "secondaryInteractive": {
+      "capability": "compare",
+      "purpose": "对比两个只差一个字符的文件在 Git 中的存储行为",
+      "priority": "secondary",
+      "componentHint": "对比面板显示两个 blob 哈希与大小"
+    }
+  },
+  "s02": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学生跟随 commit → tree → blob 的指针链，理解状态如何被重建",
+      "priority": "core",
+      "componentHint": "交互式树状导航器，点击每个哈希展开其指向的对象"
+    },
+    "secondaryInteractive": {
+      "capability": "rebuild",
+      "purpose": "让学生手动构建一个 tree 对象，给定文件结构和内容，生成正确的哈希链",
+      "priority": "secondary",
+      "componentHint": "拖拽文件到目录结构中，系统实时生成 tree 结构和哈希"
+    }
+  },
+  "s03": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户逐步模拟修改文件内容并观察哈希变化过程",
+      "priority": "core"
+    },
+    "secondaryInteractive": {
+      "capability": "simulate",
+      "purpose": "允许用户输入任意文本，实时计算并显示其 Git blob 哈希",
+      "priority": "secondary"
+    }
+  },
+  "s04": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户逐步模拟 HEAD 和分支指针的移动，观察 commit 归属变化",
+      "priority": "core",
+      "componentHint": "交互式流程图，点击按钮执行 git checkout / commit，实时更新指针状态"
+    },
+    "secondaryInteractive": {
+      "capability": "compare",
+      "purpose": "对比分支删除前后 commit 是否消失，验证‘引用 vs 数据’分离",
+      "priority": "secondary",
+      "componentHint": "提供两个场景：删除分支前/后，查看 git log --all 和 git fsck"
+    }
+  },
+  "s05": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "让用户对比 branch 和 tag 在删除前后对 commit 可达性的影响",
+      "priority": "core",
+      "componentHint": "提供两个场景：删除 branch vs 删除 tag，让用户预测哪些 commit 会消失"
+    },
+    "secondaryInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户模拟 steps 中的每一步，观察 HEAD 和 ref 文件的变化",
+      "priority": "secondary",
+      "componentHint": "交互式 Git 状态模拟器，点击按钮执行 git commit / git tag / git branch -d"
+    }
+  },
+  "s06": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "追踪 reset 操作后指针和 reflog 的变化路径",
+      "priority": "core",
+      "componentHint": "使用交互式 Git 模拟器，点击 reset 按钮后观察指针和 reflog 的实时变化"
+    },
+    "secondaryInteractive": {
+      "capability": "rebuild",
+      "purpose": "根据 reflog 条目重建被 reset 的提交历史",
+      "priority": "secondary",
+      "componentHint": "提供一组 reflog 输出，要求用户选择正确的 SHA 恢复历史"
+    }
+  },
+  "s07": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户逐步模拟 HEAD 从 attached 到 detached 再到 orphan 的状态变化",
+      "priority": "core",
+      "componentHint": "交互式 Git 状态模拟器，显示 HEAD 文件内容、分支文件内容、提交图"
+    },
+    "secondaryInteractive": {
+      "capability": "simulate",
+      "purpose": "让用户在模拟环境中执行 checkout 和 commit，观察 HEAD 和分支的独立变化",
+      "priority": "secondary",
+      "componentHint": "拖拽式提交图，点击 HEAD 可切换指向分支或直接提交"
+    }
+  },
+  "s08": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户逐步观察 checkout 文件时，工作区、暂存区、HEAD 的变化",
+      "priority": "core",
+      "componentHint": "交互式三栏视图：工作区 / 暂存区 / HEAD，随操作动态更新"
+    },
+    "secondaryInteractive": {
+      "capability": "trace",
+      "purpose": "追踪一个文件从对象库到工作区的路径，确认它是否经过暂存区",
+      "priority": "secondary",
+      "componentHint": "点击文件名，高亮其在对象库中的 blob 和路径"
+    }
+  },
+  "s09": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户手动模拟从 HEAD 向上遍历 tree，每一步选择路径分支，观察哪些对象被加载",
+      "priority": "core",
+      "componentHint": "交互式树导航器，点击路径节点展开子 tree"
+    },
+    "secondaryInteractive": {
+      "capability": "trace",
+      "purpose": "让用户输入一个文件路径，系统展示其历史路径在 tree 中的遍历链",
+      "priority": "secondary",
+      "componentHint": "路径追踪器，高亮每一步加载的 tree/blob"
+    }
+  },
+  "s10": {
+    "heroInteractive": {
+      "capability": "step-through",
+      "purpose": "让用户逐步模拟从删除分支到恢复的完整流程，理解每一步的副作用。",
+      "priority": "core",
+      "componentHint": "交互式步骤导航器，支持点击每个 step 查看视觉变化"
+    },
+    "secondaryInteractive": {
+      "capability": "rebuild",
+      "purpose": "让用户根据孤立提交哈希，手动重建分支名称和结构。",
+      "priority": "secondary",
+      "componentHint": "空白分支列表 + 哈希输入框，提交后验证是否成功重建"
+    }
+  },
+  "s11": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学生追踪一个 merge commit 的父提交链，还原两个分支的完整变更历史",
+      "priority": "core",
+      "componentHint": "点击 merge commit，展开父提交，逐层回溯"
+    },
+    "secondaryInteractive": {
+      "capability": "compare",
+      "purpose": "对比 merge commit 与快进合并（fast-forward）的结构差异，理解双父的必要性",
+      "priority": "secondary",
+      "componentHint": "切换 'merge --no-ff' 和 'merge --ff' 模式，观察历史图谱变化"
+    }
+  },
+  "s12": {
+    "heroInteractive": {
+      "capability": "rebuild",
+      "purpose": "让用户尝试在模拟环境中重建一个被删除的 .git 仓库，体验无法恢复历史的挫败感",
+      "priority": "core",
+      "componentHint": "提供一个‘文件夹恢复模拟器’，允许用户点击‘删除 .git’，然后尝试‘git init + add + commit’，系统反馈‘历史无法重建’"
+    },
+    "secondaryInteractive": {
+      "capability": "trace",
+      "purpose": "让用户追踪一个 commit 对象的完整路径（blob → tree → commit → ref），理解为什么没有 .git 就断链",
+      "priority": "secondary",
+      "componentHint": "交互式对象图，点击任意 blob，高亮其所属 tree 和 commit，点击 commit 显示其父提交，但删除 .git 后所有链接变灰"
+    }
+  },
+  "s13": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "追踪一个 commit 如何从被‘删除’到被恢复的完整路径",
+      "priority": "core",
+      "componentHint": "使用 reflog 和 git cat-file 查看对象"
+    },
+    "secondaryInteractive": {
+      "capability": "rebuild",
+      "purpose": "根据 reflog 记录重建一个被 reset 掉的分支",
+      "priority": "secondary",
+      "componentHint": "从 SHA 恢复并创建新分支"
+    }
+  },
+  "s14": {
+    "heroInteractive": {
+      "capability": "rebuild",
+      "purpose": "要求学习者手动重建最近一次提交的对象图，从工作区文件反推 blob、tree、commit",
+      "priority": "core",
+      "componentHint": "提供一个空白的树状结构模板，让学习者拖拽或填写哈希值"
+    },
+    "secondaryInteractive": {
+      "capability": "trace",
+      "purpose": "追踪一个文件从 worktree 到 blob 到 tree 到 commit 的完整路径，验证其哈希一致性",
+      "priority": "secondary",
+      "componentHint": "交互式文件树，点击文件显示其 blob 哈希，点击 tree 显示子项"
+    }
+  }
+}

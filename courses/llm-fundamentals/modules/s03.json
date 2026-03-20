@@ -5,6 +5,7 @@
   "subtitle": "加权聚合的艺术",
   "category": "architecture",
   "focusQuestion": "一个词到底怎么决定“该看谁”？",
+  "misconception": "注意力就是把整句话平均看一遍，或者去固定位置检索信息。",
   "quote": "注意力的本质是 Query 和 Key 的相似度驱动 Value 的加权聚合",
   "keyInsight": "注意力不是把知识“存”在某个词里，而是让当前位置按当前问题重新分配上下文带宽：先匹配谁重要，再按权重聚合谁的内容。",
   "opening": "你以为 “it 指向 cat” 是模型背下了某条语法规则。\n\n更接近真实的说法是：当前位置拿着一个问题，去整句里给别的词打分，然后按分数收集信息。\n\n注意力不是理解之后的解释词，它就是理解发生时的计算机制。",
@@ -174,6 +175,13 @@
       "purpose": "补充对比 / 步骤 / 演示交互",
       "priority": "secondary",
       "componentHint": "QKVStepper"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "rebuild-map",
+      "prompt": "把注意力的一次计算链重建出来：Q、K、V、分数、Softmax、加权聚合各自负责什么？",
+      "answerShape": "不要只背缩写。重点说清：Q 决定“我在找什么”，K 决定“我能不能被你找到”，V 才是最终被带回来的内容。"
     }
   ],
   "bridgeTo": "到这里，token 已经学会彼此通信了。\n\n但“一次注意力”还不等于“一个完整模型”。信息还要经过残差连接、归一化、前馈网络，再一层层堆起来，才会变成真正可扩展的 Transformer。",

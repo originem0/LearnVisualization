@@ -1,9 +1,7 @@
-import type { ProjectInfo } from './types';
-
 /** Site-level branding, used by hub/catalog pages (not course-specific). */
-export const siteProject: ProjectInfo = {
-  title: 'Pero 可视化学习',
-  goal: '把复杂技术拆成可以看、可以玩、可以穿透的交互课程',
-  type: 'hub',
-  startDate: '',
-};
+export const siteProject = {
+  title: 'LearnViz',
+  goal: '输入你想学的主题，获得结构化的学习课程',
+} as const;
+
+export type SiteProject = typeof siteProject;

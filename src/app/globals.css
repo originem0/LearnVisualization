@@ -2,28 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================
+   Design tokens — Light (warm stone palette)
+   ===================================================== */
+
 :root {
-  --color-bg: #ffffff;
+  --color-bg: #fafaf9;
   --color-panel: #ffffff;
-  --color-text: #18181b;
-  --color-muted: #71717a;
-  --color-border: #e4e4e7;
+  --color-text: #1c1917;
+  --color-muted: #78716c;
+  --color-border: #e7e5e4;
+  --color-accent: #2563eb;
+  --color-danger: #dc2626;
+  --color-success: #059669;
+  --color-warn: #d97706;
 }
 
-/* Solarized Dark */
+/* =====================================================
+   Design tokens — Dark (Solarized Dark)
+   ===================================================== */
+
 .dark {
   --color-bg: #002b36;
   --color-panel: #073642;
   --color-text: #eee8d5;
   --color-muted: #93a1a1;
   --color-border: #586e75;
+  --color-accent: #268bd2;
+  --color-danger: #dc322f;
+  --color-success: #2aa198;
+  --color-warn: #b58900;
 }
+
+/* =====================================================
+   Base layer
+   ===================================================== */
 
 @layer base {
   html {
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-family: "Inter", "Noto Sans SC", "Source Han Sans SC", system-ui, -apple-system, sans-serif;
     background-color: var(--color-bg);
     color: var(--color-text);
+    font-size: 1rem;
+    line-height: 1.75;
   }
 
   body {
@@ -33,6 +54,10 @@
   }
 }
 
+/* =====================================================
+   Utility layer
+   ===================================================== */
+
 @layer utilities {
   .timeline-fade {
     opacity: 0;
@@ -40,8 +65,33 @@
   }
 }
 
+/* =====================================================
+   Skip-to-content (a11y)
+   ===================================================== */
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+  padding: 0.5rem 1rem;
+  background: var(--color-accent);
+  color: white;
+  text-decoration: none;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* =====================================================
+   Scrollbar
+   ===================================================== */
+
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -52,18 +102,20 @@
   background: var(--color-border);
   border-radius: 999px;
 }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
 
 /* =====================================================
-   Prose (lightweight) — improve reading experience
+   Prose (lightweight) — reading experience
    ===================================================== */
 
 .prose-custom h2 {
   margin-top: 2.25rem;
   margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
   font-size: 1.15rem;
   font-weight: 700;
-  border-bottom: 1px solid var(--color-border);
+  text-wrap: balance;
 }
 
 .prose-custom h3 {
@@ -71,28 +123,23 @@
   margin-bottom: 0.75rem;
   font-size: 1rem;
   font-weight: 600;
+  text-wrap: balance;
 }
 
 .prose-custom p {
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
-  font-size: 0.92rem;
-  line-height: 1.72;
+  font-size: 1rem;
+  line-height: 1.78;
+  text-wrap: pretty;
 }
 
 .prose-custom blockquote {
   margin: 1.25rem 0;
-  border-left: 4px solid #3b82f6;
-  background: rgba(59, 130, 246, 0.06);
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  color: #1e40af;
-}
-
-.dark .prose-custom blockquote {
-  border-left-color: #268bd2;
-  background: rgba(38, 139, 210, 0.16);
-  color: #93a1a1;
+  border-left: 3px solid var(--color-border);
+  padding: 0.5rem 1rem;
+  color: var(--color-muted);
+  font-style: italic;
 }
 
 .prose-custom pre {
@@ -116,9 +163,9 @@
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   padding: 0.15rem 0.4rem;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 500;
-  color: #be185d;
+  color: #9d174d;
 }
 
 .dark .prose-custom :not(pre) > code {
@@ -142,31 +189,24 @@
 }
 
 .prose-custom ol > li::before {
-  content: counter(step-counter);
+  content: counter(step-counter) ".";
   position: absolute;
   left: 0;
   top: 0;
-  width: 1.6rem;
-  height: 1.6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.5rem;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #ffffff;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 /* =====================================================
-   Entry animation (CSS only)
+   Animations
    ===================================================== */
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -174,6 +214,37 @@
   }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Legacy class — keep for backward compat */
 .fade-in-up {
   animation: fadeInUp 0.6s ease both;
+}
+
+/* Stagger system — apply .stagger-in on a parent */
+.stagger-in > * {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+}
+.stagger-in > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-in > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 400ms; }
+.stagger-in > *:nth-child(7) { animation-delay: 480ms; }
+.stagger-in > *:nth-child(8) { animation-delay: 560ms; }
+.stagger-in > *:nth-child(n+9) { animation-delay: 600ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in > * {
+    opacity: 1;
+    animation: none;
+  }
+  .fade-in-up {
+    animation: none;
+  }
 }

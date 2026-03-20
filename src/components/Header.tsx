@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import ThemeToggle from './ThemeToggle';
-import type { ProjectInfo } from '@/lib/types';
 import type { Locale } from '@/lib/i18n';
 import { getLabels } from '@/lib/labels';
 
 interface HeaderProps {
-  project: ProjectInfo;
+  project: { title: string; goal: string };
   locale: Locale;
   basePath?: string;
 }
@@ -13,10 +12,13 @@ interface HeaderProps {
 export default function Header({ project, locale, basePath = `/${locale}` }: HeaderProps) {
   const labels = getLabels(locale);
   const isCoursePage = basePath !== `/${locale}`;
+  const containerWidth = isCoursePage ? 'max-w-[1440px]' : 'max-w-6xl';
 
   return (
-    <header className="sticky top-0 z-50 h-14 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <>
+      <a href="#main-content" className="skip-link">跳到主内容</a>
+      <header className="sticky top-0 z-50 h-14 border-b border-[color:var(--color-border)] bg-[color:var(--color-bg)]/90 backdrop-blur">
+      <div className={`mx-auto flex h-14 items-center justify-between px-4 ${containerWidth}`}>
         <div className="flex items-center gap-4">
           {isCoursePage && (
             <Link
@@ -47,5 +49,6 @@ export default function Header({ project, locale, basePath = `/${locale}` }: Hea
         </div>
       </div>
     </header>
+    </>
   );
 }

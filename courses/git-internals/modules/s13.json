@@ -1,0 +1,183 @@
+{
+  "id": "s13",
+  "number": 13,
+  "title": "为什么 Git 没有‘撤销’按钮，却比任何系统都更安全？",
+  "subtitle": "安全不是来自防错，而是来自永不删除",
+  "category": "recovery",
+  "moduleKind": "meta-reflection",
+  "primaryCognitiveAction": "reflect",
+  "focusQuestion": "为什么一个‘危险’操作（如 reset --hard）反而让你更安全？",
+  "misconception": "认为 Git 安全是因为有‘回收站’或‘确认弹窗’——就像 Photoshop 的历史记录或 Word 的自动保存，只要没点‘删除’，数据就还在；只要我小心点，就不会丢东西。",
+  "keyInsight": "Git 的安全不是靠阻止你犯错，而是靠让所有错误都变成可追溯的历史记录——对象持久化 + 引用分离 = 永久可追溯",
+  "opening": "你可能以为 Git 的安全来自那些烦人的确认弹窗，或‘你确定要删除吗？’的警告。但真相是：Git 从不问你‘你确定吗？’——它只问‘你到底想做什么？’然后照做。它不阻止你，它只是让你的每一次错误都变成一个可以回头的路标。当你执行 git reset --hard HEAD~3，你以为自己在‘毁灭’提交，实际上你只是移动了一个指针。真正的数据，那些 commit、tree、blob，依然安静地躺在 .git/objects 里，像图书馆里从未被销毁的原始手稿。你不是在删除历史，你只是在重新选择从哪一页开始阅读。",
+  "quote": "Git 不是版本控制系统，它是时间机器。你不是在‘撤销’，你是在‘穿越’。",
+  "concepts": [
+    {
+      "name": "对象持久化",
+      "note": "所有 commit、tree、blob 都以内容寻址方式存储，一旦写入永不修改，仅通过 SHA-1 唯一标识。"
+    },
+    {
+      "name": "引用分离",
+      "note": "分支、标签、HEAD 只是指向 commit 的指针，不包含数据本身。移动指针 ≠ 删除数据。"
+    },
+    {
+      "name": "不可变性",
+      "note": "Git 中的对象一旦创建，内容不可更改。任何‘修改’都是创建新对象，旧对象仍保留。"
+    },
+    {
+      "name": "引用日志（reflog）",
+      "note": "Git 自动记录所有 HEAD 和分支指针的移动历史，即使没有分支指向，也能找回。"
+    },
+    {
+      "name": "垃圾回收（gc）",
+      "note": "只有当对象完全不可达且超过 30 天，才会被清理——这是唯一真正的‘删除’时机。"
+    }
+  ],
+  "logicChain": [
+    "用户执行 git reset --hard HEAD~2，HEAD 指针从 C3 移动到 C1。",
+    "C2 和 C3 的 commit 对象未被删除，仍存在于 .git/objects 中。",
+    "C2 和 C3 的父对象（tree、blob）也未被删除，因为它们仍被其他对象引用或仍在 reflog 中。",
+    "reflog 记录了 HEAD 从 C3 → C2 → C1 的完整移动轨迹。",
+    "即使删除所有分支，git reflog 仍可找到 C2 和 C3 的 SHA。",
+    "通过 git checkout <SHA> 可恢复任意历史状态，重建分支。",
+    "只有当对象超过 30 天且无任何引用（包括 reflog）时，git gc 才可能清理它们。"
+  ],
+  "examples": [
+    "你误删了最后三个 commit，执行了 git reset --hard HEAD~3。第二天发现需要恢复。运行 git reflog，找到被移动前的 commit SHA，执行 git checkout abc123，重建分支。",
+    "你用 git push --force 覆盖了远程分支。团队成员的本地副本仍保留旧 commit。他们可以 git fetch 后，用 reflog 找到旧 HEAD 并重新推送。",
+    "你删除了整个 .git 文件夹，但你记得某个 commit 的 SHA（比如从终端历史中复制的）。你重新初始化仓库，用 git cat-file -p abc123 可以看到该 commit 的内容，甚至重建整个树结构。",
+    "你用 git commit --amend 修改了最近一次提交，以为‘覆盖’了它。实际上，原 commit 仍在 .git/objects 中，直到 reflog 过期。"
+  ],
+  "counterexamples": [
+    "Windows 回收站：删除文件后，文件系统标记空间为‘可用’，数据可能被覆盖。Git 不标记对象为‘可用’，它只增加新对象。",
+    "云文档的‘版本历史’：依赖服务端自动保存，且有数量限制。Git 的历史是本地、无限、内容寻址的，不依赖服务。",
+    "Photoshop 历史记录：仅保留最近 20 步，且依赖内存状态。Git 的历史是磁盘持久化、跨会话、可迁移的。"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为‘删除分支’就等于‘删除数据’",
+      "rootCause": "混淆了引用（指针）与对象（数据）——删除分支只是断开指针，对象仍存在直到 reflog 清理。"
+    },
+    {
+      "point": "在执行 reset --hard 后立即运行 git gc",
+      "rootCause": "误以为‘清理’能加速系统，实则可能永久删除本可恢复的对象。"
+    },
+    {
+      "point": "依赖远程仓库作为‘备份’，本地误操作后等待远程同步",
+      "rootCause": "远程仓库可能已被 force-push 覆盖，本地 reflog 才是真正的安全网。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你以为你在删除，其实你在移动指针"
+    },
+    {
+      "type": "text",
+      "content": "让我们模拟一个场景：你有三个提交：C1 → C2 → C3。HEAD 指向 C3，main 分支也指向 C3。现在你执行 git reset --hard HEAD~2。"
+    },
+    {
+      "type": "steps",
+      "content": "每一步只改变一个变量，观察对象是否消失。",
+      "label": "reset --hard 的每一步：指针移动，对象不动",
+      "steps": [
+        {
+          "title": "初始状态",
+          "description": "HEAD 和 main 都指向 C3。C1、C2、C3 都存在于 .git/objects 中。",
+          "visual": "main: C3 ← HEAD\nC3 (commit) → tree3 → blob3 (文件A)\nC2 (commit) → tree2 → blob2 (文件B)\nC1 (commit) → tree1 → blob1 (文件C)",
+          "highlight": "C3, main, HEAD"
+        },
+        {
+          "title": "执行 git reset --hard HEAD~2",
+          "description": "HEAD 和 main 指针被移动到 C2。C3 未被删除，仅失去引用。",
+          "visual": "main: C2 ← HEAD\nC3 (commit) → tree3 → blob3 (文件A)\nC2 (commit) → tree2 → blob2 (文件B)\nC1 (commit) → tree1 → blob1 (文件C)",
+          "highlight": "main, HEAD (现在指向 C2)"
+        },
+        {
+          "title": "查看 reflog",
+          "description": "Git 自动记录了 HEAD 的移动：从 C3 → C2。",
+          "visual": "reflog:\nC3@{0}: reset: moving to HEAD~2\nC3@{1}: commit: Add feature C\nC2@{2}: commit: Add feature B",
+          "highlight": "C3@{0}"
+        },
+        {
+          "title": "删除 main 分支",
+          "description": "即使删除 main，C3 依然存在，因为 reflog 仍指向它。",
+          "visual": "main: [deleted]\nHEAD: C2\nC3 (commit) → tree3 → blob3 (文件A) ← reflog still has C3@{0}",
+          "highlight": "C3 (still in reflog)"
+        },
+        {
+          "title": "恢复 C3",
+          "description": "用 reflog 中的 SHA 恢复分支：git checkout C3，再 git branch -f main HEAD。",
+          "visual": "main: C3 ← HEAD\nC3 (commit) → tree3 → blob3 (文件A)\nC2 (commit) → tree2 → blob2 (文件B)\nC1 (commit) → tree1 → blob1 (文件C)",
+          "highlight": "main, HEAD (回到 C3)"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "Git 不是‘防你犯错’，它是‘让你犯错后还能找到回来的路’。"
+    },
+    {
+      "type": "comparison",
+      "content": "传统编辑器：你修改文件 → 旧版本被覆盖 → 无法恢复。Git：你修改文件 → 创建新对象 → 旧对象保留 → 永远可回溯。",
+      "label": "Git vs 传统编辑器"
+    },
+    {
+      "type": "text",
+      "content": "这就是为什么 Git 的‘危险’操作反而最安全：它不依赖你的谨慎，它依赖物理世界的不可变性——一旦写入，永不消失。"
+    },
+    {
+      "type": "heading",
+      "content": "真正的危险：不是 reset，是 gc"
+    },
+    {
+      "type": "text",
+      "content": "唯一可能让你永久丢失数据的操作，是 git gc —— 但即使它，也默认等待 30 天，给你足够时间发现错误。"
+    },
+    {
+      "type": "diagram",
+      "content": "C1 ← C2 ← C3 (HEAD/main)\n  ↓     ↓     ↓\ntree1 tree2 tree3\n  ↓     ↓     ↓\nblob1 blob2 blob3\n\nreflog: C3@{0}, C2@{1}, C1@{2}\n\n删除 main → C3 仍存在\n执行 gc → 30天后才可能清理 C3",
+      "label": "对象图：指针与数据分离"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s13-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "追踪一个 commit 如何从被‘删除’到被恢复的完整路径",
+      "priority": "core",
+      "componentHint": "使用 reflog 和 git cat-file 查看对象"
+    },
+    {
+      "capability": "rebuild",
+      "purpose": "根据 reflog 记录重建一个被 reset 掉的分支",
+      "priority": "secondary",
+      "componentHint": "从 SHA 恢复并创建新分支"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "你执行了 git reset --hard HEAD~1，然后立即运行 git log --oneline。你看到的最新 commit 是哪个？你还能用什么命令找回被移动掉的 commit？",
+      "answerShape": "最新 commit 是 HEAD~1；可用 git reflog 找到原 commit 的 SHA，再用 git checkout <SHA> 恢复。"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "请画出以下状态的对象图：你有三个 commit A→B→C，HEAD 和 main 指向 C。你执行 git reset --hard B，然后删除 main 分支。标注哪些对象仍存在，哪些指针还在。",
+      "answerShape": "A 和 B 仍被引用；C 仅存在于 reflog 中；main 已删除；HEAD 指向 B。"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比：1）删除文件后用系统回收站恢复；2）Git reset --hard 后用 reflog 恢复。哪个更可靠？为什么？",
+      "answerShape": "Git 更可靠，因为系统回收站可能被清空或覆盖，而 Git 对象是内容寻址、持久化存储，除非 gc 清理，否则永不丢失。"
+    }
+  ],
+  "bridgeTo": "你刚用 reflog 找回了被 reset 的 commit。但如果你根本不知道那个 commit 的 SHA 呢？现在，你能画出你最后一次 commit 的对象图吗？",
+  "nextModuleId": "s14"
+}

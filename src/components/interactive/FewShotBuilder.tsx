@@ -2,125 +2,123 @@
 
 import { useState } from 'react';
 
-/* ── Data ── */
-
 interface ShotExample {
   input: string;
-  label: string;
-  sentiment: '正面' | '负面';
+  label: '正面' | '负面' | '混合';
+  teachingPoint: string;
+}
+
+interface StageReading {
+  learned: string[];
+  missing: string[];
+  interpretation: string;
+  nextShift: string;
 }
 
 const EXAMPLE_POOL: ShotExample[] = [
-  { input: '这个产品质量很好，推荐！', label: '正面', sentiment: '正面' },
-  { input: '发货太慢了，等了两周',     label: '负面', sentiment: '负面' },
-  { input: '性价比不错，值得购买',     label: '正面', sentiment: '正面' },
-  { input: '包装破损，客服态度差',     label: '负面', sentiment: '负面' },
+  { input: '这个产品质量很好，推荐！', label: '正面', teachingPoint: '先给模型一个明确的正面锚点。' },
+  { input: '发货太慢了，等了两周', label: '负面', teachingPoint: '再补一个负面对照，标签边界第一次成形。' },
+  { input: '屏幕很清晰，但续航一般', label: '混合', teachingPoint: '最后补上转折句，让模型看见“正负并存”这种边界情况。' },
 ];
 
 const TEST_INPUT = '手感不错但电池不耐用';
 
-/** Accuracy by shot count: 0-shot=55%, 1-shot=72%, 2-shot=83%, 3-shot=89% */
-const ACCURACY: Record<number, number> = { 0: 55, 1: 72, 2: 83, 3: 89 };
-/** "Understanding" meter — 0-shot=20, 1-shot=50, 2-shot=75, 3-shot=92 */
-const UNDERSTANDING: Record<number, number> = { 0: 20, 1: 50, 2: 75, 3: 92 };
-
-const PREDICTIONS: Record<number, string> = {
-  0: '正面（模型倾向正面偏置，忽略"但电池不耐用"）',
-  1: '正面（识别到情感词，但对混合情感判断不稳定）',
-  2: '偏正面，但犹豫（开始注意到转折结构）',
-  3: '混合情感：正面(手感) + 负面(电池)（准确识别两种情感）',
+const STAGE_READINGS: Record<number, StageReading> = {
+  0: {
+    learned: ['模型只能依赖预训练时见过的大量通用情感模式。'],
+    missing: ['它没被明确教过这次任务的标签集合。', '它也没看到“转折句可能是混合情感”这种判断边界。'],
+    interpretation: '最可能先抓住“不错”这样的显眼正面词，再把后半句当成次要噪声。',
+    nextShift: '只要补进第一个示例，模型就会先知道这次任务到底要输出什么标签格式。',
+  },
+  1: {
+    learned: ['模型第一次看到了“输入句子 → 标签”的任务接口。', '它知道输出应该是一个明确类别，而不是自由评论。'],
+    missing: ['只看过正面例子，负面边界仍然模糊。', '对“但”这种转折结构还没有训练样例。'],
+    interpretation: '它会更愿意给出“正面”这个标签，因为目前示例只告诉它什么叫正面。',
+    nextShift: '再加一个负面对照后，模型会更像在做分类，而不是被单一示例牵着走。',
+  },
+  2: {
+    learned: ['模型已经见过正面和负面两端，知道这是一个带对照的分类任务。', '它开始理解哪些词会把句子推向负面。'],
+    missing: ['它还没见过“正负同时出现”时该怎样输出。'],
+    interpretation: '它大概率会注意到“电池不耐用”是强负面信号，但仍可能被迫二选一。',
+    nextShift: '第三个混合示例最值钱，因为它不是再加数据量，而是在补任务边界。',
+  },
+  3: {
+    learned: ['模型已经看到正面、负面、混合三种决策边界。', '它被明确教会了转折句不一定只能压成单标签。'],
+    missing: ['它仍然没有更新权重，所以泛化能力依旧取决于示例是否贴近真实场景。'],
+    interpretation: '这时它更可能把句子拆成“手感不错”和“电池不耐用”两部分，再判断为混合情感。',
+    nextShift: '下一步不是无脑继续加例子，而是挑新的边界 case，比如讽刺、双重否定、隐含评价。',
+  },
 };
-
-/* ── Component ── */
 
 export default function FewShotBuilder() {
   const [shotCount, setShotCount] = useState(0);
 
   const activeExamples = EXAMPLE_POOL.slice(0, shotCount);
-  const accuracy = ACCURACY[shotCount] ?? 55;
-  const understanding = UNDERSTANDING[shotCount] ?? 20;
-  const prediction = PREDICTIONS[shotCount] ?? PREDICTIONS[0];
-
-  // Build the assembled prompt text
-  const buildPrompt = (): string => {
-    const lines: string[] = [];
-    lines.push('请对以下评论进行情感分类（正面/负面/混合）。');
-
-    if (activeExamples.length > 0) {
-      lines.push('');
-      lines.push('示例：');
-      activeExamples.forEach((ex, i) => {
-        lines.push(`${i + 1}. "${ex.input}" → ${ex.label}`);
-      });
-    }
-
-    lines.push('');
-    lines.push(`评论："${TEST_INPUT}"`);
-    lines.push('分类：');
-    return lines.join('\n');
-  };
+  const reading = STAGE_READINGS[shotCount];
 
   return (
-    <div className="my-10 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] overflow-hidden">
-      {/* Header */}
+    <div className="my-8 overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)]">
       <div className="border-b border-[color:var(--color-border)] px-5 py-4">
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500 text-xs font-bold text-white">F</span>
           <h3 className="text-sm font-semibold text-[color:var(--color-text)]">Few-shot 构建器</h3>
           <span className="text-xs text-[color:var(--color-muted)]">Few-shot Builder</span>
         </div>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--color-muted)]">
+          Few-shot 真正在做的事，不是把模型“喂得更饱”，而是把这次任务的决策边界直接摆在上下文里。
+        </p>
       </div>
 
-      {/* Shot count selector */}
       <div className="border-b border-[color:var(--color-border)] px-5 py-3">
-        <div className="text-xs font-medium text-[color:var(--color-muted)] mb-2">选择示例数量</div>
+        <div className="mb-2 text-xs font-medium text-[color:var(--color-muted)]">选择示例数量</div>
         <div className="flex gap-2">
-          {[0, 1, 2, 3].map(n => (
+          {[0, 1, 2, 3].map((count) => (
             <button
-              key={n}
+              key={count}
               type="button"
-              onClick={() => setShotCount(n)}
+              onClick={() => setShotCount(count)}
               className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-                shotCount === n
+                shotCount === count
                   ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-300'
                   : 'border-[color:var(--color-border)] text-[color:var(--color-muted)] hover:border-amber-300 dark:hover:border-amber-500/40'
               }`}
             >
-              {n}-shot
+              {count}-shot
             </button>
           ))}
         </div>
       </div>
 
-      {/* Examples list */}
       <div className="border-b border-[color:var(--color-border)] px-5 py-4">
-        <div className="text-xs font-medium text-[color:var(--color-muted)] mb-2">
-          示例池 — 已选中 <span className="font-bold text-amber-600 dark:text-amber-400">{shotCount}</span> 个
+        <div className="mb-2 text-xs font-medium text-[color:var(--color-muted)]">
+          示例池，已启用 <span className="font-semibold text-amber-600 dark:text-amber-400">{shotCount}</span> 个
         </div>
         <div className="space-y-2">
-          {EXAMPLE_POOL.map((ex, i) => {
-            const isActive = i < shotCount;
+          {EXAMPLE_POOL.map((example, index) => {
+            const isActive = index < shotCount;
+
             return (
               <button
-                key={i}
+                key={`${example.input}-${index}`}
                 type="button"
-                onClick={() => setShotCount(i < shotCount ? i : i + 1)}
-                className={`w-full text-left rounded-lg border px-3 py-2 text-xs transition ${
+                onClick={() => setShotCount(index < shotCount ? index : index + 1)}
+                className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                   isActive
                     ? 'border-amber-400 bg-amber-50/80 dark:border-amber-500/40 dark:bg-amber-500/10'
-                    : 'border-[color:var(--color-border)] opacity-50 hover:opacity-75'
+                    : 'border-[color:var(--color-border)] opacity-55 hover:opacity-80'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`text-[color:var(--color-text)] ${isActive ? '' : 'line-through'}`}>
-                    &ldquo;{ex.input}&rdquo;
-                  </span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                    ex.sentiment === '正面'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                      : 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300'
-                  }`}>
-                    {isActive ? `→ ${ex.label}` : ex.label}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className={`text-sm leading-6 text-[color:var(--color-text)] ${isActive ? '' : 'line-through'}`}>
+                      “{example.input}”
+                    </div>
+                    {isActive ? (
+                      <div className="mt-1 text-xs leading-5 text-[color:var(--color-muted)]">{example.teachingPoint}</div>
+                    ) : null}
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${labelTone(example.label)}`}>
+                    {example.label}
                   </span>
                 </div>
               </button>
@@ -129,88 +127,100 @@ export default function FewShotBuilder() {
         </div>
       </div>
 
-      {/* Two-column: prompt + metrics */}
-      <div className="flex flex-col lg:flex-row">
-
-        {/* Assembled prompt */}
-        <div className="flex-1 border-b border-[color:var(--color-border)] lg:border-b-0 lg:border-r px-5 py-4">
-          <div className="text-xs font-medium text-[color:var(--color-muted)] mb-2">实际发送的 Prompt</div>
-          <div className="rounded-lg border border-[color:var(--color-border)] bg-zinc-50 dark:bg-zinc-800/50 p-3 text-xs font-mono text-[color:var(--color-text)] whitespace-pre-wrap leading-relaxed min-h-[140px]">
-            {buildPrompt()}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="border-b border-[color:var(--color-border)] lg:border-b-0 lg:border-r px-5 py-4">
+          <div className="mb-2 text-xs font-medium text-[color:var(--color-muted)]">实际发送的 Prompt</div>
+          <div className="min-h-[160px] whitespace-pre-wrap rounded-2xl border border-[color:var(--color-border)] bg-zinc-50 p-4 font-mono text-xs leading-relaxed text-[color:var(--color-text)] dark:bg-zinc-800/50">
+            {buildPrompt(activeExamples)}
           </div>
         </div>
 
-        {/* Metrics panel */}
-        <div className="w-full lg:w-64 shrink-0 px-5 py-4">
-          <div className="text-xs font-medium text-[color:var(--color-muted)] mb-3">模型表现</div>
-
-          {/* Understanding meter */}
-          <div className="mb-4">
-            <div className="flex items-baseline justify-between mb-1">
-              <span className="text-xs text-[color:var(--color-text)]">模型理解度</span>
-              <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{understanding}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-amber-500 transition-all duration-500"
-                style={{ width: `${understanding}%` }}
-              />
-            </div>
+        <aside className="px-5 py-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
+            这组示例在教什么
           </div>
+          <ul className="mt-3 space-y-2">
+            {reading.learned.map((item) => (
+              <li
+                key={item}
+                className="rounded-xl border border-[color:var(--color-border)] bg-zinc-50/70 px-3 py-2 text-xs leading-5 text-[color:var(--color-text)] dark:bg-[#0b3a45]/35"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
 
-          {/* Accuracy */}
-          <div className="mb-4">
-            <div className="flex items-baseline justify-between mb-1">
-              <span className="text-xs text-[color:var(--color-text)]">模拟准确率</span>
-              <span className={`text-sm font-bold ${
-                accuracy >= 85 ? 'text-emerald-600 dark:text-emerald-400'
-                  : accuracy >= 70 ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-red-500 dark:text-red-400'
-              }`}>
-                {accuracy}%
+          <div className="mt-4 text-xs font-semibold text-[color:var(--color-text)]">它还没教会什么</div>
+          <ul className="mt-2 space-y-2">
+            {reading.missing.map((item) => (
+              <li
+                key={item}
+                className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] px-3 py-2 text-xs leading-5 text-[color:var(--color-muted)]"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 dark:border-amber-500/25 dark:bg-amber-500/8">
+            <div className="text-xs font-semibold text-amber-700 dark:text-amber-300">测试句会怎么被读</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                手感不错
+              </span>
+              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-[color:var(--color-muted)] dark:bg-zinc-700">
+                但
+              </span>
+              <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs text-red-700 dark:bg-red-500/15 dark:text-red-300">
+                电池不耐用
               </span>
             </div>
-            <div className="h-2 rounded-full bg-zinc-200 dark:bg-zinc-700 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  accuracy >= 85 ? 'bg-emerald-500'
-                    : accuracy >= 70 ? 'bg-amber-500'
-                      : 'bg-red-400'
-                }`}
-                style={{ width: `${accuracy}%` }}
-              />
-            </div>
+            <p className="mt-3 text-sm leading-6 text-[color:var(--color-text)]">{reading.interpretation}</p>
+            <p className="mt-2 text-xs leading-5 text-[color:var(--color-muted)]">{reading.nextShift}</p>
           </div>
-
-          {/* Test prediction */}
-          <div className="border-t border-[color:var(--color-border)] pt-3">
-            <div className="text-xs text-[color:var(--color-muted)] mb-1">
-              测试输入：&ldquo;{TEST_INPUT}&rdquo;
-            </div>
-            <div className="text-xs font-medium text-[color:var(--color-text)] leading-relaxed">
-              预测：{prediction}
-            </div>
-          </div>
-        </div>
+        </aside>
       </div>
 
-      {/* Explanation */}
       <div className="border-t border-[color:var(--color-border)] px-5 py-4">
-        <div className="text-xs text-[color:var(--color-text)] leading-relaxed">
+        <div className="text-xs leading-relaxed text-[color:var(--color-text)]">
           <span className="font-semibold">原理：</span>
-          Few-shot prompting 通过在输入中提供标注好的示例，利用模型的 in-context learning 能力来"教"它完成任务。
-          模型不会更新参数——它只是从示例中推断出输入→输出的映射模式。
-          示例越多、越多样，模型越能准确捕捉任务意图。但并非无限加好——通常 3-5 个精选示例就能达到接近微调的效果。
+          Few-shot 不是更新模型参数，而是在当前上下文里临时展示“这个任务的输入输出映射长什么样”。真正稀缺的不是示例数量，而是示例是否刚好覆盖了任务边界。
         </div>
       </div>
 
-      {/* Insight */}
-      <div className="border-t border-[color:var(--color-border)] px-5 py-3 bg-amber-50/50 dark:bg-amber-500/5">
+      <div className="border-t border-[color:var(--color-border)] bg-amber-50/50 px-5 py-3 dark:bg-amber-500/5">
         <p className="text-xs text-amber-700 dark:text-amber-300">
           <span className="font-semibold">试试看：</span>
-          从 0-shot 开始逐步添加示例。注意 1→2 shot 时准确率跳跃最大——第二个示例让模型理解了"正面 vs 负面"的对比模式。3-shot 时模型开始能处理混合情感这种边界情况。
+          注意 2-shot 到 3-shot 的变化。真正值钱的不是又加了一条数据，而是第一次把“混合情感”这种边界 case 明确示范给模型看。
         </p>
       </div>
     </div>
   );
+}
+
+function buildPrompt(activeExamples: ShotExample[]) {
+  const lines: string[] = ['请对以下评论进行情感分类（正面/负面/混合）。'];
+
+  if (activeExamples.length > 0) {
+    lines.push('');
+    lines.push('示例：');
+    activeExamples.forEach((example, index) => {
+      lines.push(`${index + 1}. "${example.input}" → ${example.label}`);
+    });
+  }
+
+  lines.push('');
+  lines.push(`评论："${TEST_INPUT}"`);
+  lines.push('分类：');
+  return lines.join('\n');
+}
+
+function labelTone(label: ShotExample['label']) {
+  if (label === '正面') {
+    return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
+  }
+  if (label === '负面') {
+    return 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300';
+  }
+  return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300';
 }

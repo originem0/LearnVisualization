@@ -1,0 +1,474 @@
+from __future__ import annotations
+
+import json
+import queue
+import shutil
+import threading
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+try:
+    from .common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
+    from .job_store import JobStore
+    from .prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts
+    from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError
+    from .quality import (
+        build_concept_map,
+        build_interaction_registry,
+        normalize_module_payload,
+        normalize_plan_payload,
+        run_quality_checks,
+    )
+    from .workflow import planning_seed_for_topic
+except ImportError:
+    from common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
+    from job_store import JobStore
+    from prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts
+    from provider import OpenAICompatibleClient, ProviderConfig, ProviderError
+    from quality import (
+        build_concept_map,
+        build_interaction_registry,
+        normalize_module_payload,
+        normalize_plan_payload,
+        run_quality_checks,
+    )
+    from workflow import planning_seed_for_topic
+
+
+class CourseGenerationPipeline:
+    def __init__(
+        self,
+        *,
+        provider_config: ProviderConfig,
+        jobs_root: Path,
+        generated_root: Path,
+        repo_root: Path,
+        client: OpenAICompatibleClient | None = None,
+    ) -> None:
+        self.provider_config = provider_config
+        self.client = client or OpenAICompatibleClient(provider_config)
+        self.store = JobStore(jobs_root)
+        self.generated_root = ensure_dir(generated_root)
+        self.repo_root = repo_root
+        self._queue: queue.Queue[str] = queue.Queue()
+        self._worker_started = False
+        self._worker_lock = threading.Lock()
+
+    def _ensure_worker(self) -> None:
+        """Start the single background worker thread if not already running."""
+        with self._worker_lock:
+            if self._worker_started:
+                return
+            self._worker_started = True
+            t = threading.Thread(target=self._worker_loop, daemon=True, name="course-job-worker")
+            t.start()
+
+    def _worker_loop(self) -> None:
+        """Sequentially process queued jobs."""
+        while True:
+            job_id = self._queue.get()
+            try:
+                self.run_job(job_id)
+            except Exception:
+                pass  # run_job already marks the job as failed
+            finally:
+                self._queue.task_done()
+
+    def enqueue_pending_jobs(self) -> None:
+        """Re-enqueue any jobs left in queued status (e.g. after restart)."""
+        jobs = self.store.list_jobs()
+        queued = [j for j in jobs if j.get("status") == "queued"]
+        queued.sort(key=lambda j: j.get("createdAt", ""))
+        for j in queued:
+            self._queue.put(j["id"])
+        if queued:
+            self._ensure_worker()
+
+    def create_job(self, request_payload: dict[str, Any], *, run_async: bool = True) -> dict[str, Any]:
+        if not request_payload.get("topic"):
+            raise ValueError("topic is required")
+
+        request_payload = {
+            **request_payload,
+            "output_slug": request_payload.get("output_slug") or slugify(request_payload["topic"]),
+            "overwrite": bool(request_payload.get("overwrite", False)),
+        }
+        job = self.store.create_job(
+            request_payload,
+            provider=self.provider_config.masked,
+            prompt_version=PROMPT_VERSION,
+        )
+        if run_async:
+            self._queue.put(job["id"])
+            self._ensure_worker()
+        return self.store.load_job(job["id"])
+
+    def run_job(self, job_id: str) -> dict[str, Any]:
+        job = self.store.load_job(job_id)
+        request_payload = job["request"]
+
+        # Determine which stages to skip (already succeeded from prior run)
+        stage_status = {s["name"]: s["status"] for s in job["stages"]}
+
+        try:
+            # --- PLAN ---
+            if stage_status.get("plan") == "succeeded" and job["artifacts"].get("plan"):
+                plan_artifact = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
+            else:
+                self.store.mark_stage_running(job_id, "plan")
+                plan_artifact = self._run_plan(job_id, request_payload)
+                plan_path = self.store.store_stage_artifact(job_id, "plan", plan_artifact)
+                self.store.mark_stage_success(
+                    job_id,
+                    "plan",
+                    artifact_path=plan_path,
+                    summary={"moduleCount": len(plan_artifact["moduleOutlines"]), "categoryCount": len(plan_artifact["categories"])},
+                )
+
+            # --- COMPOSE (with per-module checkpointing) ---
+            if stage_status.get("compose") == "succeeded" and job["artifacts"].get("compose"):
+                composed_artifact = json.loads(Path(job["artifacts"]["compose"]).read_text("utf-8"))
+            else:
+                self.store.mark_stage_running(job_id, "compose")
+                composed_artifact = self._run_compose(job_id, request_payload, plan_artifact)
+                compose_path = self.store.store_stage_artifact(job_id, "compose", composed_artifact)
+                self.store.mark_stage_success(
+                    job_id,
+                    "compose",
+                    artifact_path=compose_path,
+                    summary={"moduleCount": len(composed_artifact["modules"]), "outputSlug": composed_artifact["course"]["slug"]},
+                )
+
+            # --- VALIDATE ---
+            self.store.mark_stage_running(job_id, "validate")
+            validation_artifact = self._run_validate(job_id, composed_artifact)
+            validate_path = self.store.store_stage_artifact(job_id, "validate", validation_artifact)
+            self.store.mark_stage_success(
+                job_id,
+                "validate",
+                artifact_path=validate_path,
+                summary={
+                    "engineOk": validation_artifact["engineValidation"]["ok"],
+                    "qualityIssueCount": len(validation_artifact["qualityIssues"]),
+                    "blockingIssueCount": len(validation_artifact["blockingIssues"]),
+                    "qualityIssues": [
+                        {"severity": i["severity"], "code": i.get("code"), "moduleId": i.get("moduleId"), "message": i["message"]}
+                        for i in validation_artifact["qualityIssues"]
+                    ],
+                },
+            )
+            if validation_artifact["blockingIssues"]:
+                messages = [item["message"] for item in validation_artifact["blockingIssues"]]
+                raise ValueError(f"validation blocked export: {messages}")
+
+            # --- EXPORT ---
+            self.store.mark_stage_running(job_id, "export")
+            export_artifact = self._run_export(job_id, request_payload, composed_artifact, validation_artifact)
+            export_path = self.store.store_stage_artifact(job_id, "export", export_artifact)
+            self.store.mark_stage_success(
+                job_id,
+                "export",
+                artifact_path=export_path,
+                summary=export_artifact,
+            )
+            self.store.mark_waiting_review(
+                job_id,
+                output_dir=Path(export_artifact["outputDir"]),
+                summary={
+                    "outputSlug": export_artifact["outputSlug"],
+                    "moduleCount": export_artifact["moduleCount"],
+                    "readyForPromote": False,
+                    "reviewStatus": "pending",
+                },
+            )
+            return self.store.load_job(job_id)
+        except Exception as exc:
+            current_job = self.store.load_job(job_id)
+            stage = current_job.get("currentStage") or "plan"
+            self.store.mark_stage_failed(job_id, stage, str(exc))
+            return self.store.load_job(job_id)
+
+    def get_job(self, job_id: str) -> dict[str, Any]:
+        return self.store.load_job(job_id)
+
+    def get_artifacts(self, job_id: str) -> dict[str, str]:
+        return self.store.artifact_index(job_id)
+
+    def retry_job(self, job_id: str, *, stage: str | None = None) -> dict[str, Any]:
+        job = self.store.prepare_retry(job_id, stage)
+        self._queue.put(job_id)
+        self._ensure_worker()
+        return job
+
+    def review_job(
+        self,
+        job_id: str,
+        *,
+        approved: bool,
+        reviewed_by: str | None,
+        notes: str | None,
+    ) -> dict[str, Any]:
+        job = self.store.load_job(job_id)
+        output_dir = Path((job.get("artifacts") or {}).get("output") or "")
+        if not output_dir:
+            raise ValueError("job has no exported output to review")
+        approval_path = output_dir / "review" / "approval.json"
+        approval_payload = {
+            "approved": approved,
+            "reviewedBy": reviewed_by or "",
+            "reviewedAt": now_iso() if approved else "",
+            "notes": notes or "",
+        }
+        write_json_atomic(approval_path, approval_payload)
+        updated_job = self.store.update_review(job_id, approved=approved, reviewed_by=reviewed_by, notes=notes)
+        if approved:
+            self.store.mark_completed(job_id)
+            updated_job = self.store.load_job(job_id)
+        return updated_job
+
+    def _run_plan(self, job_id: str, request_payload: dict[str, Any]) -> dict[str, Any]:
+        seed = planning_seed_for_topic(request_payload["topic"])
+        system_prompt, user_prompt = build_plan_prompts(request_payload, seed)
+        response = self.client.generate_json(
+            schema_name="course_plan",
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+        )
+        self.store.write_log(
+            job_id,
+            "plan",
+            json.dumps(
+                {
+                    "systemPrompt": system_prompt,
+                    "userPrompt": user_prompt,
+                    "response": response["content"],
+                    "usage": response["usage"],
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+        return normalize_plan_payload(
+            response["content"],
+            topic=request_payload["topic"],
+            slug=request_payload["output_slug"],
+        )
+
+    def _run_compose(
+        self,
+        job_id: str,
+        request_payload: dict[str, Any],
+        plan_artifact: dict[str, Any],
+    ) -> dict[str, Any]:
+        modules: list[dict[str, Any]] = []
+        concept_maps: dict[str, Any] = {}
+        interaction_registry: dict[str, Any] = {}
+        compose_logs: list[dict[str, Any]] = []
+        outlines = plan_artifact["moduleOutlines"]
+
+        # Load checkpoint if previous compose attempt partially completed
+        checkpoint_path = self.store.job_dir(job_id) / "stages" / "compose_checkpoint.json"
+        if checkpoint_path.exists():
+            try:
+                from .common import read_json
+            except ImportError:
+                from common import read_json
+            checkpoint = read_json(checkpoint_path)
+            modules = checkpoint.get("modules", [])
+            concept_maps = checkpoint.get("concept_maps", {})
+            interaction_registry = checkpoint.get("interaction_registry", {})
+            compose_logs = checkpoint.get("compose_logs", [])
+
+        completed_ids = {m["id"] for m in modules}
+        module_retries = int(self.client.config.max_retries) + 1
+
+        for index, outline in enumerate(outlines, start=1):
+            if outline["id"] in completed_ids:
+                continue  # skip already-completed modules from checkpoint
+
+            next_module_id = outlines[index]["id"] if index < len(outlines) else None
+            system_prompt, user_prompt = build_module_prompts(
+                request_payload=request_payload,
+                course_plan=plan_artifact,
+                module_outline=outline,
+                module_index=index,
+                module_count=len(outlines),
+            )
+
+            # Per-module retry loop
+            last_error: Exception | None = None
+            for attempt in range(module_retries):
+                try:
+                    response = self.client.generate_json(
+                        schema_name=f"{outline['id']}_module",
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                    )
+                    module = normalize_module_payload(
+                        response["content"],
+                        module_outline=outline,
+                        next_module_id=next_module_id,
+                    )
+                    modules.append(module)
+                    concept_maps[module["id"]] = build_concept_map(module)
+                    interaction_registry[module["id"]] = build_interaction_registry(module)
+                    compose_logs.append(
+                        {
+                            "moduleId": module["id"],
+                            "systemPrompt": system_prompt,
+                            "userPrompt": user_prompt,
+                            "response": response["content"],
+                            "usage": response["usage"],
+                            "attempt": attempt + 1,
+                        }
+                    )
+                    last_error = None
+                    break  # success, move to next module
+                except Exception as exc:
+                    last_error = exc
+                    import time
+                    time.sleep(1.0 * (2 ** attempt))  # backoff between module retries
+
+            # Save checkpoint after each module (success or final failure)
+            try:
+                from .common import write_json_atomic
+            except ImportError:
+                from common import write_json_atomic
+            write_json_atomic(checkpoint_path, {
+                "modules": modules,
+                "concept_maps": concept_maps,
+                "interaction_registry": interaction_registry,
+                "compose_logs": compose_logs,
+            })
+
+            # Update compose stage summary so polling clients can see progress
+            job = self.store.load_job(job_id)
+            compose_stage = next(s for s in job["stages"] if s["name"] == "compose")
+            compose_stage["summary"] = {
+                "modulesCompleted": len(modules),
+                "modulesTotal": len(outlines),
+                "currentModule": outlines[index]["title"] if index < len(outlines) else None,
+            }
+            self.store.write_job(job)
+
+            if last_error is not None:
+                raise last_error  # propagate after checkpoint saved
+
+        self.store.write_log(job_id, "compose", json.dumps(compose_logs, ensure_ascii=False, indent=2))
+        course = self._build_course_record(plan_artifact, modules)
+        return {
+            "course": course,
+            "modules": modules,
+            "concept_maps": concept_maps,
+            "interaction_registry": interaction_registry,
+            "review_approval": {
+                "approved": False,
+                "reviewedBy": "",
+                "reviewedAt": "",
+                "notes": "Generated by course pipeline. Human review approval is required before promote.",
+            },
+        }
+
+    def _run_validate(self, job_id: str, composed_artifact: dict[str, Any]) -> dict[str, Any]:
+        staging_dir = self.store.job_dir(job_id) / "staging" / composed_artifact["course"]["slug"]
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        self._write_course_package(staging_dir, composed_artifact)
+
+        engine_validation = validate_package_dir(staging_dir, repo_root=self.repo_root)
+        quality_issues = run_quality_checks(composed_artifact)
+        blocking_issues = [issue for issue in quality_issues if issue["severity"] == "error"]
+
+        if not engine_validation.get("ok"):
+            blocking_issues.extend(
+                {
+                    "severity": "error",
+                    "category": issue.get("category"),
+                    "moduleId": issue.get("moduleId"),
+                    "code": "engine-validation",
+                    "message": issue.get("message"),
+                    "suggestedFix": "Fix the generated package before export.",
+                }
+                for issue in engine_validation.get("errors", [])
+            )
+
+        report = {
+            "ok": engine_validation.get("ok") and not blocking_issues,
+            "engineValidation": engine_validation,
+            "qualityIssues": quality_issues,
+            "blockingIssues": blocking_issues,
+            "stagingDir": str(staging_dir),
+        }
+        self.store.write_log(job_id, "validate", json.dumps(report, ensure_ascii=False, indent=2))
+        return report
+
+    def _run_export(
+        self,
+        job_id: str,
+        request_payload: dict[str, Any],
+        composed_artifact: dict[str, Any],
+        validation_artifact: dict[str, Any],
+    ) -> dict[str, Any]:
+        if validation_artifact["blockingIssues"]:
+            messages = [item["message"] for item in validation_artifact["blockingIssues"]]
+            raise ValueError(f"validation blocked export: {messages}")
+
+        output_dir = self.generated_root / request_payload["output_slug"]
+        if output_dir.exists():
+            if not request_payload.get("overwrite"):
+                raise ValueError(f"output already exists: {output_dir}")
+            shutil.rmtree(output_dir)
+
+        self._write_course_package(output_dir, composed_artifact)
+        post_export_validation = validate_package_dir(output_dir, repo_root=self.repo_root)
+        if not post_export_validation.get("ok"):
+            raise ValueError(f"post-export validation failed: {issue_messages(post_export_validation)}")
+
+        export_artifact = {
+            "outputSlug": request_payload["output_slug"],
+            "outputDir": str(output_dir),
+            "moduleCount": len(composed_artifact["modules"]),
+            "moduleIds": [module["id"] for module in composed_artifact["modules"]],
+            "postExportValidation": {
+                "ok": post_export_validation["ok"],
+                "warningCount": len(post_export_validation.get("warnings", [])),
+            },
+        }
+        self.store.write_log(job_id, "export", json.dumps(export_artifact, ensure_ascii=False, indent=2))
+        return export_artifact
+
+    def _build_course_record(self, plan_artifact: dict[str, Any], modules: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "id": plan_artifact["id"],
+            "slug": plan_artifact["slug"],
+            "title": plan_artifact["title"],
+            "subtitle": plan_artifact["subtitle"],
+            "goal": plan_artifact["goal"],
+            "projectType": plan_artifact.get("projectType") or "mixed",
+            "startDate": plan_artifact.get("startDate") or date.today().isoformat(),
+            "topic": plan_artifact["topic"],
+            "language": plan_artifact.get("language") or "zh",
+            "status": "draft",
+            "categories": plan_artifact["categories"],
+            "audience": plan_artifact["audience"],
+            "learningGoals": plan_artifact["learningGoals"],
+            "nonGoals": plan_artifact.get("nonGoals") or [],
+            "assumptions": plan_artifact.get("assumptions") or [],
+            "philosophy": plan_artifact.get("philosophy") or {},
+            "paths": plan_artifact.get("paths") or [],
+            "moduleGraph": plan_artifact["moduleGraph"],
+            "modules": [module["id"] for module in modules],
+        }
+
+    def _write_course_package(self, output_dir: Path, artifact: dict[str, Any]) -> None:
+        ensure_dir(output_dir / "modules")
+        ensure_dir(output_dir / "visuals")
+        ensure_dir(output_dir / "interactions")
+        ensure_dir(output_dir / "review")
+        write_json_atomic(output_dir / "course.json", artifact["course"])
+        for module in artifact["modules"]:
+            write_json_atomic(output_dir / "modules" / f"{module['id']}.json", module)
+        write_json_atomic(output_dir / "visuals" / "concept-maps.json", artifact["concept_maps"])
+        write_json_atomic(output_dir / "interactions" / "registry.json", artifact["interaction_registry"])
+        write_json_atomic(output_dir / "review" / "approval.json", artifact["review_approval"])

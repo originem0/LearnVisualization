@@ -5,6 +5,7 @@
   "subtitle": "长度与记忆的权衡",
   "category": "frontier",
   "focusQuestion": "上下文窗口",
+  "misconception": "上下文窗口就是产品限制，想变长时把 token 上限往上调就行。",
   "quote": "窗口越大，推理越远，但也带来更高成本",
   "keyInsight": "上下文窗口的限制不是“模型不够聪明”，而是注意力 O(n²) 与 KV Cache 显存开销这两个物理约束；长上下文的难点首先是算力与内存，其次才是建模能力。",
   "opening": "你可能会想：既然模型会读文本，为什么不一次把整本书都塞进去？\n\n不是它不想，是注意力根本算不起。\n\n上下文窗口的上限，首先不是智力问题，而是计算和显存问题。",
@@ -176,6 +177,13 @@
       "purpose": "补充对比 / 步骤 / 演示交互",
       "priority": "secondary",
       "componentHint": "ContextFitCalc"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "上下文变长时，训练/推理最先被卡住的两道物理约束通常是注意力的 ____ 和 KV Cache 的 ____。",
+      "answerShape": "把一个说成“更慢”是不够的，至少要指出一个是计算复杂度，一个是显存或内存占用。"
     }
   ],
   "bridgeTo": "你现在知道了 LLM 的每一个零件：分词、嵌入、注意力、Transformer、预训练、优化、微调、Prompt、Scaling Laws、涌现、上下文。\n\n但零件和机器是两回事。让我们把所有东西串起来——追踪一个 prompt 从输入到输出的完整旅程。这是最后一步：从理解零件到理解整个系统。",

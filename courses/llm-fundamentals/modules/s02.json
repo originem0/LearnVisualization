@@ -5,6 +5,7 @@
   "subtitle": "从符号到语义向量",
   "category": "foundations",
   "focusQuestion": "Embedding 空间",
+  "misconception": "Embedding 就是一张静态词义词典，ID 靠得近的 token 语义也自然靠得近。",
   "quote": "相似的含义在向量空间中靠得更近",
   "keyInsight": "Embedding 的本质不是“存词义”，而是把离散 token ID 投进一个可连续运算的几何空间；再加上位置编码，模型才真正拿到可用于注意力计算的输入表示。",
   "opening": "25105 和 25106 只差 1，但这不意味着它们的意义相近。\n\n整数只是地址，不是语义。地址之间的距离，对模型来说毫无语言学含义。\n\n模型真正工作的对象，不是这些离散编号，而是它们背后那一行行高维向量。",
@@ -165,6 +166,13 @@
       "purpose": "补充对比 / 步骤 / 演示交互",
       "priority": "secondary",
       "componentHint": "EmbeddingLookup"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "rebuild-map",
+      "prompt": "请不用“查表”两个字的口号，而是完整说出：token ID 为什么必须先变成向量，再加上位置信息？",
+      "answerShape": "至少覆盖三件事：整数 ID 没有语义距离；Embedding 提供可连续运算的表示；位置编码让模型区分同一 token 出现在哪。"
     }
   ],
   "bridgeTo": "现在每个 token 都有了向量，也知道了自己在序列里的位置。\n\n但它仍然是孤立的。它不知道句子里谁和谁相关，不知道“it”该指向谁，也不知道当前词应该重点看前面哪些词。\n\n让 token 彼此交流的机制，就是注意力。",

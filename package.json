@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "test": "npm run test:node && npm run test:python",
+    "test:node": "node --test engine/*.test.mjs",
+    "test:python": "python3 -m unittest discover -s agent-backend/tests -p 'test_*.py'",
     "check": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs && node scripts/check-authoring.mjs",
     "prebuild": "node scripts/check-content.mjs && node scripts/check-registry.mjs && node scripts/check-structure.mjs && node scripts/check-authoring.mjs",
     "build": "next build",

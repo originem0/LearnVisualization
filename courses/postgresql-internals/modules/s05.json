@@ -75,7 +75,8 @@
     {
       "capability": "compare",
       "purpose": "比较不同统计与选择性下的计划分岔",
-      "priority": "core"
+      "priority": "core",
+      "componentHint": "PlannerPathComparator"
     }
   ],
   "retrievalPrompts": [

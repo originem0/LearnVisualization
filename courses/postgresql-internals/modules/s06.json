@@ -163,7 +163,8 @@
     {
       "capability": "rebuild",
       "purpose": "重建 MVCC 到 Vacuum 的闭环",
-      "priority": "core"
+      "priority": "core",
+      "componentHint": "VacuumDebtCycleBuilder"
     }
   ],
   "retrievalPrompts": [

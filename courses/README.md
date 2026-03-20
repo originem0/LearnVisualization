@@ -16,6 +16,7 @@ courses/
   modules/                模块内容（s01.json, s02.json, ...）
   visuals/                概念图数据
   interactions/           交互组件映射
+  review/approval.json    人工审核通过记录（published 必需，promote 门禁读取）
 ```
 
 新课程可以通过 agent-backend 的 promote 链路从 `agent-backend/generated/` 晋升到这里。

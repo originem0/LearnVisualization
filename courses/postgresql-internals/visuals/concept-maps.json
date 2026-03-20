@@ -1,26 +1,688 @@
 {
-  "1": {
+  "s01": {
     "type": "processFlow",
-    "title": "Heap Page Layout"
+    "title": "Heap Page Layout",
+    "svgW": 560,
+    "svgH": 430,
+    "ariaLabel": "Heap page layout showing table, page, line pointers, tuple bytes, tuple header, and free space",
+    "nodes": [
+      {
+        "id": "table",
+        "label": [
+          "Table / Heap"
+        ],
+        "x": 280,
+        "y": 40,
+        "w": 144,
+        "h": 48
+      },
+      {
+        "id": "page",
+        "label": [
+          "Heap Page",
+          "8KB 页面"
+        ],
+        "x": 280,
+        "y": 122,
+        "w": 164,
+        "h": 58,
+        "accent": true
+      },
+      {
+        "id": "line-pointer",
+        "label": [
+          "Line Pointer",
+          "槽位目录"
+        ],
+        "x": 118,
+        "y": 240,
+        "w": 128,
+        "h": 58
+      },
+      {
+        "id": "free-space",
+        "label": [
+          "Free Space",
+          "可复用空洞"
+        ],
+        "x": 280,
+        "y": 240,
+        "w": 136,
+        "h": 58
+      },
+      {
+        "id": "tuple",
+        "label": [
+          "Tuple Bytes",
+          "行数据"
+        ],
+        "x": 442,
+        "y": 240,
+        "w": 128,
+        "h": 58
+      },
+      {
+        "id": "header",
+        "label": [
+          "Tuple Header",
+          "xmin / xmax"
+        ],
+        "x": 442,
+        "y": 346,
+        "w": 144,
+        "h": 58
+      }
+    ],
+    "edges": [
+      {
+        "from": "table",
+        "to": "page",
+        "label": "拆成 pages"
+      },
+      {
+        "from": "page",
+        "to": "line-pointer",
+        "label": "页内槽位"
+      },
+      {
+        "from": "page",
+        "to": "free-space",
+        "label": "剩余空间"
+      },
+      {
+        "from": "page",
+        "to": "tuple",
+        "label": "实际内容"
+      },
+      {
+        "from": "line-pointer",
+        "to": "tuple",
+        "label": "offset 指向"
+      },
+      {
+        "from": "tuple",
+        "to": "header",
+        "label": "前缀元数据"
+      }
+    ],
+    "annotations": [
+      {
+        "type": "rect",
+        "x": 36,
+        "y": 176,
+        "w": 488,
+        "h": 208,
+        "rx": 18,
+        "text": "page interior"
+      }
+    ]
   },
-  "2": {
+  "s02": {
     "type": "stepSequence",
-    "title": "MVCC Visibility Timeline"
+    "title": "MVCC Visibility Timeline",
+    "svgW": 560,
+    "svgH": 440,
+    "ariaLabel": "MVCC visibility flow showing tuple versions, snapshots, visibility rules, and current visible version",
+    "nodes": [
+      {
+        "id": "versions",
+        "label": [
+          "Tuple Versions",
+          "旧版 / 新版"
+        ],
+        "x": 168,
+        "y": 62,
+        "w": 144,
+        "h": 58
+      },
+      {
+        "id": "txn",
+        "label": [
+          "Current Txn",
+          "启动时刻"
+        ],
+        "x": 392,
+        "y": 62,
+        "w": 136,
+        "h": 58
+      },
+      {
+        "id": "header",
+        "label": [
+          "xmin / xmax",
+          "版本痕迹"
+        ],
+        "x": 168,
+        "y": 186,
+        "w": 144,
+        "h": 58
+      },
+      {
+        "id": "snapshot",
+        "label": [
+          "Snapshot",
+          "事务时间切片"
+        ],
+        "x": 392,
+        "y": 186,
+        "w": 144,
+        "h": 58
+      },
+      {
+        "id": "rule",
+        "label": [
+          "Visibility Rule",
+          "对我可见吗"
+        ],
+        "x": 280,
+        "y": 312,
+        "w": 164,
+        "h": 58,
+        "accent": true
+      },
+      {
+        "id": "result",
+        "label": [
+          "Current View",
+          "当前事务看到的版本"
+        ],
+        "x": 280,
+        "y": 404,
+        "w": 176,
+        "h": 58
+      }
+    ],
+    "edges": [
+      {
+        "from": "versions",
+        "to": "header",
+        "label": "tuple 证据"
+      },
+      {
+        "from": "txn",
+        "to": "snapshot",
+        "label": "事务视角"
+      },
+      {
+        "from": "header",
+        "to": "rule",
+        "label": "xmin / xmax"
+      },
+      {
+        "from": "snapshot",
+        "to": "rule",
+        "label": "谁已提交"
+      },
+      {
+        "from": "rule",
+        "to": "result",
+        "label": "visible / invisible"
+      }
+    ]
   },
-  "3": {
+  "s03": {
     "type": "processFlow",
-    "title": "WAL / Recovery Flow"
+    "title": "WAL / Recovery Flow",
+    "svgW": 560,
+    "svgH": 430,
+    "ariaLabel": "WAL flow showing data change, WAL record, WAL flush, possible crash, and redo recovery",
+    "nodes": [
+      {
+        "id": "change",
+        "label": [
+          "Data Change",
+          "修改请求"
+        ],
+        "x": 120,
+        "y": 78,
+        "w": 136,
+        "h": 58
+      },
+      {
+        "id": "wal",
+        "label": [
+          "WAL Record",
+          "可重放变更"
+        ],
+        "x": 280,
+        "y": 78,
+        "w": 152,
+        "h": 58,
+        "accent": true
+      },
+      {
+        "id": "page",
+        "label": [
+          "Data Page",
+          "稍后落盘"
+        ],
+        "x": 440,
+        "y": 78,
+        "w": 136,
+        "h": 58
+      },
+      {
+        "id": "flush",
+        "label": [
+          "WAL Flush",
+          "durability 边界"
+        ],
+        "x": 280,
+        "y": 210,
+        "w": 156,
+        "h": 58
+      },
+      {
+        "id": "crash",
+        "label": [
+          "Crash / Restart"
+        ],
+        "x": 280,
+        "y": 314,
+        "w": 148,
+        "h": 52
+      },
+      {
+        "id": "redo",
+        "label": [
+          "Redo Recovery",
+          "补回一致状态"
+        ],
+        "x": 280,
+        "y": 402,
+        "w": 164,
+        "h": 58
+      }
+    ],
+    "edges": [
+      {
+        "from": "change",
+        "to": "wal",
+        "label": "先记日志"
+      },
+      {
+        "from": "wal",
+        "to": "page",
+        "label": "page 可后写"
+      },
+      {
+        "from": "wal",
+        "to": "flush",
+        "label": "先 fsync"
+      },
+      {
+        "from": "page",
+        "to": "crash",
+        "label": "可能没写完",
+        "dashed": true
+      },
+      {
+        "from": "flush",
+        "to": "crash",
+        "label": "已具恢复前提"
+      },
+      {
+        "from": "crash",
+        "to": "redo",
+        "label": "重放 WAL"
+      }
+    ],
+    "annotations": [
+      {
+        "type": "text",
+        "x": 280,
+        "y": 26,
+        "text": "checkpoint 负责缩短 redo 起点"
+      }
+    ]
   },
-  "4": {
+  "s04": {
     "type": "stepSequence",
-    "title": "B-Tree Search & Split"
+    "title": "B-Tree Search & Split",
+    "svgW": 560,
+    "svgH": 440,
+    "ariaLabel": "B-Tree flow showing search key entering the root, descending to a leaf page, and splitting when the leaf is full",
+    "nodes": [
+      {
+        "id": "key",
+        "label": [
+          "Search Key",
+          "待查键值"
+        ],
+        "x": 108,
+        "y": 60,
+        "w": 124,
+        "h": 56
+      },
+      {
+        "id": "root",
+        "label": [
+          "Root Page"
+        ],
+        "x": 280,
+        "y": 60,
+        "w": 128,
+        "h": 56
+      },
+      {
+        "id": "internal",
+        "label": [
+          "Internal Page",
+          "缩小搜索空间"
+        ],
+        "x": 280,
+        "y": 178,
+        "w": 156,
+        "h": 58
+      },
+      {
+        "id": "leaf",
+        "label": [
+          "Leaf Page",
+          "key -> TID"
+        ],
+        "x": 280,
+        "y": 292,
+        "w": 148,
+        "h": 58,
+        "accent": true
+      },
+      {
+        "id": "split",
+        "label": [
+          "Page Split",
+          "页满时分裂"
+        ],
+        "x": 164,
+        "y": 394,
+        "w": 140,
+        "h": 58
+      },
+      {
+        "id": "parent-update",
+        "label": [
+          "Parent Update",
+          "上推分隔键"
+        ],
+        "x": 396,
+        "y": 394,
+        "w": 148,
+        "h": 58
+      }
+    ],
+    "edges": [
+      {
+        "from": "key",
+        "to": "root",
+        "label": "从根进入"
+      },
+      {
+        "from": "root",
+        "to": "internal",
+        "label": "继续分流"
+      },
+      {
+        "from": "internal",
+        "to": "leaf",
+        "label": "找到叶页"
+      },
+      {
+        "from": "leaf",
+        "to": "split",
+        "label": "写满"
+      },
+      {
+        "from": "split",
+        "to": "parent-update",
+        "label": "更新父节点"
+      }
+    ]
   },
-  "5": {
+  "s05": {
     "type": "comparisonFrame",
-    "title": "Plan Choice Comparison"
+    "title": "Plan Choice Comparison",
+    "svgW": 560,
+    "svgH": 440,
+    "ariaLabel": "Planner pipeline showing SQL, statistics, candidate paths, cost model, chosen plan, and executor",
+    "nodes": [
+      {
+        "id": "sql",
+        "label": [
+          "SQL"
+        ],
+        "x": 280,
+        "y": 56,
+        "w": 112,
+        "h": 48
+      },
+      {
+        "id": "stats",
+        "label": [
+          "Statistics",
+          "行数 / 选择性"
+        ],
+        "x": 158,
+        "y": 176,
+        "w": 144,
+        "h": 58
+      },
+      {
+        "id": "paths",
+        "label": [
+          "Candidate Paths",
+          "Seq / Index / Join"
+        ],
+        "x": 402,
+        "y": 176,
+        "w": 164,
+        "h": 58
+      },
+      {
+        "id": "cost",
+        "label": [
+          "Cost Model",
+          "估算 cheapest path"
+        ],
+        "x": 280,
+        "y": 292,
+        "w": 172,
+        "h": 58,
+        "accent": true
+      },
+      {
+        "id": "plan",
+        "label": [
+          "Chosen Plan",
+          "planner 输出"
+        ],
+        "x": 158,
+        "y": 396,
+        "w": 148,
+        "h": 58
+      },
+      {
+        "id": "executor",
+        "label": [
+          "Executor",
+          "逐节点执行"
+        ],
+        "x": 402,
+        "y": 396,
+        "w": 148,
+        "h": 58
+      }
+    ],
+    "edges": [
+      {
+        "from": "sql",
+        "to": "paths",
+        "label": "生成候选路径"
+      },
+      {
+        "from": "stats",
+        "to": "cost",
+        "label": "估算输入"
+      },
+      {
+        "from": "paths",
+        "to": "cost",
+        "label": "比较候选"
+      },
+      {
+        "from": "cost",
+        "to": "plan",
+        "label": "选最便宜"
+      },
+      {
+        "from": "plan",
+        "to": "executor",
+        "label": "plan tree"
+      }
+    ]
   },
-  "6": {
+  "s06": {
     "type": "processFlow",
-    "title": "MVCC Debt Cycle"
+    "title": "MVCC Debt Cycle",
+    "svgW": 560,
+    "svgH": 560,
+    "ariaLabel": "MVCC debt cycle showing updates creating dead tuples, causing bloat and aging, and being paid back by vacuum and freeze",
+    "nodes": [
+      {
+        "id": "mvcc-write",
+        "label": [
+          "MVCC Write",
+          "UPDATE / DELETE"
+        ],
+        "x": 280,
+        "y": 54,
+        "w": 148,
+        "h": 58
+      },
+      {
+        "id": "dead",
+        "label": [
+          "Dead Tuples",
+          "旧版本留下"
+        ],
+        "x": 280,
+        "y": 156,
+        "w": 152,
+        "h": 58,
+        "accent": true
+      },
+      {
+        "id": "bloat",
+        "label": [
+          "Bloat",
+          "heap / index 变胖"
+        ],
+        "x": 116,
+        "y": 282,
+        "w": 148,
+        "h": 58
+      },
+      {
+        "id": "planner-drift",
+        "label": [
+          "Planner Drift",
+          "成本判断变差"
+        ],
+        "x": 280,
+        "y": 282,
+        "w": 156,
+        "h": 58
+      },
+      {
+        "id": "xid-aging",
+        "label": [
+          "Old XIDs",
+          "需要 freeze"
+        ],
+        "x": 444,
+        "y": 282,
+        "w": 140,
+        "h": 58
+      },
+      {
+        "id": "vacuum",
+        "label": [
+          "Vacuum",
+          "回收与标记"
+        ],
+        "x": 176,
+        "y": 426,
+        "w": 140,
+        "h": 58
+      },
+      {
+        "id": "freeze",
+        "label": [
+          "Freeze",
+          "避免 wraparound"
+        ],
+        "x": 384,
+        "y": 426,
+        "w": 156,
+        "h": 58
+      },
+      {
+        "id": "healthy",
+        "label": [
+          "Sustainable State",
+          "继续承接新写入"
+        ],
+        "x": 280,
+        "y": 528,
+        "w": 176,
+        "h": 58
+      }
+    ],
+    "edges": [
+      {
+        "from": "mvcc-write",
+        "to": "dead",
+        "label": "制造旧版本"
+      },
+      {
+        "from": "dead",
+        "to": "bloat",
+        "label": "占空间"
+      },
+      {
+        "from": "dead",
+        "to": "planner-drift",
+        "label": "拖累代价判断"
+      },
+      {
+        "from": "dead",
+        "to": "xid-aging",
+        "label": "事务年龄累积"
+      },
+      {
+        "from": "bloat",
+        "to": "vacuum",
+        "label": "需要清理"
+      },
+      {
+        "from": "planner-drift",
+        "to": "vacuum",
+        "label": "恢复元信息"
+      },
+      {
+        "from": "xid-aging",
+        "to": "freeze",
+        "label": "防止灾难"
+      },
+      {
+        "from": "vacuum",
+        "to": "healthy",
+        "label": "回收空间"
+      },
+      {
+        "from": "freeze",
+        "to": "healthy",
+        "label": "年龄安全"
+      }
+    ]
   }
 }

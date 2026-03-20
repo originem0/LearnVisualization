@@ -151,7 +151,8 @@
     {
       "capability": "step-through",
       "purpose": "一步步走 B-Tree 查找和分裂",
-      "priority": "core"
+      "priority": "core",
+      "componentHint": "BTreeSplitStepper"
     }
   ],
   "retrievalPrompts": [

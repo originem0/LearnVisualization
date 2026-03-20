@@ -1,18 +1,19 @@
-import type { Category, Module } from '@/lib/types';
+import type { Category } from '@/lib/types';
+import type { CourseModule } from '@/lib/course-schema';
 import { categoryStyles } from '@/lib/palette';
 import { getModuleSlug } from '@/lib/module-slug';
 import Link from 'next/link';
 import type { Locale } from '@/lib/i18n';
 
 interface BarChartProps {
-  modules: Module[];
+  modules: CourseModule[];
   categoriesById: Record<string, Category>;
   locale: Locale;
   basePath?: string;
 }
 
 export default function BarChart({ modules, categoriesById, locale, basePath = `/${locale}` }: BarChartProps) {
-  const grouped: Record<string, Module[]> = {};
+  const grouped: Record<string, CourseModule[]> = {};
   for (const m of modules) {
     if (!grouped[m.category]) grouped[m.category] = [];
     grouped[m.category].push(m);

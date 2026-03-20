@@ -1,6 +1,6 @@
 # LearnVisualization
 
-多专题可视化交互学习平台。把复杂技术拆成可以看、可以玩、可以穿透的交互课程。
+复杂知识学习引擎。把复杂知识转化成可被理解、可被穿透、可被迁移的学习体验。
 
 线上地址：<https://visualize.sharonzhou.site>
 
@@ -42,6 +42,7 @@ courses/{slug}/
   modules/             模块定义（s01.json, s02.json, ...）
   visuals/             概念图数据
   interactions/        交互组件映射
+  review/approval.json 人工审核通过记录
 ```
 
 叙事 block 规范：`src/data/narrative-block-spec.json`
@@ -53,6 +54,10 @@ courses/{slug}/
 ```bash
 npm install
 npm run dev
+```
+
+```bash
+npm test    # node:test + python unittest
 ```
 
 ## 校验与构建
@@ -79,7 +84,7 @@ python3 -m app.main   # http://127.0.0.1:8081
 - `POST /promote-course-package/dry-run` — 预检晋升
 - `POST /promote-course-package/write` — 晋升到 courses/
 
-生成的内容标记 `_scaffold: true`，需要人工审查后才算生产就绪。
+生成的内容标记 `_scaffold: true`，并写出 `review/approval.json` 占位文件。没有人工审核通过记录的包，`promote` 会直接拒绝。
 
 ## 部署
 

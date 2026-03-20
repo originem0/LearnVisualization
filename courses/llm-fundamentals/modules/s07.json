@@ -5,6 +5,7 @@
   "subtitle": "从通用到可控",
   "category": "application",
   "focusQuestion": "微调与对齐",
+  "misconception": "预训练模型只要参数够大，就会自然表现得像一个听话助手。",
   "quote": "RLHF 让模型学会在人类偏好的空间中导航",
   "keyInsight": "微调与对齐的本质，是把“预测最可能出现什么”改造成“在人类目标下应该说什么”；SFT 提供接口习惯，RLHF 提供偏好方向，LoRA 提供成本可控的适配方式。",
   "opening": "预训练后的模型最像什么？\n\n不是助手，而是一个极其强大的续写器。你问它问题，它可能不回答，而是继续模仿网页、论坛、教科书里“接下来通常会出现什么”。\n\n从“会接话”到“会帮忙”，中间差的就是微调与对齐。",
@@ -171,6 +172,13 @@
       "purpose": "补充对比 / 步骤 / 演示交互",
       "priority": "secondary",
       "componentHint": "LoRACalculator"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "compare-variants",
+      "prompt": "SFT、RLHF、LoRA/QLoRA 各自在“把基础模型变成可用系统”这件事上承担什么角色？",
+      "answerShape": "至少分清三层：接口习惯、偏好塑形、成本可控的参数适配。"
     }
   ],
   "bridgeTo": "当模型已经被对齐成一个像助手的系统，用户真正握在手里的接口就剩下 prompt。\n\n同一个模型，换一种提问方式，结果可能天差地别。\n\n怎么用自然语言把模型的能力调出来，就是 Prompt Engineering。",

@@ -5,6 +5,7 @@
   "subtitle": "规模的力量与极限",
   "category": "frontier",
   "focusQuestion": "Scaling Laws",
+  "misconception": "模型只要一味做大就行，数据量和算力预算只是配角。",
   "quote": "参数、数据、算力——三者遵循优雅的幂律关系",
   "keyInsight": "损失和参数量/数据量之间存在幂律关系，Chinchilla 法则指出最优策略是参数和数据同步增长（D ≈ 20N）",
   "opening": "OpenAI 发现了一个惊人的规律：模型的损失和参数量、数据量、算力之间存在精确的幂律关系。\n\n这意味着——在训练之前，你就能预测模型会有多好。在花掉几千万美元的算力之前，你能在纸上算出结果。\n\n但这也意味着一个冷酷的事实：回报在递减。从 GPT-2 到 GPT-3，参数量翻了 100 倍，但损失只降了约 30%。",
@@ -153,6 +154,13 @@
       "purpose": "补充对比 / 步骤 / 演示交互",
       "priority": "secondary",
       "componentHint": "TrainingBudgetCalc"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "在固定算力预算下，Chinchilla 给出的核心提醒不是“只堆参数”，而是参数量 N 和数据量 D 要大致保持 ____。",
+      "answerShape": "写出近似关系还不够，再说明它反驳了哪种常见的大模型直觉。"
     }
   ],
   "bridgeTo": "Scaling Laws 告诉我们损失在平滑下降。但模型的能力并不总是平滑提升。\n\n一个 10B 的模型完全无法做三位数加法。100B 还是不行。但到 1000B——突然就会了。准确率不是从 50% 涨到 60%，而是从接近 0% 直接跳到 90%+。\n\n这种“突然学会”的现象叫涌现。它挑战了 Scaling Laws 的平滑假设。",

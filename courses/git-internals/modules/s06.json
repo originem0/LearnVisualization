@@ -1,0 +1,175 @@
+{
+  "id": "s06",
+  "number": 6,
+  "title": "git reset --hard 怎么可能‘撤销’提交却不删数据？",
+  "subtitle": "误解：reset 是‘删除’历史，其实是‘移动指针’",
+  "category": "linkage",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "为什么 reset 后用 git reflog 还能找回‘消失’的提交？",
+  "misconception": "认为 git reset --hard 会像 rm 文件一样物理删除提交对象，导致历史永久丢失，就像清空回收站一样不可逆。",
+  "keyInsight": "Git 的提交数据永远不会被立即删除——reset 只是移动分支指针，而 reflog 是 Git 内部记录所有指针移动的‘时间机器日志’，所有对象仍存在于对象数据库中，直到被垃圾回收。",
+  "opening": "你刚用 git reset --hard HEAD~2 撤销了两个提交，屏幕一黑，你的心也凉了——‘完了，我删掉了两周的工作！’但当你输入 git reflog，那些‘消失’的提交竟赫然在列。为什么？你明明‘删除’了它们，可 Git 却像有记忆的幽灵，悄悄记下了你每一次移动的脚印。这不是魔法，而是 Git 的设计哲学：它不信任你，所以它从不真正删除任何东西。你看到的‘历史消失’，只是指针搬家了，而数据，还躺在 .git/objects 里，等着被找回。",
+  "quote": "Git 不是版本控制系统，它是‘对象存储系统’，版本只是你给对象打的标签。",
+  "concepts": [
+    {
+      "name": "对象数据库",
+      "note": "Git 以 SHA-1 哈希为键存储所有提交、树、blob 对象，内容不变则对象永存。"
+    },
+    {
+      "name": "分支指针",
+      "note": "分支（如 main）只是一个指向提交对象的可移动指针，不是历史本身。"
+    },
+    {
+      "name": "reflog",
+      "note": "Git 自动记录 HEAD 和分支指针的每一次移动，是恢复误操作的唯一可靠来源。"
+    },
+    {
+      "name": "垃圾回收（gc）",
+      "note": "只有当对象不再被任何引用（包括 reflog）指向，且超过 30 天，才会被真正删除。"
+    },
+    {
+      "name": "HEAD",
+      "note": "指向当前检出的提交，reset 会改变 HEAD 的指向，但不改变对象本身。"
+    }
+  ],
+  "logicChain": [
+    "用户执行 git reset --hard HEAD~2，分支指针从 C3 移动到 C1。",
+    "C2 和 C3 的提交对象未被删除，仍存在于 .git/objects 中，只是不再被分支引用。",
+    "Git 自动将这次指针移动记录到 .git/logs/HEAD（reflog）中，包含旧位置和新位置。",
+    "即使你用 git log 查不到 C2/C3，它们仍可通过 reflog 的 SHA-1 哈希访问。",
+    "执行 git reset --hard <SHA-of-C2> 可立即恢复到 C2，指针重新指向它。",
+    "只有当 reflog 条目过期（默认 30 天）且无其他引用时，Git 的 gc 才可能删除这些对象。",
+    "因此，reset 不删除数据，它只是让数据‘无人认领’，而 reflog 是临时的‘认领记录’。"
+  ],
+  "examples": [
+    "{'description': '你提交了三次：A → B → C，执行 git reset --hard HEAD~1，分支指向 B。C 似乎消失了，但 git reflog 显示：C3a1b2... HEAD@{0}: reset: moving to HEAD~1，你可以用 git reset --hard C3a1b2 恢复。', 'visual': 'A ← B ← C (原分支)\\n↓ reset --hard HEAD~1\\nA ← B (新分支)\\nC (仍在对象库中，仅 reflog 记录：HEAD@{0} → C)'}",
+    "{'description': '你误删了包含关键修复的提交 D，执行 git reset --hard HEAD~3。你慌了，但 git reflog 显示 HEAD@{1}: commit: Fix critical bug。你复制 SHA，执行 git cherry-pick <SHA>，修复被重新应用。', 'visual': 'A ← B ← C ← D (原)\\n↓ reset --hard HEAD~3\\nA ← B (新)\\nC, D (在对象库中，reflog: HEAD@{1}: commit: Fix critical bug)'}",
+    "{'description': '你执行 git reset --hard origin/main，覆盖了本地所有提交。你发现漏了重要改动，但 git reflog 显示 HEAD@{2}: reset: moving to origin/main，你用 git reset --hard HEAD@{2} 恢复了本地状态。', 'visual': '本地: X ← Y ← Z ← W\\n↓ git reset --hard origin/main\\n本地: X (与 origin 同)\\nY, Z, W (仍在，reflog: HEAD@{2}: reset: moving to origin/main)'}"
+  ],
+  "counterexamples": [
+    "{'description': '如果执行 git gc --prune=now，且 reflog 中无引用，则对象会被立即删除。但这是主动清理，不是 reset 的默认行为。', 'note': '这证明：删除不是 reset 的结果，而是 gc + 无引用 + 立即清理的组合结果。'}",
+    "{'description': '如果在 reset 后你执行了 git checkout --detach 并切换到另一个提交，再执行 reset，旧 reflog 条目仍保留，直到过期。', 'note': 'reflog 不随分支切换而清除，它记录的是 HEAD 的所有历史，无论是否在分支上。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为 reflog 是全局的，可以跨仓库恢复。",
+      "rootCause": "reflog 是本地仓库独有的，不随 push/pull 同步。远程仓库的 reflog 与你无关。"
+    },
+    {
+      "point": "在 CI/CD 环境中执行 reset 后，以为能通过 reflog 恢复，但 CI 仓库是临时的。",
+      "rootCause": "CI 环境通常禁用 reflog 或自动清理，且不持久化 .git 目录，reset 后无法恢复。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你以为你删了历史，其实你只是搬了门牌号"
+    },
+    {
+      "type": "text",
+      "content": "当你执行 git reset --hard HEAD~2，你不是在删除文件，也不是在擦除提交。你只是把分支指针从 C 移动到了 A。提交 B 和 C 的内容，依然完整地躺在 .git/objects 目录里，只是没人再指向它们了。"
+    },
+    {
+      "type": "comparison",
+      "content": "rm file.txt → 文件从磁盘消失\nreset --hard HEAD~1 → 指针移动，对象仍在，只是‘无人认领’",
+      "label": "文件删除 vs Git reset"
+    },
+    {
+      "type": "steps",
+      "content": "我们一步步看 reset 如何‘撤销’提交而不删除数据。",
+      "label": "reset 的真实过程：指针移动的每一步",
+      "steps": [
+        {
+          "title": "初始状态：三个提交",
+          "description": "分支 main 指向 C，HEAD 指向 main，所有对象都在对象数据库中。",
+          "visual": "main → C (SHA: a1b2c3)\n       ↓\n       B (SHA: d4e5f6)\n       ↓\n       A (SHA: g7h8i9)\nHEAD = main",
+          "highlight": "main 和 HEAD 都指向 C"
+        },
+        {
+          "title": "执行 git reset --hard HEAD~2",
+          "description": "Git 将 main 指针从 C 移动到 A。HEAD 也随之移动。",
+          "visual": "main → A (SHA: g7h8i9)\n       ↓\n       B (SHA: d4e5f6) ← 未被引用\n       ↓\n       C (SHA: a1b2c3) ← 未被引用\nHEAD = main",
+          "highlight": "main 移动到 A，B 和 C 不再被分支引用"
+        },
+        {
+          "title": "Git 自动记录到 reflog",
+          "description": "Git 在 .git/logs/HEAD 中添加一条记录：HEAD@{0} 从 C 移动到 A。",
+          "visual": "reflog: HEAD@{0}: reset: moving to HEAD~2\n         HEAD@{1}: commit: Add feature C\n         HEAD@{2}: commit: Add feature B\n         HEAD@{3}: commit: Initial commit",
+          "highlight": "reflog 记录了移动前的值：C (a1b2c3)"
+        },
+        {
+          "title": "你运行 git log，看不到 B 和 C",
+          "description": "git log 只显示从 main 指针可追溯的提交，B 和 C 不在路径上，所以‘消失’了。",
+          "visual": "git log 输出：\n- A (g7h8i9)\n\nB 和 C 不在输出中",
+          "highlight": "git log 依赖分支指针，不依赖对象数据库"
+        },
+        {
+          "title": "你运行 git reflog，找回 C",
+          "description": "reflog 显示 HEAD@{0} 是 C，你可以用它恢复。",
+          "visual": "git reflog 输出：\n1a2b3c... HEAD@{0}: reset: moving to HEAD~2\na1b2c3... HEAD@{1}: commit: Add feature C\n...",
+          "highlight": "a1b2c3 是 C 的 SHA，可直接使用"
+        },
+        {
+          "title": "你执行 git reset --hard a1b2c3，恢复 C",
+          "description": "main 指针重新指向 C，历史‘复活’。",
+          "visual": "main → C (SHA: a1b2c3)\n       ↓\n       B (SHA: d4e5f6)\n       ↓\n       A (SHA: g7h8i9)\nHEAD = main",
+          "highlight": "指针重新指向 C，一切恢复如初"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "Git 的设计哲学：宁可保留无用数据，也不冒险丢失任何可能有用的信息。"
+    },
+    {
+      "type": "text",
+      "content": "这就是为什么 Git 被称为‘最安全的版本控制系统’——它不信任你的判断，所以它记录你每一次的错误。"
+    },
+    {
+      "type": "diagram",
+      "content": "[A] ← [B] ← [C]  ← 对象数据库（SHA 哈希存储）\n     ↑     ↑     ↑\n   main→   |     |\n          HEAD→  |\n               reflog: HEAD@{0} → C\n               reflog: HEAD@{1} → B",
+      "label": "对象数据库与指针关系图"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s06-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "追踪 reset 操作后指针和 reflog 的变化路径",
+      "priority": "core",
+      "componentHint": "使用交互式 Git 模拟器，点击 reset 按钮后观察指针和 reflog 的实时变化"
+    },
+    {
+      "capability": "rebuild",
+      "purpose": "根据 reflog 条目重建被 reset 的提交历史",
+      "priority": "secondary",
+      "componentHint": "提供一组 reflog 输出，要求用户选择正确的 SHA 恢复历史"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "你执行了 git reset --hard HEAD~3，现在 git log 只显示 1 个提交。你输入 git reflog，看到：HEAD@{0}: reset: moving to HEAD~3。下一步你该输入什么命令来恢复被重置的提交？",
+      "answerShape": "git reset --hard <SHA-from-reflog>"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "git reset 不删除提交对象，它只移动 ______。而 ______ 记录了这些移动，让你能找回‘消失’的历史。",
+      "answerShape": "分支指针; reflog"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比：1) rm -rf .git/objects/ab；2) git reset --hard HEAD~1。哪个会真正删除提交？为什么？",
+      "answerShape": "只有 1) 会删除，因为直接删除对象文件；2) 只是移动指针，对象仍在，除非执行 gc"
+    }
+  ],
+  "bridgeTo": "reset 移动了分支指针，但 HEAD 本身又是什么？它不指向分支，却能‘跟随’分支——这背后，是 Git 如何定义‘当前状态’的深层机制？",
+  "nextModuleId": "s07"
+}

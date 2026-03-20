@@ -151,7 +151,8 @@
     {
       "capability": "simulate",
       "purpose": "模拟不同 snapshot 下 tuple 可见性",
-      "priority": "core"
+      "priority": "core",
+      "componentHint": "MVCCVisibilitySimulator"
     }
   ],
   "retrievalPrompts": [

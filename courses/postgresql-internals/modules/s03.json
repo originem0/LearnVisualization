@@ -159,7 +159,8 @@
     {
       "capability": "trace",
       "purpose": "追踪 WAL 与 page flush 的先后关系",
-      "priority": "core"
+      "priority": "core",
+      "componentHint": "WALRecoveryTracer"
     }
   ],
   "retrievalPrompts": [

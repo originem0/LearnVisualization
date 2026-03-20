@@ -1,0 +1,178 @@
+{
+  "id": "s14",
+  "number": 14,
+  "title": "现在，你能画出你最后一次 commit 的对象图吗？",
+  "subtitle": "从误解到重建：你已不再是 Git 的使用者，而是它的解码者",
+  "category": "storage",
+  "moduleKind": "integration-review",
+  "primaryCognitiveAction": "rebuild",
+  "focusQuestion": "为什么你明明只改了一个文件，Git 却创建了三个新对象，而你却以为它只是‘保存了改动’？",
+  "misconception": "认为‘理解 Git’就是记住命令，比如 git commit -m 'fix bug'，以为它像保存文档一样把文件‘打包’存进一个黑箱，而不知道每一次提交都在背后构建了一个由 blob、tree、commit 组成的不可变对象图，且每个对象都通过 SHA-1 哈希唯一标识并相互引用。",
+  "keyInsight": "Git 的可靠性不来自数据库事务，而来自对象图的数学确定性：每个对象的内容决定其哈希，每个哈希又成为下一个对象的输入，形成一条不可篡改的因果链——你看到的‘提交’，其实是整个文件系统状态的密码学快照。",
+  "opening": "你可能以为 git commit 是‘保存当前状态’，就像 Word 点了‘另存为’。但如果你真这么想，那你从未真正见过 Git 的心脏——它没有‘文件夹’，没有‘版本号’，没有‘撤销历史’，只有由哈希指针串联的、不可变的对象链。当你执行一次提交，你不是在‘保存’，而是在用数学构建一座永存的纪念碑。\n\n更讽刺的是：你改了一个文件，Git 却创建了三个新对象。你没动的文件，它也重新引用了它们。你以为它在复制，其实它在拼图。你不是在管理文件，你是在用哈希编织一个自洽的宇宙。如果你不能画出这个宇宙的结构，你就只是在用魔法咒语操控一个你无法解释的系统。",
+  "quote": "Git 不是版本控制系统，它是内容寻址的有向无环图（DAG）——你提交的不是变更，而是状态的指纹。",
+  "concepts": [
+    {
+      "name": "blob",
+      "note": "文件内容的纯二进制哈希对象，不包含文件名或路径，仅存储内容。同一个文件在不同路径下会生成相同的 blob。"
+    },
+    {
+      "name": "tree",
+      "note": "目录结构的哈希对象，存储文件名、权限和指向 blob 或其他 tree 的 SHA-1 引用，是文件系统在 Git 中的树状表示。"
+    },
+    {
+      "name": "commit",
+      "note": "指向一个 tree 对象的快照，包含作者、时间戳、父提交指针和提交信息，是历史的节点，不是变更集。"
+    },
+    {
+      "name": "ref",
+      "note": "指向 commit 的可变指针，如 refs/heads/main，用于给不可变的 commit 起一个易记的名字。"
+    },
+    {
+      "name": "HEAD",
+      "note": "一个特殊的 ref，指向当前检出的 commit，是工作区的‘锚点’。它不存储数据，只记录‘你现在在哪’。"
+    },
+    {
+      "name": "worktree",
+      "note": "你看到的文件系统，由 HEAD 指向的 commit 解包生成。它是 Git 对象图的‘渲染结果’，不是存储源。"
+    }
+  ],
+  "logicChain": [
+    "你修改了一个文件 → Git 计算其内容的 SHA-1 哈希，创建一个唯一的 blob 对象。",
+    "Git 遍历当前目录，为每个文件/子目录创建或复用对应的 blob/tree 对象，构建新的 tree 对象，其哈希由所有子项的名称、权限和哈希决定。",
+    "Git 创建一个新的 commit 对象，指向这个新 tree，并将当前 HEAD 指向的 commit 作为父节点，生成新的 commit 哈希。",
+    "HEAD 被更新为指向这个新 commit，标志着你‘移动’到了新状态。",
+    "工作区（worktree）被更新为匹配新 commit 的 tree 结构，文件被解包还原。",
+    "旧的 commit、tree、blob 依然存在，因为没有任何引用指向它们，它们只是‘悬空’，不会被自动删除。",
+    "整个链条的可靠性来自：每个对象的哈希由其内容决定，任何改动都会改变哈希，从而破坏后续所有引用。"
+  ],
+  "examples": [
+    "{'description': '你修改了 src/app.js，添加一行 console.log()。Git 创建一个新 blob（哈希 a1b2c3），tree 中的 src/app.js 条目指向它，新 tree 哈希为 d4e5f6，新 commit 指向 d4e5f6，HEAD 指向新 commit。', 'visual': 'worktree: src/app.js → blob:a1b2c3\\n tree:d4e5f6 → [src/app.js:a1b2c3]\\n commit:789xyz → tree:d4e5f6, parent:555abc\\n HEAD → 789xyz'}",
+    "{'description': '你删除了 test/unit.js，但保留了 src/app.js。Git 不会修改 src/app.js 的 blob，tree 中移除 test/unit.js 条目，新 tree 哈希变化，新 commit 指向新 tree，HEAD 更新。', 'visual': 'worktree: src/app.js（不变）\\n tree:ef1234 → [src/app.js:a1b2c3]  // 无 test/unit.js\\n commit:890pqr → tree:ef1234, parent:789xyz\\n HEAD → 890pqr'}",
+    "{'description': '你提交了两次，第二次没改任何文件。Git 仍创建新 commit，指向同一个 tree 和 blob，但父节点不同。两个 commit 哈希不同，但内容完全一致。', 'visual': 'commit1: abc123 → tree:xyz789\\n commit2: def456 → tree:xyz789, parent:abc123\\n HEAD → def456\\n 两个 commit 指向同一 tree，但历史不同'}"
+  ],
+  "counterexamples": [
+    "错误：认为 git commit 会压缩或合并文件 → 实际：每个文件独立存储为 blob，无压缩，无合并。",
+    "错误：认为 HEAD 是当前文件 → 实际：HEAD 是指向 commit 的指针，文件来自 worktree 的解包。",
+    "错误：认为删除文件会从 Git 中删除 blob → 实际：blob 仍存在，直到被 git gc 清理，且只要被 commit 引用就永存。"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为‘git reset --hard’是‘撤销提交’，以为它删除了对象",
+      "rootCause": "没有理解对象图的不可变性：reset 只是移动 HEAD 指针，旧 commit 仍在 .git/objects 中，直到被垃圾回收"
+    },
+    {
+      "point": "误以为两个相同内容的文件在不同路径下会共享同一个 tree 条目",
+      "rootCause": "混淆了 blob（内容）和 tree（路径结构）：tree 记录的是路径名，即使内容相同，路径不同也会在 tree 中作为不同条目"
+    },
+    {
+      "point": "在合并后看到多个父提交，以为 Git 会‘合并文件内容’",
+      "rootCause": "误以为 commit 是变更集，其实它只是指向一个 tree 快照；合并的 tree 是由两个父 tree 的内容合并生成的，不是代码合并"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你最后一次提交，到底存了什么？"
+    },
+    {
+      "type": "text",
+      "content": "假设你刚刚执行了 git commit -m 'fix login button'。你看到的是终端的一行提示：'main updated to abc123'。但你真正创建的，是一个由三个对象构成的密码学结构。"
+    },
+    {
+      "type": "callout",
+      "content": "你改了一个文件，Git 却创建了三个新对象。你没动的文件，它也重新引用了它们。你不是在保存改动，你是在用哈希拼图。"
+    },
+    {
+      "type": "steps",
+      "content": "让我们一步步还原你最后一次提交的内部结构。每一步只改变一个变量，观察对象图如何生长。",
+      "label": "重建你最后一次提交的对象图",
+      "steps": [
+        {
+          "title": "步骤 1：你修改了 src/button.js",
+          "description": "你编辑了 src/button.js，添加了一行 CSS 类名。Git 计算这个文件的新内容的 SHA-1 哈希。",
+          "visual": "src/button.js → 内容: 'class=\"btn primary\"'\n → blob: a1b2c3d4e5f6...",
+          "highlight": "blob:a1b2c3d4e5f6"
+        },
+        {
+          "title": "步骤 2：Git 构建新的 tree 对象",
+          "description": "Git 遍历整个 src 目录，为每个文件创建或复用对应的 blob。它发现 src/button.js 已变，其他文件未变，于是构建一个新 tree，包含所有文件的名称和哈希。",
+          "visual": "tree: d4e5f6a1b2c3...\n├── src/button.js → blob:a1b2c3d4e5f6...\n├── src/app.js → blob:9876543210...\n└── README.md → blob:abcdef123456...",
+          "highlight": "tree:d4e5f6a1b2c3..."
+        },
+        {
+          "title": "步骤 3：Git 创建 commit 对象",
+          "description": "Git 创建一个 commit 对象，指向新 tree，记录作者、时间戳，并将当前 HEAD 指向的 commit 作为父节点。",
+          "visual": "commit: 789xyz...\n├── tree: d4e5f6a1b2c3...\n├── parent: 555abc...\n├── author: Alice <alice@example.com>\n└── message: 'fix login button'",
+          "highlight": "commit:789xyz..."
+        },
+        {
+          "title": "步骤 4：HEAD 指向新 commit",
+          "description": "HEAD 这个指针从旧 commit 移动到新 commit。你‘移动’到了新状态，但旧状态仍在。",
+          "visual": "HEAD → 789xyz...\n(之前指向 555abc...)",
+          "highlight": "HEAD"
+        },
+        {
+          "title": "步骤 5：工作区被更新",
+          "description": "Git 从新 commit 的 tree 解包文件，覆盖 worktree 中的文件。你现在看到的是新状态。",
+          "visual": "worktree/\n├── src/button.js ← (来自 blob:a1b2c3d4e5f6)\n├── src/app.js ← (来自 blob:9876543210...)\n└── README.md ← (来自 blob:abcdef123456...)",
+          "highlight": "worktree/"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "content": "blob:a1b2c3 ← tree:d4e5f6 ← commit:789xyz ← HEAD → worktree\n↑\nparent:555abc ← tree:xyz789 ← blob:987654...\n↑\ncommit:111222 ← ...（历史）",
+      "label": "对象图完整链条"
+    },
+    {
+      "type": "comparison",
+      "content": "你认为：'我改了文件，Git 把它存起来了'。\n真实：'我改了内容，Git 用哈希创建了一个新对象，它被树结构引用，树被提交锚定，提交被 HEAD 指向，工作区被重建。'",
+      "label": "你认为的提交 vs 真实的提交"
+    },
+    {
+      "type": "text",
+      "content": "你不再是在‘使用’ Git。你是在阅读它的语言——一种由哈希、指针和不可变性写成的数学诗。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s14-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "rebuild",
+      "purpose": "要求学习者手动重建最近一次提交的对象图，从工作区文件反推 blob、tree、commit",
+      "priority": "core",
+      "componentHint": "提供一个空白的树状结构模板，让学习者拖拽或填写哈希值"
+    },
+    {
+      "capability": "trace",
+      "purpose": "追踪一个文件从 worktree 到 blob 到 tree 到 commit 的完整路径，验证其哈希一致性",
+      "priority": "secondary",
+      "componentHint": "交互式文件树，点击文件显示其 blob 哈希，点击 tree 显示子项"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "rebuild-map",
+      "prompt": "你最近一次提交修改了 config.json。请画出从 worktree 到 HEAD 的完整对象链，标注每个对象的类型和关系（无需真实哈希，用简写如 b1、t1、c1）。",
+      "answerShape": "worktree/config.json → blob:b1 → tree:t1 → commit:c1 → HEAD"
+    },
+    {
+      "type": "predict-next-step",
+      "prompt": "如果现在你删除了 src/utils.js 并提交，下一个 commit 的 tree 对象中，src/utils.js 会怎样？它的 blob 会被删除吗？",
+      "answerShape": "tree 中不再包含 src/utils.js 条目，但原 blob 仍存在，直到被 git gc 清理。"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比两个提交：A（修改了 a.txt）和 B（修改了 b.txt）。它们的 tree 对象有多少个相同的 blob 引用？为什么？",
+      "answerShape": "除了被修改的文件外，所有其他文件的 blob 都相同，因为内容未变。因此，如果项目有 10 个文件，两个 tree 会共享 9 个 blob。"
+    }
+  ],
+  "bridgeTo": null,
+  "nextModuleId": null
+}

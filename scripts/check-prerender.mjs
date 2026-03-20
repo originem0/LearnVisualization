@@ -4,9 +4,10 @@
  * Validates the prerender manifest contains every expected route.
  */
 
-import { readFileSync, readdirSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { PRIMARY_COURSE, listCourseSlugs, loadCourse } from './lib/course-package-source.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -14,35 +15,47 @@ const manifest = JSON.parse(readFileSync(resolve(root, '.next/prerender-manifest
 const routes = new Set(Object.keys(manifest.routes || {}));
 
 let bad = false;
-const fail = (msg) => { bad = true; console.error(`❌ ${msg}`); };
+const fail = (message) => {
+  bad = true;
+  console.error(`❌ ${message}`);
+};
 
-// Hub page
 const required = ['/zh'];
+const primaryCourse = loadCourse(PRIMARY_COURSE);
 
-// Legacy redirect routes (still prerendered as redirect pages)
 required.push('/zh/layers', '/zh/timeline');
-for (let i = 1; i <= 12; i++) required.push(`/zh/s${String(i).padStart(2, '0')}`);
+for (const { data: module } of primaryCourse.modules) {
+  required.push(`/zh/${module.id}`);
+}
 
-// Course routes — discover from courses/ directory
-const coursesDir = resolve(root, 'courses');
-if (existsSync(coursesDir)) {
-  const courseSlugs = readdirSync(coursesDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && existsSync(resolve(coursesDir, e.name, 'course.json')))
-    .map((e) => e.name);
+for (const courseSlug of listCourseSlugs()) {
+  const course = loadCourse(courseSlug);
+  required.push(`/zh/courses/${courseSlug}`);
+  required.push(`/zh/courses/${courseSlug}/layers`);
+  required.push(`/zh/courses/${courseSlug}/timeline`);
 
-  for (const slug of courseSlugs) {
-    required.push(`/zh/courses/${slug}`);
+  for (const { data: module } of course.modules) {
+    required.push(`/zh/courses/${courseSlug}/${module.id}`);
   }
 }
 
 for (const route of required) {
-  if (!routes.has(route)) fail(`missing prerendered route: ${route}`);
+  if (!routes.has(route)) {
+    fail(`missing prerendered route: ${route}`);
+  }
 }
 
 for (const route of routes) {
-  if (route.startsWith('/en')) fail(`unexpected en route still prerendered: ${route}`);
-  if (route.includes('/compare')) fail(`unexpected compare route still prerendered: ${route}`);
+  if (route.startsWith('/en')) {
+    fail(`unexpected en route still prerendered: ${route}`);
+  }
+  if (route.includes('/compare')) {
+    fail(`unexpected compare route still prerendered: ${route}`);
+  }
 }
 
-if (bad) process.exit(1);
+if (bad) {
+  process.exit(1);
+}
+
 console.log('✅ Prerender smoke checks passed.');

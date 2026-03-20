@@ -1,0 +1,180 @@
+{
+  "id": "s05",
+  "number": 5,
+  "title": "branch 和 tag 真的有区别吗？",
+  "subtitle": "它们本质都是指向 commit 的文件路径，但删除时的命运为何天差地别？",
+  "category": "linkage",
+  "moduleKind": "compare",
+  "primaryCognitiveAction": "compare",
+  "focusQuestion": "为什么删除一个 tag 不会丢数据，但删除一个 branch 可能会？",
+  "misconception": "认为 tag 是‘冻结的 commit’，像快照一样静态不变；branch 是‘动态容器’，自动跟着新提交移动——两者在结构上不同，tag 是‘只读的’，branch 是‘可写的’。",
+  "keyInsight": "branch 和 tag 在 Git 内部完全同构：都是 .git/refs/ 下的文本文件，内容仅包含一个 40 位 SHA-1 commit hash。区别仅在于：branch 的指针会随新提交自动更新，而 tag 永远不会；删除 branch 可能断开可达路径，而 tag 永远不会被 GC 回收。",
+  "opening": "你以为 tag 是‘冻结的快照’，branch 是‘会跑的轨道’——但如果你打开 .git/refs/heads/main 和 .git/refs/tags/v1.0，你会发现它们的内容一模一样：a1b2c3d4...。没有‘冻结’的魔法，没有‘动态容器’的结构差异。真正的区别不在它们是什么，而在它们被谁使用。当你用 git checkout v1.0，Git 会进入‘分离头指针’状态；但当你用 git checkout main，Git 会自动把新提交写进 main 文件。tag 不动，不是因为它不能动，而是没人让它动。删除 tag，只是删了一个文件；删除 branch，却可能让某个 commit 失去‘被引用’的身份——而 Git 的垃圾回收，只认引用，不认历史。",
+  "quote": "“Git 不保存历史，它保存引用。没有引用，历史就只是悬在空中的数据碎片。” —— Git 源码注释，2005",
+  "concepts": [
+    {
+      "name": "引用（ref）",
+      "note": "Git 中指向 commit 的指针，本质是 .git/refs/ 目录下的一个文本文件，内容为 40 位 SHA-1 哈希值。"
+    },
+    {
+      "name": "HEAD",
+      "note": "一个特殊的符号引用，指向当前所在的 branch 或 tag。当 checkout 一个 branch 时，HEAD 指向该 branch 文件；当 checkout 一个 tag 时，HEAD 变为‘分离状态’，直接指向 commit。"
+    },
+    {
+      "name": "可达性（reachability）",
+      "note": "一个 commit 是否能从某个引用（branch/tag）通过父链追溯到。只有可达的 commit 才不会被 git gc 回收。"
+    },
+    {
+      "name": "垃圾回收（GC）",
+      "note": "Git 定期清理无引用的 commit。只有那些无法从任何 ref（branch/tag/remote/reflog）追溯的 commit 才会被删除。"
+    },
+    {
+      "name": "分离头指针（detached HEAD）",
+      "note": "当 checkout 一个 tag 或具体 commit 时，HEAD 不再指向任何 branch，而是直接指向 commit。此时新建的提交不会被任何 branch 引用，可能被 GC 回收。"
+    }
+  ],
+  "logicChain": [
+    "Git 所有分支和标签都存储为 .git/refs/ 下的纯文本文件，内容仅为 commit hash。",
+    "branch 文件的内容会在每次 git commit 时被自动更新为最新 commit 的 hash。",
+    "tag 文件的内容在创建后永不更改，即使后续提交了新 commit，它仍指向原 commit。",
+    "当执行 git checkout <branch> 时，Git 更新 HEAD 指向该 branch 文件，后续提交会修改该 branch 文件。",
+    "当执行 git checkout <tag> 时，Git 更新 HEAD 直接指向 tag 所指的 commit，HEAD 不再关联任何 branch 文件。",
+    "删除一个 tag：只是删除一个文件，不影响任何 commit 的存在或可达性。",
+    "删除一个 branch：如果该 branch 是唯一指向某 commit 的引用，且该 commit 未被其他 branch/tag/reflog 引用，则该 commit 可能被 git gc 回收。"
+  ],
+  "examples": [
+    "{'description': '创建 tag v1.0 指向 commit A，然后提交两次得到 B 和 C。branch main 指向 C。删除 v1.0：commit A 仍可通过 main → B → A 追溯，不会丢失。', 'hashes': ['A', 'B', 'C'], 'refs': {'refs/tags/v1.0': 'A', 'refs/heads/main': 'C'}}",
+    "{'description': '创建 branch feature 指向 commit X，然后在 feature 上提交 Y 和 Z。创建 tag release 也指向 X。删除 feature 分支：commit Y 和 Z 仍可通过 release → X → Y → Z 追溯，不会丢失。', 'hashes': ['X', 'Y', 'Z'], 'refs': {'refs/heads/feature': 'Z', 'refs/tags/release': 'X'}}",
+    "{'description': '在 commit A 上创建 tag v1.0，然后直接 git checkout v1.0，提交新 commit B（此时 HEAD 分离）。删除 v1.0：commit B 无法从任何引用追溯，7天后会被 git gc 删除。', 'hashes': ['A', 'B'], 'refs': {'refs/tags/v1.0': 'A'}}",
+    "{'description': 'branch main 指向 commit C，你误删了 main，但你记得 C 的 hash。你可以用 git checkout C 重新访问它，甚至重建 main：git branch main C。只要 commit 存在，引用可重建。', 'hashes': ['C'], 'refs': {'refs/heads/main': 'C'}}"
+  ],
+  "counterexamples": [
+    "{'description': '有人认为：‘tag 是只读的，所以不能被修改’——但你可以用 git tag -f v1.0 强制覆盖 tag，它会更新文件内容。这说明 tag 不是‘冻结’的，只是默认不更新。', 'implication': 'tag 的‘静态’是行为约定，不是结构属性。'}",
+    "{'description': '有人认为：‘branch 有‘历史轨迹’，tag 没有’——但 branch 本身不存储历史，它只记录当前 tip。历史由 commit 的父链决定，与引用无关。', 'implication': '历史是图结构，引用只是锚点。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "误删 branch 导致重要提交丢失",
+      "rootCause": "以为删除 branch 只是‘移除标签’，没意识到它可能是唯一可达路径。"
+    },
+    {
+      "point": "在 detached HEAD 状态提交后忘记创建 branch，导致提交被 GC 回收",
+      "rootCause": "误以为 tag 是‘安全的快照’，所以 checkout tag 后随意提交，以为不会丢数据。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "真相藏在 .git/refs/ 里"
+    },
+    {
+      "type": "text",
+      "content": "打开你的项目目录，进入 .git/refs/heads/ 和 .git/refs/tags/。你会发现，无论你创建的是 main、dev 还是 v1.0、v2.1，它们都是纯文本文件。用 cat 查看，内容全是 40 位十六进制字符——这就是 commit 的哈希。"
+    },
+    {
+      "type": "comparison",
+      "content": "refs/heads/main: a1b2c3d4e5f6...\nrefs/tags/v1.0: a1b2c3d4e5f6...",
+      "label": "branch vs tag：文件内容对比"
+    },
+    {
+      "type": "steps",
+      "content": "我们从一个空仓库开始，创建第一个提交，然后分别创建 branch 和 tag。",
+      "label": "创建分支与标签的内部过程",
+      "steps": [
+        {
+          "title": "步骤 1：创建第一个 commit",
+          "description": "执行 git commit -m \"init\"，生成 commit hash：a1b2c3d4...",
+          "visual": "HEAD -> a1b2c3d4 (commit)\n.git/refs/heads/main: (不存在)\n.git/refs/tags/v1.0: (不存在)",
+          "highlight": "a1b2c3d4"
+        },
+        {
+          "title": "步骤 2：创建 branch main",
+          "description": "执行 git branch main，Git 创建一个文件，内容为当前 commit hash。",
+          "visual": "HEAD -> a1b2c3d4\n.git/refs/heads/main: a1b2c3d4\n.git/refs/tags/v1.0: (不存在)",
+          "highlight": ".git/refs/heads/main"
+        },
+        {
+          "title": "步骤 3：创建 tag v1.0",
+          "description": "执行 git tag v1.0，Git 创建另一个文件，内容同样是当前 commit hash。",
+          "visual": "HEAD -> a1b2c3d4\n.git/refs/heads/main: a1b2c3d4\n.git/refs/tags/v1.0: a1b2c3d4",
+          "highlight": ".git/refs/tags/v1.0"
+        },
+        {
+          "title": "步骤 4：提交新 commit b5f6e7d8...",
+          "description": "修改文件并 git commit，HEAD 和 main 自动更新，v1.0 保持不变。",
+          "visual": "HEAD -> b5f6e7d8\n.git/refs/heads/main: b5f6e7d8\n.git/refs/tags/v1.0: a1b2c3d4",
+          "highlight": ".git/refs/heads/main"
+        },
+        {
+          "title": "步骤 5：删除 main 分支",
+          "description": "执行 git branch -d main，Git 删除 .git/refs/heads/main 文件。",
+          "visual": "HEAD -> b5f6e7d8\n.git/refs/heads/main: (删除)\n.git/refs/tags/v1.0: a1b2c3d4",
+          "highlight": ".git/refs/heads/main (删除)"
+        },
+        {
+          "title": "步骤 6：删除 v1.0 标签",
+          "description": "执行 git tag -d v1.0，Git 删除 .git/refs/tags/v1.0 文件。",
+          "visual": "HEAD -> b5f6e7d8\n.git/refs/heads/main: (删除)\n.git/refs/tags/v1.0: (删除)",
+          "highlight": ".git/refs/tags/v1.0 (删除)"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "注意：在步骤 6 后，commit a1b2c3d4 仍然存在！它只是不再被任何引用指向。但 b5f6e7d8 仍可通过 HEAD 访问。真正危险的是：如果 HEAD 也指向 a1b2c3d4，且你删除了所有引用，那么 a1b2c3d4 将在 30 天后被 git gc 清理。"
+    },
+    {
+      "type": "text",
+      "content": "所以，tag 不是‘静态’，branch 也不是‘动态容器’。它们都是指针。区别在于：branch 是‘被自动更新的指针’，tag 是‘被人类锁定的指针’。"
+    },
+    {
+      "type": "diagram",
+      "content": "a1b2c3d4 ← b5f6e7d8 ← c9e0f1a2\n      ↑          ↑\n    v1.0       main\n\n删除 main → c9e0f1a2 和 b5f6e7d8 仍可达（通过 HEAD）\n删除 v1.0 → a1b2c3d4 仍可达（通过 b5f6e7d8 → a1b2c3d4）\n\n但如果 HEAD 指向 a1b2c3d4，且删除 v1.0 → a1b2c3d4 失去引用 → 可能被 GC 回收",
+      "label": "引用与可达性图"
+    },
+    {
+      "type": "code",
+      "content": "# 查看所有引用\n$ git show-ref\na1b2c3d4e5f67890... refs/heads/main\na1b2c3d4e5f67890... refs/tags/v1.0\n\n# 查看文件内容\n$ cat .git/refs/heads/main\na1b2c3d4e5f67890...\n$ cat .git/refs/tags/v1.0\na1b2c3d4e5f67890..."
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s05-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "compare",
+      "purpose": "让用户对比 branch 和 tag 在删除前后对 commit 可达性的影响",
+      "priority": "core",
+      "componentHint": "提供两个场景：删除 branch vs 删除 tag，让用户预测哪些 commit 会消失"
+    },
+    {
+      "capability": "step-through",
+      "purpose": "让用户模拟 steps 中的每一步，观察 HEAD 和 ref 文件的变化",
+      "priority": "secondary",
+      "componentHint": "交互式 Git 状态模拟器，点击按钮执行 git commit / git tag / git branch -d"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "当前 HEAD 指向 commit X，你执行了 git checkout v1.0（v1.0 指向 commit Y），然后你修改文件并提交。下一个 commit 的 hash 是 Z。此时，HEAD 指向什么？哪些引用指向 Z？",
+      "answerShape": "HEAD 指向 Z（分离状态），没有任何 branch 或 tag 指向 Z。"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "你删除了 branch feature，但保留了 tag release（指向 commit A）。你记得 feature 的最后一个 commit 是 B，且 B 的父是 A。请重建一个引用，让 B 重新被追踪。",
+      "answerShape": "执行 git branch feature B"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "Git 的垃圾回收机制只删除那些 ______ 的 commit。",
+      "answerShape": "无法从任何引用（branch/tag/reflog/remote）追溯到"
+    }
+  ],
+  "bridgeTo": "你刚看到删除 branch 可能让 commit 失去引用，但 Git 却能‘撤销’提交却不删数据——它是怎么做到的？下一章，我们揭开 git reset --hard 的秘密：它不删除 commit，它只是移动了 HEAD 和 branch 指针。",
+  "nextModuleId": "s06"
+}

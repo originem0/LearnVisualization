@@ -85,7 +85,8 @@
     {
       "capability": "trace",
       "purpose": "追踪一行数据写入 page 的过程",
-      "priority": "core"
+      "priority": "core",
+      "componentHint": "PostgresPageLayoutTrace"
     }
   ],
   "retrievalPrompts": [

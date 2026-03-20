@@ -1,0 +1,167 @@
+{
+  "id": "s12",
+  "number": 12,
+  "title": "如果 .git 文件夹被删了，还能恢复 Git 仓库吗？",
+  "subtitle": "工作区文件还在，但历史消失了——你真的以为还能救回来？",
+  "category": "recovery",
+  "moduleKind": "case-study",
+  "primaryCognitiveAction": "rebuild",
+  "focusQuestion": "为什么只保留工作区文件，无法重建出完整的提交历史？",
+  "misconception": "认为只要工作区的文件还在，就能像复制粘贴一样‘还原’出分支结构、提交时间、合并关系和提交信息——就像恢复一个被删除的 Word 文档那样。",
+  "keyInsight": "Git 的历史不是存储在文件内容里，而是存储在 .git 文件夹中的对象图中；工作区只是某个提交的快照副本，没有 .git，就没有提交、没有分支、没有历史——只有文件。",
+  "opening": "你删掉了 .git 文件夹，但项目文件还在。你松了口气：‘还好，代码没丢。’ 你重新初始化了 Git：git init，然后 git add .，git commit -m '恢复'。你以为你救回了项目。但你其实只救回了文件——你丢失了所有历史：谁改了哪行、什么时候合并的分支、为什么这个文件被重命名、谁写了那个 bug 的修复。你不是在恢复 Git 仓库，你是在用旧文件新建一个完全无关的仓库。Git 不是版本控制软件，它是时间机器。而 .git，就是这台机器的引擎和时间日志。没有它，你连‘昨天’都回不去。",
+  "quote": "“你删的不是配置文件，你删的是整个项目的记忆。” —— 一位 Git 仓库管理员在误删 .git 后的邮件",
+  "concepts": [
+    {
+      "name": "Git 对象（Objects）",
+      "note": "Git 用 blob、tree、commit 三种对象存储内容、目录结构和提交元数据，它们通过 SHA-1 哈希唯一标识，彼此链接形成有向无环图（DAG）"
+    },
+    {
+      "name": "工作区（Working Directory）",
+      "note": "只是当前检出的某个 commit 的文件快照副本，不包含任何 Git 元数据或历史信息"
+    },
+    {
+      "name": "引用（Refs）",
+      "note": "分支名（如 main）、标签（tag）等只是指向 commit 对象的指针，它们本身不存储数据，只存在于 .git/refs/ 下"
+    },
+    {
+      "name": "对象图（Object Graph）",
+      "note": "Git 的历史是 commit 对象通过父指针链接形成的链，每个 commit 指向一个 tree，tree 指向多个 blob，形成完整快照树"
+    },
+    {
+      "name": "哈希寻址（Content-Addressable Storage）",
+      "note": "Git 用文件内容的 SHA-1 哈希作为唯一 ID，相同内容在不同提交中共享同一个 blob，但没有 .git 就无法找到这些哈希"
+    }
+  ],
+  "logicChain": [
+    "工作区文件是某个 commit 的 tree 对象展开后的文件副本，但文件本身不包含其所属 commit 的哈希或父提交信息",
+    "Git 的提交历史依赖 commit 对象之间的父子指针，这些指针只存在于 .git/objects/ 中，不在工作区",
+    "分支名（如 main）只是指向 commit 对象的指针，存储在 .git/refs/heads/，删除 .git 后这些指针彻底消失",
+    "即使你重新 git init，新生成的 commit 会使用全新的哈希，与旧历史完全无关，无法自动关联",
+    "文件内容的哈希（blob）虽然可以被重新计算，但没有 .git 就无法知道哪些 blob 属于哪个 commit，也无法重建 tree 和 commit 结构",
+    "Git 没有‘文件版本号’，它只有‘对象图’——没有图，只有点，无法连成线",
+    "恢复 Git 仓库的唯一方式是恢复 .git 文件夹，或从远程仓库拉取（但本地历史已永久丢失）"
+  ],
+  "examples": [
+    "{'description': '你修改了 config.js，提交了三次：feat: 添加登录、fix: 修复 bug、refactor: 优化结构。删掉 .git 后，你重新 init 并 commit。现在你只有一个提交，所有历史和分支关系消失。', 'fileState': 'config.js 内容是最后一次修改后的版本，但你无法知道它经历了哪三次变更，谁改的，为什么改。'}",
+    "{'description': '你曾从 feature/login 分支合并到 main，合并提交包含两个父提交。删掉 .git 后，你重新提交，Git 不知道你曾合并过，它只看到一个孤立的提交。', 'fileState': 'main 分支的文件内容和 feature/login 合并后一致，但 Git 不再知道它有两个父提交，合并历史彻底丢失。'}",
+    "{'description': '你重命名了 src/index.js → src/app.js，并在提交中记录了重命名。删掉 .git 后，你重新添加文件，Git 把它当新文件处理，历史中的重命名记录完全消失。', 'fileState': '文件内容相同，但 Git 不再知道这是‘重命名’，而是两个独立文件，diff 会显示删除一个、添加一个。'}",
+    "{'description': '你删除了旧日志文件 logs/old.log，并在提交中说明‘清理冗余日志’。删掉 .git 后，你重新创建了 logs/old.log，但 Git 不知道它曾被删除过，也无法追溯删除原因。', 'fileState': '文件存在，但所有上下文——为什么删、何时删、谁删的——全部蒸发。'}"
+  ],
+  "counterexamples": [
+    "{'description': '有人尝试用 git log --all 或 git reflog 恢复——但这些命令依赖 .git 中的 reflog 文件，.git 被删后这些命令根本无法运行。', 'whyItFails': 'reflog 是 Git 的内部日志，只存在于 .git/logs/ 下，没有 .git，就没有日志。'}",
+    "{'description': '有人用文件时间戳（mtime）推测提交顺序——但文件修改时间可以被复制、同步、重置，完全不可靠。', 'whyItFails': '文件系统时间戳不是 Git 的元数据，它不记录提交事件，只记录最后一次写入，且可被任意修改。'}",
+    "{'description': '有人用 git init 后 git add .，然后用 git blame 查看作者——但 blame 依赖历史提交，新仓库没有历史，blame 会显示当前用户和当前时间。', 'whyItFails': 'blame 是历史分析工具，不是文件分析工具。没有提交历史，它只能‘猜’当前作者。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为‘文件还在’就等于‘历史还在’",
+      "rootCause": "混淆了‘内容’与‘上下文’——文件是数据，Git 历史是元数据关系图，二者不在同一层"
+    },
+    {
+      "point": "误以为 git init + git add . 能‘恢复’原仓库",
+      "rootCause": "误以为 Git 是文件同步工具，而非对象图数据库，忽略了哈希寻址和对象链接机制"
+    },
+    {
+      "point": "尝试用备份工具恢复 .git 文件夹但只恢复了部分文件",
+      "rootCause": "Git 对象是独立存储的，一个缺失的 commit 对象会导致整个下游历史无法重建，哪怕只缺一个 blob"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你以为你只是删了一个文件夹"
+    },
+    {
+      "type": "text",
+      "content": "你删了 .git 文件夹，以为只是删了‘配置’。你打开项目文件夹，所有代码都在。你甚至觉得：‘这不就是个普通文件夹吗？’ 但你不知道，你刚刚删除的是整个项目的记忆宫殿。"
+    },
+    {
+      "type": "comparison",
+      "content": "工作区：一堆文件。Git 历史：一个由 commit、tree、blob 组成的有向图，每个节点通过哈希链接，形成时间线。",
+      "label": "工作区 vs Git 历史"
+    },
+    {
+      "type": "callout",
+      "content": "重要：Git 不存储‘版本号’，它存储‘状态快照’和‘变化关系’。没有关系，就没有版本。"
+    },
+    {
+      "type": "steps",
+      "content": "假设你只有工作区文件，试图重建 Git 历史。每一步都失败。",
+      "label": "重建历史？不可能的三步",
+      "steps": [
+        {
+          "title": "第一步：重新初始化",
+          "description": "你运行 git init，创建了新的空仓库。Git 生成了新的 .git 文件夹，但里面是空的。",
+          "visual": "├── .git/\n│   ├── HEAD\n│   ├── objects/ (empty)\n│   ├── refs/ (empty)\n│   └── config\n└── src/\n    ├── app.js\n    └── index.js",
+          "highlight": "objects 和 refs 都是空的——没有历史，没有指针"
+        },
+        {
+          "title": "第二步：添加所有文件",
+          "description": "你运行 git add .，Git 计算每个文件的 SHA-1 哈希，创建 blob 对象，然后创建一个 tree 对象表示当前目录结构。",
+          "visual": "├── .git/\n│   ├── objects/\n│   │   ├── 9f/... (blob: app.js)\n│   │   └── 3a/... (blob: index.js)\n│   └── objects/7b/... (tree: src/)\n└── src/\n    ├── app.js\n    └── index.js",
+          "highlight": "你有了两个 blob 和一个 tree，但没有 commit！没有作者、没有时间、没有父提交"
+        },
+        {
+          "title": "第三步：提交",
+          "description": "你运行 git commit -m '恢复'。Git 创建一个 commit 对象，指向那个 tree，但它的父提交是空的，哈希是全新的，与旧历史完全无关。",
+          "visual": "├── .git/\n│   ├── objects/\n│   │   ├── 9f/... (blob: app.js)\n│   │   ├── 3a/... (blob: index.js)\n│   │   ├── 7b/... (tree: src/)\n│   │   └── 5c/... (commit: '恢复') ← 新哈希\n│   └── refs/heads/main → 5c/...\n└── src/\n    ├── app.js\n    └── index.js",
+          "highlight": "你有了一个新提交，但它和旧历史没有任何链接。旧的 17 个提交、3 个分支、2 个合并点——全部消失。"
+        }
+      ]
+    },
+    {
+      "type": "diagram",
+      "content": "删除前：[commit-A] → [commit-B] → [commit-C] ← [merge-commit] ← [commit-D]（来自 feature/login）\n删除后：[new-commit]（孤立节点，无父）",
+      "label": "对象图对比：删除前后"
+    },
+    {
+      "type": "text",
+      "content": "你可能以为你‘恢复’了项目。但你只是用旧文件新建了一个孤儿仓库。Git 不记得你曾是谁，曾做过什么。它现在只认识你，和你刚刚提交的这一个快照。"
+    },
+    {
+      "type": "callout",
+      "content": "真正的恢复：只有从远程仓库（如 GitHub）拉取，才能重建完整历史。本地 .git 一旦删除，本地历史就永久死亡。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s12-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "rebuild",
+      "purpose": "让用户尝试在模拟环境中重建一个被删除的 .git 仓库，体验无法恢复历史的挫败感",
+      "priority": "core",
+      "componentHint": "提供一个‘文件夹恢复模拟器’，允许用户点击‘删除 .git’，然后尝试‘git init + add + commit’，系统反馈‘历史无法重建’"
+    },
+    {
+      "capability": "trace",
+      "purpose": "让用户追踪一个 commit 对象的完整路径（blob → tree → commit → ref），理解为什么没有 .git 就断链",
+      "priority": "secondary",
+      "componentHint": "交互式对象图，点击任意 blob，高亮其所属 tree 和 commit，点击 commit 显示其父提交，但删除 .git 后所有链接变灰"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "rebuild-map",
+      "prompt": "请画出一个包含两个提交和一个合并提交的 Git 对象图（用 commit、tree、blob 表示），然后标注哪些部分在 .git 被删除后会彻底消失。",
+      "answerShape": "文本描述或 ASCII 图，必须包含至少 3 个 blob、2 个 tree、3 个 commit、1 个 merge commit、1 个 ref 指针，并标注消失部分"
+    },
+    {
+      "type": "predict-next-step",
+      "prompt": "你删了 .git，然后运行了 git init、git add .、git commit -m '恢复'。现在你运行 git log，你期望看到什么？实际会看到什么？为什么？",
+      "answerShape": "两行对比：期望（旧历史） vs 实际（仅一个新提交），并解释原因"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比：A. 你从 GitHub 拉取了仓库；B. 你只恢复了工作区文件并重新 git init。这两种‘恢复’方式在历史完整性上有何本质区别？",
+      "answerShape": "用一句话总结：A 恢复了对象图，B 只重建了文件快照"
+    }
+  ],
+  "bridgeTo": "你刚发现，Git 没有‘撤销’按钮。但奇怪的是，它比任何有撤销按钮的系统都更安全——为什么？",
+  "nextModuleId": "s13"
+}

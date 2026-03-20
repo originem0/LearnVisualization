@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { Category, Module } from '@/lib/types';
+import type { Category } from '@/lib/types';
+import type { CourseModule } from '@/lib/course-schema';
 import { categoryStyles } from '@/lib/palette';
 import { getModuleSlug } from '@/lib/module-slug';
 import type { Locale } from '@/lib/i18n';
 import { getLabels } from '@/lib/labels';
 
 interface TimelineCardProps {
-  module: Module;
+  module: CourseModule;
   category: Category;
   isLast: boolean;
   locale: Locale;
@@ -47,7 +48,7 @@ export default function TimelineCard({ module, category, isLast, locale, basePat
     <div ref={ref} className={`flex gap-4 transition-all duration-700 ease-smooth ${visible ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'}`}>
       <div className="relative flex flex-col items-center">
         <div className={`flex h-10 w-10 items-center justify-center rounded-full ${styles.dot} text-sm font-bold text-white`}>
-          {module.id}
+          {module.number}
         </div>
         {!isLast ? <div className="mt-2 w-0.5 flex-1 bg-zinc-200 dark:bg-zinc-800" /> : null}
       </div>
@@ -61,7 +62,7 @@ export default function TimelineCard({ module, category, isLast, locale, basePat
 
           <h3 className="mt-2 text-lg font-semibold text-[color:var(--color-text)]">
             {module.title}
-            <span className="ml-2 text-sm font-normal text-[color:var(--color-muted)]">{module.subtitle}</span>
+            <span className="ml-2 text-sm font-normal text-[color:var(--color-muted)]">{module.subtitle ?? ''}</span>
           </h3>
 
           {module.keyInsight && (

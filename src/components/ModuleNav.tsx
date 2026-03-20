@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import type { Module } from '@/lib/types';
+import type { CourseModule } from '@/lib/course-schema';
 import { getModuleSlug } from '@/lib/module-slug';
 import { getLabels } from '@/lib/labels';
 import type { Locale } from '@/lib/i18n';
 
 interface ModuleNavProps {
   locale: Locale;
-  prev?: Module;
-  next?: Module;
+  prev?: CourseModule;
+  next?: CourseModule;
   basePath?: string;
 }
 
@@ -15,28 +15,30 @@ export default function ModuleNav({ locale, prev, next, basePath = `/${locale}` 
   const labels = getLabels(locale);
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-5 sm:flex-row sm:items-center sm:justify-between">
-      <Link href={`${basePath}/timeline/`} className="text-sm font-semibold text-[color:var(--color-text)] hover:underline">
-        ← {labels.sections.backTimeline}
-      </Link>
-      <div className="flex flex-wrap gap-3 text-sm">
-        {prev ? (
-          <Link
-            href={`${basePath}/${getModuleSlug(prev.id)}/`}
-            className="rounded-full border border-[color:var(--color-border)] px-3 py-1.5 hover:bg-[color:var(--color-panel)]"
-          >
-            {getModuleSlug(prev.id)}: {prev.title}
-          </Link>
-        ) : null}
-        {next ? (
-          <Link
-            href={`${basePath}/${getModuleSlug(next.id)}/`}
-            className="rounded-full border border-[color:var(--color-border)] px-3 py-1.5 hover:bg-[color:var(--color-panel)]"
-          >
-            {getModuleSlug(next.id)}: {next.title}
-          </Link>
-        ) : null}
+    <nav className="border-t border-[color:var(--color-border)] pt-6">
+      <div className="flex items-center justify-between text-sm">
+        <Link href={`${basePath}/timeline/`} className="text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]">
+          ← {labels.sections.backTimeline}
+        </Link>
+        <div className="flex gap-4">
+          {prev && (
+            <Link
+              href={`${basePath}/${getModuleSlug(prev.id)}/`}
+              className="text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]"
+            >
+              ← {getModuleSlug(prev.id)}
+            </Link>
+          )}
+          {next && (
+            <Link
+              href={`${basePath}/${getModuleSlug(next.id)}/`}
+              className="font-medium text-[color:var(--color-accent)] hover:underline"
+            >
+              {getModuleSlug(next.id)}: {next.title} →
+            </Link>
+          )}
+        </div>
       </div>
-    </section>
+    </nav>
   );
 }

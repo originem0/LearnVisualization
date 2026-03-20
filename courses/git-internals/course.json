@@ -1,0 +1,187 @@
+{
+  "id": "git-internals",
+  "slug": "git-internals",
+  "title": "Git 内部机制：为什么它不靠数据库却如此可靠？",
+  "subtitle": "从对象存储到快照链，揭开版本控制的底层密码",
+  "goal": "让你不再把 Git 当黑箱，而是能预测、调试、重建其内部行为的系统设计师",
+  "projectType": "mixed",
+  "startDate": "2026-03-20",
+  "topic": "git-internals",
+  "language": "zh",
+  "status": "draft",
+  "categories": [
+    {
+      "id": "storage",
+      "name": "对象存储",
+      "color": "blue"
+    },
+    {
+      "id": "linkage",
+      "name": "引用链",
+      "color": "emerald"
+    },
+    {
+      "id": "state",
+      "name": "工作状态",
+      "color": "amber"
+    },
+    {
+      "id": "recovery",
+      "name": "恢复机制",
+      "color": "red"
+    }
+  ],
+  "audience": {
+    "primaryAudience": "有基础 Git 使用经验的开发者，曾因 merge 冲突、reset 搞丢代码而恐慌",
+    "priorKnowledge": [
+      "会使用 git add, commit, push, pull",
+      "知道分支和提交的基本概念",
+      "曾用过 git log 查看历史"
+    ],
+    "desiredOutcome": "能根据 Git 对象图解释任意提交的来源，手动重建损坏的仓库，理解为什么 git checkout 不是‘切换文件’而是‘重置工作区指针’"
+  },
+  "learningGoals": [
+    "区分 Git 的对象类型（blob、tree、commit）及其在文件系统中的存储方式",
+    "追踪一次 commit 如何通过哈希链构建不可变快照树",
+    "解释为什么 git reset --hard 不是‘删除’而是‘移动指针’",
+    "模拟 HEAD、branch、tag 在对象图中的不同角色",
+    "重建一个因误操作丢失的提交，仅依赖 .git/objects 中的原始数据"
+  ],
+  "paths": [
+    {
+      "id": "core-path",
+      "title": "核心路径",
+      "description": "完整学习路径",
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03",
+        "s04",
+        "s05",
+        "s06",
+        "s07",
+        "s08",
+        "s09",
+        "s10",
+        "s11",
+        "s12",
+        "s13",
+        "s14"
+      ]
+    }
+  ],
+  "moduleGraph": {
+    "order": [
+      "s01",
+      "s02",
+      "s03",
+      "s04",
+      "s05",
+      "s06",
+      "s07",
+      "s08",
+      "s09",
+      "s10",
+      "s11",
+      "s12",
+      "s13",
+      "s14"
+    ],
+    "edges": [
+      {
+        "from": "s01",
+        "to": "s02",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s02",
+        "to": "s03",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s03",
+        "to": "s04",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s04",
+        "to": "s05",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s05",
+        "to": "s06",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s06",
+        "to": "s07",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s07",
+        "to": "s08",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s08",
+        "to": "s09",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s09",
+        "to": "s10",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s10",
+        "to": "s11",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s11",
+        "to": "s12",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s12",
+        "to": "s13",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      },
+      {
+        "from": "s13",
+        "to": "s14",
+        "type": "prerequisite",
+        "note": "线性主路径"
+      }
+    ]
+  },
+  "modules": [
+    "s01",
+    "s02",
+    "s03",
+    "s04",
+    "s05",
+    "s06",
+    "s07",
+    "s08",
+    "s09",
+    "s10",
+    "s11",
+    "s12",
+    "s13",
+    "s14"
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "id": "s08",
+  "number": 8,
+  "title": "为什么 git checkout 文件会覆盖工作区，却不影响提交？",
+  "subtitle": "你不是在‘回滚历史’，你是在‘用对象填充工作区'",
+  "category": "state",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "为什么从历史提交 checkout 一个文件，不会改变 HEAD 或分支？",
+  "misconception": "认为 git checkout <commit> -- <file> 是‘回滚文件到过去版本’，会修改提交历史或让分支‘回到过去’，就像时间机器一样。",
+  "keyInsight": "Git 的 checkout 不是‘改变历史’，而是‘用对象库中的内容覆盖工作区’——它只是把对象库里的 blob 内容写进你的文件系统，完全不碰 HEAD、分支或提交图。",
+  "opening": "你输入 git checkout abc123 -- README.md，以为自己在‘撤销修改’，甚至担心会不会把整个项目的历史搞乱。但奇怪的是：你没看到任何分支移动，git log 依然显示最新的提交，HEAD 没动，分支指针纹丝不动。为什么？因为你根本没在‘改历史’——你只是在‘复制粘贴’。Git 不是数据库，它没有‘更新记录’的功能。它只有‘对象’：提交、树、blob。你 checkout 的，是 blob 的内容，不是历史的指针。你不是在修复过去，你是在用过去的文件，覆盖现在的文件。",
+  "quote": "Git 不是版本控制系统，它是内容寻址的快照系统。你不是在‘改版本’，你是在‘取快照’。",
+  "concepts": [
+    {
+      "name": "工作区 (Working Directory)",
+      "note": "你看到的文件，是磁盘上的真实文件，可被编辑、删除、修改。checkout 会直接覆盖这里。"
+    },
+    {
+      "name": "暂存区 (Staging Area / Index)",
+      "note": "Git 的‘准备提交’区域，记录了下次提交的快照。checkout 文件不会影响它，除非你主动 add。"
+    },
+    {
+      "name": "对象库 (Object Database)",
+      "note": "Git 的只读仓库，存储所有 commit、tree、blob 对象，按 SHA-1 唯一寻址。checkout 从这里读取，但从不写入。"
+    },
+    {
+      "name": "HEAD",
+      "note": "一个指向当前分支或提交的指针。checkout 文件不会移动它，因为它只在切换分支或提交时才更新。"
+    },
+    {
+      "name": "blob 对象",
+      "note": "Git 中存储文件内容的最小单元，内容不变，SHA-1 不变。checkout 就是把某个 blob 的内容写入工作区。"
+    }
+  ],
+  "logicChain": [
+    "1. 你执行 git checkout abc123 -- README.md，Git 查找提交 abc123 中的 README.md 对应的 blob 对象。",
+    "2. Git 读取该 blob 的内容（例如：'Hello v1'），不验证它是否‘比当前版本旧’，也不关心它是否‘被修改过’。",
+    "3. Git 直接将该 blob 内容写入工作区的 README.md 文件，覆盖当前内容。",
+    "4. 暂存区中的 README.md 记录（如果存在）保持不变，仍指向之前的 blob 或未修改状态。",
+    "5. HEAD 仍指向原分支（如 main），分支指针未移动，提交历史完全未受影响。",
+    "6. 你若执行 git status，会看到 README.md 是‘已修改’，因为工作区内容 ≠ 暂存区内容。",
+    "7. 你若想‘保存’这个‘历史版本’，必须执行 git add README.md，它才会成为新提交的快照的一部分。"
+  ],
+  "examples": [
+    "{'description': \"你在 main 分支上，工作区 README.md 是 'Hello v3'，你执行 git checkout HEAD~2 -- README.md，文件变成 'Hello v1'。git log 仍显示三个提交，HEAD 仍指向 main 的最新提交。\", 'expectedOutcome': '文件被覆盖，但提交历史、分支、HEAD 全部不变。'}",
+    "{'description': '你误删了 src/config.js，但记得上个提交有它。你执行 git checkout HEAD~1 -- src/config.js，文件恢复。你没创建新提交，没改变分支，只是从对象库中‘取出’了那个版本。', 'expectedOutcome': '文件恢复，但 git log 不显示任何新提交，HEAD 未动。'}",
+    "{'description': '你 checkout 了一个不存在于当前分支的提交中的文件（如：git checkout feature-branch -- README.md），Git 仍能成功提取，因为对象库是全局共享的。', 'expectedOutcome': '即使文件来自其他分支，只要对象存在，就能被提取。'}"
+  ],
+  "counterexamples": [
+    "{'description': '如果你执行 git checkout feature-branch，而不是 git checkout feature-branch -- README.md，那么 HEAD 会移动，分支指针会切换，工作区所有文件都会被替换。这与 checkout 文件完全不同。', 'contrast': '前者是‘切换上下文’，后者是‘提取内容’。'}",
+    "{'description': '如果你执行 git reset --hard HEAD~1，整个 HEAD、分支、工作区、暂存区都会被重置到上一个提交。这会‘改变历史’，而 checkout 文件不会。', 'contrast': 'reset 改变指针，checkout 只改文件。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为 checkout 文件后，文件‘变回历史’就等于‘撤销了修改’，不需要 add。",
+      "rootCause": "混淆了‘内容恢复’和‘提交恢复’。工作区被覆盖 ≠ 暂存区被更新。"
+    },
+    {
+      "point": "在多人协作中，checkout 了别人提交的文件，误以为自己‘同步了最新代码’，结果没 push 也没 add，导致本地文件被覆盖但未共享。",
+      "rootCause": "误以为 checkout 是‘拉取更新’，而它只是本地文件替换。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你以为你在穿越时间，其实你只是在复制粘贴"
+    },
+    {
+      "type": "text",
+      "content": "想象你有一本手写日记，每页都贴了标签：第1页是‘2023-01-01’，第3页是‘2023-01-03’。你翻到第3页，发现写错了，想恢复第1页的内容。你没有撕掉第3页，也没有重写第1页——你只是拿一张纸，抄下第1页的内容，贴在第3页上。你的日记本历史没变，只是当前页被覆盖了。这就是 Git 的 checkout。"
+    },
+    {
+      "type": "steps",
+      "content": "我们用一个具体例子追踪 checkout 的每一步变化。",
+      "label": "checkout 文件的三步真相",
+      "steps": [
+        {
+          "title": "初始状态：工作区、暂存区、对象库分离",
+          "description": "工作区有 README.md 内容为 'Hello v3'，暂存区记录的是 'Hello v3'，对象库中有一个 blob 'abc123' 对应 'Hello v1'。",
+          "visual": "WORKING: 'Hello v3'\nSTAGING: 'Hello v3'\nOBJECTS: abc123 → 'Hello v1'\nHEAD → main@commit3",
+          "highlight": "WORKING 和 STAGING 一致，HEAD 指向 commit3"
+        },
+        {
+          "title": "执行 checkout：git checkout abc123 -- README.md",
+          "description": "Git 从对象库中读取 blob abc123 的内容，直接写入工作区的 README.md，覆盖原有内容。",
+          "visual": "WORKING: 'Hello v1' ← 被覆盖\nSTAGING: 'Hello v3' ← 未变\nOBJECTS: abc123 → 'Hello v1'\nHEAD → main@commit3",
+          "highlight": "只有 WORKING 被修改，STAGING 和 HEAD 完全未动"
+        },
+        {
+          "title": "最终状态：文件变了，但历史没动",
+          "description": "你运行 git status，看到 README.md 是 'modified'，因为工作区 ≠ 暂存区。你必须 git add 才能把它变成新快照。",
+          "visual": "WORKING: 'Hello v1'\nSTAGING: 'Hello v3'\nOBJECTS: abc123 → 'Hello v1'\nHEAD → main@commit3",
+          "highlight": "Git 不关心你从哪取内容，只关心你是否 add。历史是只读的。"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "Git 的对象库是‘只读图书馆’。你不能修改书的内容，只能借出来抄写。checkout 就是借书抄写，不是改写原书。"
+    },
+    {
+      "type": "comparison",
+      "content": "checkout 文件：只改工作区，不碰 HEAD。checkout 分支：改 HEAD，改工作区，改暂存区。前者是‘取内容’，后者是‘换世界’。",
+      "label": "checkout 文件 vs checkout 分支"
+    },
+    {
+      "type": "text",
+      "content": "你可能觉得这很奇怪：为什么 Git 不自动把 checkout 的内容加到暂存区？因为它不假设你的意图。你可能只是想看看历史版本，而不是要提交它。Git 不替你做决定——它只做你明确要求的事。"
+    },
+    {
+      "type": "diagram",
+      "content": "WORKING ←[写入]← OBJECTS (只读)  \nSTAGING ←[add]← WORKING  \nHEAD → BRANCH → COMMIT → TREE → BLOB  \ncheckout 文件：只走 OBJECTS → WORKING 这条线。",
+      "label": "三层隔离模型"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s08-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "step-through",
+      "purpose": "让用户逐步观察 checkout 文件时，工作区、暂存区、HEAD 的变化",
+      "priority": "core",
+      "componentHint": "交互式三栏视图：工作区 / 暂存区 / HEAD，随操作动态更新"
+    },
+    {
+      "capability": "trace",
+      "purpose": "追踪一个文件从对象库到工作区的路径，确认它是否经过暂存区",
+      "priority": "secondary",
+      "componentHint": "点击文件名，高亮其在对象库中的 blob 和路径"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "你执行了 git checkout HEAD~1 -- config.json，然后立即运行 git status。你预期看到什么？",
+      "answerShape": "一个字符串，描述 git status 的输出，如：'modified: config.json'"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "请画出 checkout 文件前后，工作区、暂存区、HEAD 和对象库的关系图。标出哪些部分变了，哪些没变。",
+      "answerShape": "一个文本描述的结构图，如：WORKING: changed, STAGING: unchanged, HEAD: unchanged, OBJECTS: read-only"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比 git checkout <commit> -- file 和 git restore --source=<commit> --file。它们在改变 HEAD 上有什么区别？",
+      "answerShape": "两者都不改变 HEAD。但 restore 是现代命令，语义更清晰，推荐使用。"
+    }
+  ],
+  "bridgeTo": "你刚看到 Git 如何从对象库中提取文件而不动历史。但下一个问题来了：如果对象库是只读的，Git 怎么能在几毫秒内，从百万次提交中找到某个文件的任意历史版本？它没有索引，没有数据库——它靠什么？",
+  "nextModuleId": "s09"
+}

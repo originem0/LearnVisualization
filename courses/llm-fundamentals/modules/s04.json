@@ -5,6 +5,7 @@
   "subtitle": "编码器与解码器的协奏",
   "category": "architecture",
   "focusQuestion": "为什么“只有注意力”不够？",
+  "misconception": "既然论文叫 Attention Is All You Need，其他结构都只是边角料。",
   "quote": "残差连接和层归一化是深层网络的生命线",
   "keyInsight": "Transformer 的突破不只是注意力，而是把 Attention、FFN、Residual、LayerNorm 装配成一个可以稳定堆叠、持续放大的标准积木。",
   "opening": "《Attention Is All You Need》这个标题有点会骗人。\n\n如果你真的把模型只剩注意力层，它不会更优雅，只会更难训。\n\nTransformer 真正厉害的地方，是它把通信、加工、稳定性和堆叠方式装进了一个可复制的标准模板。",
@@ -188,6 +189,14 @@
       "purpose": "补充对比 / 步骤 / 演示交互",
       "priority": "secondary",
       "componentHint": "ArchitectureCompare"
+    }
+  ],
+  "secondaryInteractionAfterHeading": "Encoder、Decoder、Decoder-only 有什么区别？",
+  "retrievalPrompts": [
+    {
+      "type": "compare-variants",
+      "prompt": "如果把 Transformer 里的 FFN、Residual、LayerNorm 全部删掉，只剩注意力，最先坏掉的会是什么？",
+      "answerShape": "答案不该只说“效果变差”。要指出至少两层后果：信息加工能力下降、深层训练稳定性变差、标准积木无法可靠堆叠。"
     }
   ],
   "bridgeTo": "结构现在搭好了，但它还只是一个空壳。\n\n问题变成了：没有人工标注，怎么让这样一个巨大的网络从海量文本里自己长出语言能力？\n\n答案不是“背规则”，而是设计预训练目标。",

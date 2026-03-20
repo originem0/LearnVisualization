@@ -1,0 +1,169 @@
+{
+  "id": "s02",
+  "number": 2,
+  "title": "一个 commit 为什么能代表整个项目状态？",
+  "subtitle": "它不存文件，却能还原整个项目——真相藏在指针里",
+  "category": "storage",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "focusQuestion": "为什么 commit 对象里没有文件内容，却能还原整个项目？",
+  "misconception": "认为 commit 对象直接包含所有文件的文本内容，就像一个压缩包，把当前所有文件的完整文本都塞进去了。",
+  "keyInsight": "commit 不是文件快照，而是指向一个 tree 对象的指针；tree 对象通过层级引用链（tree → tree → blob）递归构建出整个项目结构，每个 blob 只存储一次内容，由 SHA-1 哈希唯一标识。",
+  "opening": "你可能以为，每次提交 Git 都会把整个项目的所有文件重新存一遍——就像你每次保存 Word 文档时，系统都复制一份完整的副本。但如果你真这么想，那 Git 早就把你的硬盘撑爆了。实际上，一个 commit 对象只有不到 200 字节，它不存文件，不存差异，甚至不存文件名。它只存一个 40 位的哈希值，指向一个叫 tree 的对象。而这个 tree，才是真正的‘项目快照’的骨架。你看到的‘文件’，其实是 Git 用指针拼出来的幻觉。",
+  "quote": "“Git 不是版本控制系统，它是内容寻址的文件系统。” —— Linus Torvalds",
+  "concepts": [
+    {
+      "name": "commit 对象",
+      "note": "一个轻量级对象，包含父 commit 指针、作者信息、提交信息，以及指向 root tree 对象的 SHA-1 哈希。不包含任何文件内容。"
+    },
+    {
+      "name": "tree 对象",
+      "note": "代表一个目录结构，包含文件名、权限、以及指向 blob（文件内容）或子 tree（子目录）的哈希指针。是项目状态的结构化索引。"
+    },
+    {
+      "name": "blob 对象",
+      "note": "存储文件的原始内容，由内容的 SHA-1 哈希唯一标识。相同内容的文件在 Git 中只存一次。"
+    },
+    {
+      "name": "哈希指针",
+      "note": "Git 用 SHA-1 哈希值作为对象的地址。通过哈希引用，tree 和 commit 实现了不可变、可验证的层级链接。"
+    },
+    {
+      "name": "内容寻址",
+      "note": "对象由其内容的哈希值决定地址，内容不变则地址不变。这使得 Git 能自动去重、校验完整性、并安全地共享对象。"
+    }
+  ],
+  "logicChain": [
+    "一个 commit 对象只包含一个指向 root tree 的哈希值。",
+    "root tree 对象列出项目顶层的文件和目录，每个条目指向一个 blob（文件）或另一个 tree（子目录）。",
+    "子 tree 对象递归地列出其下层的文件和目录，形成树状结构。",
+    "每个 blob 对象存储一个文件的完整内容，由其内容的 SHA-1 哈希唯一标识。",
+    "相同内容的文件（如多个文件副本）只存储一次 blob，节省空间。",
+    "整个项目状态由 commit → root tree → 子 tree → blob 的指针链完整还原。",
+    "任何文件内容或结构的改变，都会产生新的哈希，从而生成新的 tree 和 commit，确保历史不可篡改。"
+  ],
+  "examples": [
+    "{'description': '项目结构：src/main.js, src/utils/helper.js, README.md', 'structure': 'commit → tree A (root) → [blob: README.md, tree B: src] → tree B → [blob: main.js, blob: helper.js]'}",
+    "{'description': '两个 commit 修改了同一个文件但内容相同：Git 重用同一个 blob，不重复存储。', 'structure': \"commit1 → tree1 → blobX (main.js 内容为 'console.log(1)')\\ncommit2 → tree2 → blobX (same content, same hash)\"}",
+    "{'description': '删除一个文件后提交：新 tree 不再包含该文件的条目，旧 blob 仍存在但不再被引用，等待垃圾回收。', 'structure': 'commit1 → tree1 → [blobA, blobB]\\ncommit2 → tree2 → [blobB]  // blobA 未被引用'}",
+    "{'description': '重命名文件：Git 不记录重命名，而是通过比较 tree 结构推断——新 tree 中文件名变了，但 blob 哈希未变。', 'structure': \"commit1 → tree1 → [blobX: 'old.txt']\\ncommit2 → tree2 → [blobX: 'new.txt']  // blobX 相同，Git 推断为重命名\"}"
+  ],
+  "counterexamples": [
+    "{'description': '如果 commit 存文件内容，那么每次修改一行代码，Git 都要存整个文件——但实际 Git 只存一次 blob，无论修改多少次。', 'reason': '这证明 commit 不存储内容，只存储指向内容的指针。'}",
+    "{'description': '如果 Git 用差异存储，那么还原历史版本需要逐个应用补丁——但 Git 可以直接从任意 commit 重建完整状态，无需依赖前序提交。', 'reason': '这证明每个 commit 都是独立的完整状态指针，而非增量链。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "误以为‘git show’显示的是 commit 里的文件内容，以为 commit 包含了文件。",
+      "rootCause": "git show 实际上是沿着 commit → tree → blob 链动态重建并渲染内容，不是从 commit 中直接读取。"
+    },
+    {
+      "point": "认为删除文件后，旧文件内容会立即被删除。",
+      "rootCause": "blob 对象只要被任何 commit 或 tree 引用就保留；只有当它完全不可达时，才在 gc 时被清理。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "想象你有一个文件夹，里面有三个文件：README.md、src/app.js 和 src/lib/utils.js。你运行 git commit，Git 生成了一个 commit 对象。这个对象长什么样？"
+    },
+    {
+      "type": "comparison",
+      "content": "误解：commit 对象 = { files: [\"README.md\": \"Hello\", \"src/app.js\": \"console.log()\", ...] }\n真相：commit 对象 = { tree: \"a1b2c3...\", author: \"Alice\", message: \"Initial commit\" }",
+      "label": "误解 vs 真相"
+    },
+    {
+      "type": "heading",
+      "content": "真相：commit 是一个指针，不是快照"
+    },
+    {
+      "type": "text",
+      "content": "commit 对象里没有文件，只有指向一个 tree 对象的哈希。这个 tree 对象，才是项目结构的‘地图’。"
+    },
+    {
+      "type": "steps",
+      "content": "我们从一个真实的 commit 开始，一步步追踪它如何重建项目结构。",
+      "label": "追踪一个 commit 如何还原整个项目",
+      "steps": [
+        {
+          "title": "步骤 1：commit 指向 root tree",
+          "description": "commit 对象包含一个 tree 哈希，指向项目根目录的 tree 对象。",
+          "visual": "commit (a1b2c3...) → tree (d4e5f6...)",
+          "highlight": "commit 本身只存一个哈希，无文件"
+        },
+        {
+          "title": "步骤 2：root tree 列出顶层条目",
+          "description": "tree d4e5f6 包含三个条目：README.md（blob）、src（tree）、LICENSE（blob）。",
+          "visual": "tree d4e5f6\n├── 100644 blob f1g2h3 → README.md\n├── 040000 tree i7j8k9 → src\n└── 100644 blob l0m1n2 → LICENSE",
+          "highlight": "tree 不存内容，只存文件名 + 类型 + 指针"
+        },
+        {
+          "title": "步骤 3：进入子目录 tree",
+          "description": "src 是一个 tree 对象（i7j8k9），它包含两个文件：app.js 和 utils.js。",
+          "visual": "tree i7j8k9 (src)\n├── 100644 blob o3p4q5 → app.js\n└── 040000 tree r6s7t8 → utils",
+          "highlight": "tree 可嵌套，形成层级结构"
+        },
+        {
+          "title": "步骤 4：最终指向 blob 内容",
+          "description": "app.js 指向 blob o3p4q5，其内容是 'console.log(\"Hello\");'。这个 blob 是唯一存储真实数据的地方。",
+          "visual": "blob o3p4q5\ncontent: \"console.log(\\\"Hello\\\");\"",
+          "highlight": "所有文件内容都存储在 blob 中，由哈希寻址"
+        },
+        {
+          "title": "步骤 5：还原完成",
+          "description": "从 commit 开始，沿着指针链：commit → root tree → src tree → blob，完整重建了项目结构。",
+          "visual": "commit → tree → tree → blob\n[完整项目结构还原]",
+          "highlight": "没有一个地方存储‘整个项目’，但每一步指针都精确指向下一个部分"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "Git 的可靠性来自‘内容寻址’：只要哈希不变，内容就一定不变。任何篡改都会改变哈希，从而破坏指针链。"
+    },
+    {
+      "type": "text",
+      "content": "这就是为什么 Git 不需要数据库——它用哈希指针构建了一个不可变的、分布式的、自验证的文件系统。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s02-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "让学生跟随 commit → tree → blob 的指针链，理解状态如何被重建",
+      "priority": "core",
+      "componentHint": "交互式树状导航器，点击每个哈希展开其指向的对象"
+    },
+    {
+      "capability": "rebuild",
+      "purpose": "让学生手动构建一个 tree 对象，给定文件结构和内容，生成正确的哈希链",
+      "priority": "secondary",
+      "componentHint": "拖拽文件到目录结构中，系统实时生成 tree 结构和哈希"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "如果现在你修改了 src/app.js 的内容，Git 会创建什么新对象？旧对象会怎样？",
+      "answerShape": "会创建一个新的 blob（因为内容变了，哈希不同），并创建一个新的 src tree（指向新 blob），再创建一个新的 root tree（指向新 src tree），最后创建一个新的 commit（指向新 root tree）。旧 blob 和旧 tree 仍存在，但不再被任何 commit 引用。"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "请根据以下 commit 信息，重建项目结构：commit → treeA → [blobX: 'a.txt', treeB → blobY: 'b.txt']。写出文件路径和内容。",
+      "answerShape": "a.txt: '内容为 blobX'\nb.txt: '内容为 blobY'"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比两个 commit：commit1 指向 tree1（含 a.txt 和 b.txt），commit2 指向 tree2（含 a.txt 和 c.txt）。如果 a.txt 的 blob 哈希相同，说明什么？",
+      "answerShape": "说明 a.txt 的内容在两次提交中完全未变，Git 重用了同一个 blob 对象，节省了存储空间。"
+    }
+  ],
+  "bridgeTo": "commit 用一个 40 位哈希锁定整个项目结构。但同一个文件在不同提交中内容相同，哈希也相同——那 Git 如何防止哈希碰撞？又如何确保全球唯一？",
+  "nextModuleId": "s03"
+}

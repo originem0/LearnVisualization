@@ -6,6 +6,7 @@ out/
 .DS_Store
 
 agent-backend/generated/
+agent-backend/jobs/
 
 __pycache__/
 *.pyc

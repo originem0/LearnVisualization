@@ -1,4 +1,4 @@
-import type { Category, ConceptItem, NarrativeBlock, PitfallItem } from '@/lib/types';
+import type { Category, ConceptItem, DialogTurn, NarrativeBlock, PitfallItem } from '@/lib/types';
 
 export type CourseStatus = 'draft' | 'review' | 'published';
 export type CourseLanguage = 'zh';
@@ -67,6 +67,7 @@ export type InteractionCapability =
   | 'simulate'
   | 'trace'
   | 'classify'
+  | 'rebuild'
   | 'retrieve'
   | 'parameter-play';
 
@@ -117,8 +118,10 @@ export interface CourseModule {
   narrative: NarrativeBlock[];
   visuals?: VisualRef[];
   interactionRequirements?: InteractionRequirement[];
+  secondaryInteractionAfterHeading?: string;
 
   retrievalPrompts?: RetrievalPrompt[];
+  introDialog?: DialogTurn[];
   bridgeTo?: string | null;
   nextModuleId?: string;
 }

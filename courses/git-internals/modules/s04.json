@@ -1,0 +1,173 @@
+{
+  "id": "s04",
+  "number": 4,
+  "title": "为什么 git commit 之后，文件还没‘保存’到分支？",
+  "subtitle": "commit 不是‘提交到分支’，而是‘创建独立对象’",
+  "category": "linkage",
+  "moduleKind": "concept-clarification",
+  "primaryCognitiveAction": "distinguish",
+  "focusQuestion": "为什么新建分支后 commit，主分支一点没变？",
+  "misconception": "认为 commit 会自动‘附加’到当前分支，分支是盛放提交的容器，就像文件夹装文件一样——只要你在分支上操作，提交就会‘掉进’那个分支里。",
+  "keyInsight": "Git 的分支只是指向 commit 的可移动指针，commit 本身是独立、不可变的对象；HEAD 指针决定‘当前在哪条分支上’，而 commit 只被 HEAD 引用，不被分支‘容纳’。",
+  "opening": "你刚创建了一个新分支，切换过去，改了文件，执行 git commit —— 你以为主分支会被‘隔离’，新提交‘锁’在新分支里。但当你切回主分支，发现它居然还是原来的样子？这让你怀疑 Git 是否出了问题。其实，你误解了 commit 的本质：它不是‘存进’分支，而是‘挂到’HEAD 指向的分支指针上。分支不是容器，是路标。commit 是独立的石头，HEAD 是你脚下的位置。你走哪条路，石头就贴在哪条路的终点，而不是你走过的地方自动长出石头。",
+  "quote": "“分支只是指向提交的指针。你不是在‘提交到分支’，你是在‘让分支指向一个新的提交’。” —— Git 内部设计者",
+  "concepts": [
+    {
+      "name": "commit 对象",
+      "note": "一个不可变的快照，包含文件树、父提交、作者、时间戳和哈希 ID。它不隶属于任何分支。"
+    },
+    {
+      "name": "分支引用（branch reference）",
+      "note": "一个文件，内容仅是某个 commit 的 40 位哈希。它不存储数据，只指向数据。"
+    },
+    {
+      "name": "HEAD 指针",
+      "note": "一个特殊的符号引用，指向当前活动的分支（或提交）。它决定下一个 commit 会被附加到哪条分支上。"
+    },
+    {
+      "name": "可移动指针",
+      "note": "分支和 HEAD 都是可移动的指针，commit 是固定的。移动指针 ≠ 修改 commit。"
+    },
+    {
+      "name": "分离 HEAD 状态",
+      "note": "当 HEAD 直接指向某个 commit 而非分支时，新 commit 会脱离任何分支，形成‘孤儿提交’。"
+    }
+  ],
+  "logicChain": [
+    "1. 用户执行 git checkout main，HEAD 指向 main 分支引用，main 指向 commit A。",
+    "2. 用户执行 git checkout -b feature，HEAD 现在指向 feature 分支引用，feature 也指向 commit A（与 main 相同）。",
+    "3. 用户修改文件并执行 git commit，Git 创建新 commit B，其父提交是 A。",
+    "4. Git 不修改 main 或任何其他分支，只更新 HEAD 指向的分支引用（即 feature）指向 commit B。",
+    "5. main 仍指向 commit A，因此主分支内容未变。",
+    "6. 此时，feature 指向 B，main 指向 A，HEAD 指向 feature —— 两个分支已分叉。",
+    "7. 若此时切换回 main，HEAD 指向 main，但 commit B 仍存在，只是不再被 main 引用。"
+  ],
+  "examples": [
+    "{'description': '在 main 分支上创建 feature 分支，切换后提交一次，main 不变。', 'steps': ['git init', \"echo 'a' > file.txt && git add . && git commit -m 'A'\", 'git checkout -b feature', \"echo 'b' > file.txt && git add . && git commit -m 'B'\", 'git checkout main && cat file.txt'], 'outcome': \"main 分支上 file.txt 内容仍是 'a'，证明 commit B 没有影响 main。\"}",
+    "{'description': '在分离 HEAD 状态下提交，然后切换分支，发现提交‘消失’了。', 'steps': ['git init', \"echo 'a' > file.txt && git add . && git commit -m 'A'\", 'git checkout HEAD~0', \"echo 'b' > file.txt && git add . && git commit -m 'B'\", 'git checkout main', 'git log --oneline'], 'outcome': 'commit B 不在 main 或任何分支上，必须用 git reflog 才能找到，证明 commit 不依赖分支存在。'}",
+    "{'description': '两个分支同时提交，各自独立演进。', 'steps': ['git init', \"echo 'base' > file.txt && git add . && git commit -m 'Base'\", 'git checkout -b feature1', \"echo 'feat1' > file.txt && git commit -am 'Feature 1'\", 'git checkout main', 'git checkout -b feature2', \"echo 'feat2' > file.txt && git commit -am 'Feature 2'\", 'git log --oneline --graph --all'], 'outcome': '三个分支（main、feature1、feature2）指向三个不同 commit，互不影响。'}"
+  ],
+  "counterexamples": [
+    "{'description': '如果 commit 是‘附加到分支’，那么删除分支后，其所有 commit 应该消失。但实际：删除分支后，commit 仍存在，直到被 GC 回收。', 'implication': '这证明 commit 不属于分支，分支只是引用它的标签。'}",
+    "{'description': '如果分支是容器，那么复制分支（如 git checkout -b new-branch）应该复制所有 commit。但实际：新分支只是复制指针，不复制数据。', 'implication': '数据是共享的，引用是独立的。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为删除分支会删除提交",
+      "rootCause": "混淆了‘引用’和‘数据’，误以为分支是容器"
+    },
+    {
+      "point": "在分离 HEAD 状态下提交后找不到提交",
+      "rootCause": "不知道新 commit 只被 HEAD 引用，未被任何分支引用"
+    },
+    {
+      "point": "以为切换分支会‘同步’提交",
+      "rootCause": "类比文件系统，误以为分支像文件夹，切换时自动继承内容"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你不是在‘提交到分支’，你是在‘移动指针’"
+    },
+    {
+      "type": "text",
+      "content": "让我们从一个最简单的场景开始：你初始化了一个仓库，提交了第一个文件。现在，main 分支指向 commit A。"
+    },
+    {
+      "type": "steps",
+      "content": "每一步只改变一个变量，观察 commit 的归属变化。",
+      "label": "HEAD 如何决定 commit 的归属",
+      "steps": [
+        {
+          "title": "初始状态：main 指向 A，HEAD 指向 main",
+          "description": "你刚创建了第一个提交，main 分支自动指向它。HEAD 指向 main，表示你当前在 main 分支上。",
+          "visual": "main: A ← HEAD\nfile.txt: 'a'\n.git/refs/heads/main: a1b2c3...",
+          "highlight": "HEAD → main → A"
+        },
+        {
+          "title": "创建 feature 分支：不移动 HEAD，只复制指针",
+          "description": "执行 git checkout -b feature。Git 创建一个新引用 feature，内容与 main 相同，但 HEAD 现在指向 feature。",
+          "visual": "main: A\nfeature: A ← HEAD\nfile.txt: 'a'\n.git/refs/heads/feature: a1b2c3...",
+          "highlight": "HEAD → feature → A"
+        },
+        {
+          "title": "执行 git commit：创建新对象 B，只更新 HEAD 指向的引用",
+          "description": "你修改文件并提交。Git 创建一个新 commit B，父提交是 A。它只更新 HEAD 指向的引用（feature），不碰 main。",
+          "visual": "main: A\nfeature: B ← HEAD\nfile.txt: 'b'\n.git/refs/heads/feature: d4e5f6...",
+          "highlight": "HEAD → feature → B\nmain 仍指向 A"
+        },
+        {
+          "title": "切换回 main：HEAD 移动，但 B 未被 main 引用",
+          "description": "执行 git checkout main。HEAD 现在指向 main，main 仍指向 A。B 依然存在，但不再被任何分支引用。",
+          "visual": "main: A ← HEAD\nfeature: B\nfile.txt: 'a'\n.git/refs/heads/main: a1b2c3...",
+          "highlight": "HEAD → main → A\nfeature → B（孤立）"
+        },
+        {
+          "title": "B 仍可找回：通过 reflog 或哈希",
+          "description": "即使没有分支指向 B，它仍存在于 Git 对象数据库中，直到被垃圾回收。",
+          "visual": "objects/da/3e4f...: commit B (still exists)\nreflog: feature@{0}: commit B",
+          "highlight": "B 未被删除，只是‘无主’"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "Git 的可靠性来自：commit 是不可变的、独立的、由哈希唯一标识的对象。分支只是可变的指针。这种分离让历史永不污染，合并可预测。"
+    },
+    {
+      "type": "diagram",
+      "content": "main: A\n       ↑\n       HEAD (at main)\n\nfeature: B\n         ↑\n         HEAD (at feature)\n\nA ← B（B 的父提交）\n\n所有 commit 存储在 .git/objects/ 中，分支文件仅含哈希值。",
+      "label": "commit 与分支引用关系图"
+    },
+    {
+      "type": "comparison",
+      "content": "文件夹：内容属于它，删除文件夹=删除内容。分支：只是指向 commit 的标签，删除分支=删除标签，内容仍在。",
+      "label": "分支 vs 文件夹：关键区别"
+    },
+    {
+      "type": "text",
+      "content": "现在你明白：commit 不是‘存进’分支，而是‘挂到’HEAD 指向的那条分支指针上。分支不是容器，是路标。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s04-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "step-through",
+      "purpose": "让用户逐步模拟 HEAD 和分支指针的移动，观察 commit 归属变化",
+      "priority": "core",
+      "componentHint": "交互式流程图，点击按钮执行 git checkout / commit，实时更新指针状态"
+    },
+    {
+      "capability": "compare",
+      "purpose": "对比分支删除前后 commit 是否消失，验证‘引用 vs 数据’分离",
+      "priority": "secondary",
+      "componentHint": "提供两个场景：删除分支前/后，查看 git log --all 和 git fsck"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "predict-next-step",
+      "prompt": "当前 HEAD 指向 feature，feature 指向 commit B，main 指向 commit A。你执行 git checkout main，然后 git commit -m 'C'。现在 main 指向什么？feature 指向什么？HEAD 指向什么？",
+      "answerShape": "main: C, feature: B, HEAD: main"
+    },
+    {
+      "type": "rebuild-map",
+      "prompt": "请画出以下操作后的指针关系：1. git init → 2. git commit -m 'A' → 3. git checkout -b dev → 4. git commit -m 'B' → 5. git checkout main → 6. git commit -m 'C'。标注 HEAD、main、dev 和所有 commit。",
+      "answerShape": "main: C ← HEAD\n dev: B\n A ← B ← C\n（A 是初始提交）"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "Git 中，commit 对象是________的，分支引用是________的。commit 的归属由________决定。",
+      "answerShape": "不可变；可变；HEAD 指向的分支引用"
+    }
+  ],
+  "bridgeTo": "现在你知道分支只是指针。但如果你在 feature 上提交了 10 次，又在 main 上提交了 5 次，Git 如何知道该把哪条线‘合并’到另一条？branch 和 tag 真的只是名字不同吗？",
+  "nextModuleId": "s05"
+}

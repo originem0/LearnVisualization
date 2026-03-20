@@ -5,6 +5,7 @@
   "subtitle": "将模型变成自己的知识",
   "category": "frontier",
   "focusQuestion": "系统化回顾",
+  "misconception": "把 12 章的名词都记住，就已经等于真正理解了 LLM。",
   "quote": "最后一课是把知识组织成自己的语言",
   "keyInsight": "理解每个零件只是开始——真正的理解是能追踪一个 prompt 从输入到输出经历的每一步变换，并知道每步为什么这样做",
   "opening": "你现在知道了 LLM 的每一个零件。但零件和机器是两回事。\n\n让我们把所有东西串起来——追踪一个 prompt 从输入到输出的完整旅程。如果你能在脑中走完这个旅程，不卡壳，不犹豫——那你就真正理解了大语言模型。",
@@ -148,6 +149,13 @@
       "purpose": "补充对比 / 步骤 / 演示交互",
       "priority": "secondary",
       "componentHint": "KnowledgeNetwork"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "rebuild-map",
+      "prompt": "不用看目录，试着从 prompt 输入开始，连续说出它到生成下一个 token 至少经过哪 6 个关键环节。",
+      "answerShape": "如果你的答案能自然串起分词、表示、注意力或多层加工、词表投影、采样与循环，你就抓到了系统级理解。"
     }
   ],
   "bridgeTo": null,

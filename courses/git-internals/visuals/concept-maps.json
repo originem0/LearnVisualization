@@ -1,0 +1,1150 @@
+{
+  "s01": {
+    "title": "Git 不存文件差异，那它怎么知道你改了什么？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "Git 不存文件差异，那它怎么知道你改了什么？"
+        ],
+        "x": 262,
+        "y": 50,
+        "w": 330,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "blob 对象"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 70,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "内容寻址"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 198,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "不可变性"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 326,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "哈希碰撞"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 454,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "用户修改文件内容，哪怕只改了一个字符。"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "Git 计算该文件内容的 SHA-1 哈"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "如果该哈希值已存在于对象库中，说明内容重"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "提交时，Git 创建一个 tree 对象"
+      }
+    ],
+    "svgW": 524,
+    "svgH": 230,
+    "ariaLabel": "Git 不存文件差异，那它怎么知道你改了什么？ 概念关系图"
+  },
+  "s02": {
+    "title": "一个 commit 为什么能代表整个项目状态？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "一个 commit 为什么能代表整个项目状态？"
+        ],
+        "x": 270,
+        "y": 50,
+        "w": 306,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "commit 对象"
+        ],
+        "w": 116,
+        "h": 48,
+        "x": 78,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "tree 对象"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 214,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "blob 对象"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 342,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "哈希指针"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 470,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "一个 commit 对象只包含一个指向 "
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "root tree 对象列出项目顶层的文"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "子 tree 对象递归地列出其下层的文件"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "每个 blob 对象存储一个文件的完整内"
+      }
+    ],
+    "svgW": 540,
+    "svgH": 230,
+    "ariaLabel": "一个 commit 为什么能代表整个项目状态？ 概念关系图"
+  },
+  "s03": {
+    "title": "Git 如何用 40 位哈希锁定整个项目历史？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "Git 如何用 40 位哈希锁定整个项目历史？"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 306,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "内容寻址"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 56,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "SHA-1 哈希函数"
+        ],
+        "w": 136,
+        "h": 48,
+        "x": 202,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "对象类型 + 长度前缀"
+        ],
+        "w": 168,
+        "h": 48,
+        "x": 382,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "雪崩效应"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 544,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "用户修改文件中的一个字符（如 'Hell"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "Git 将该文件内容打包为 blob 对"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "对这个完整字符串执行 SHA-1 哈希，"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "该 blob 哈希被写入 tree 对象"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 230,
+    "ariaLabel": "Git 如何用 40 位哈希锁定整个项目历史？ 概念关系图"
+  },
+  "s04": {
+    "title": "为什么 git commit 之后，文件还没‘保存’到分支？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "为什么 git commit 之后，文件还没‘保存’到分支？"
+        ],
+        "x": 278,
+        "y": 50,
+        "w": 380,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "commit 对象"
+        ],
+        "w": 116,
+        "h": 48,
+        "x": 78,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "分支引用（branch reference）"
+        ],
+        "w": 244,
+        "h": 48,
+        "x": 286,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "HEAD 指针"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 486,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "可移动指针"
+        ],
+        "w": 102,
+        "h": 48,
+        "x": 278,
+        "y": 210
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "1. 用户执行 git checkout"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "2. 用户执行 git checkout"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "3. 用户修改文件并执行 git com"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "4. Git 不修改 main 或任何其"
+      }
+    ],
+    "svgW": 556,
+    "svgH": 310,
+    "ariaLabel": "为什么 git commit 之后，文件还没‘保存’到分支？ 概念关系图"
+  },
+  "s05": {
+    "title": "branch 和 tag 真的有区别吗？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "branch 和 tag 真的有区别吗？"
+        ],
+        "x": 253,
+        "y": 50,
+        "w": 240,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "引用（ref）"
+        ],
+        "w": 112,
+        "h": 48,
+        "x": 76,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "HEAD"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 210,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "可达性（reachability）"
+        ],
+        "w": 198,
+        "h": 48,
+        "x": 387,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "垃圾回收（GC）"
+        ],
+        "w": 132,
+        "h": 48,
+        "x": 253,
+        "y": 210
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "Git 所有分支和标签都存储为 .git"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "branch 文件的内容会在每次 git"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "tag 文件的内容在创建后永不更改，即使"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "当执行 git checkout <br"
+      }
+    ],
+    "svgW": 506,
+    "svgH": 310,
+    "ariaLabel": "branch 和 tag 真的有区别吗？ 概念关系图"
+  },
+  "s06": {
+    "title": "git reset --hard 怎么可能‘撤销’提交却不删数据？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "git reset --hard 怎么可能‘撤销’提交却不删数据？"
+        ],
+        "x": 279,
+        "y": 50,
+        "w": 392,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "对象数据库"
+        ],
+        "w": 102,
+        "h": 48,
+        "x": 71,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "分支指针"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 200,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "reflog"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 328,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "垃圾回收（gc）"
+        ],
+        "w": 132,
+        "h": 48,
+        "x": 472,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "用户执行 git reset --har"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "C2 和 C3 的提交对象未被删除，仍存"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "Git 自动将这次指针移动记录到 .gi"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "即使你用 git log 查不到 C2/"
+      }
+    ],
+    "svgW": 558,
+    "svgH": 230,
+    "ariaLabel": "git reset --hard 怎么可能‘撤销’提交却不删数据？ 概念关系图"
+  },
+  "s07": {
+    "title": "HEAD 是什么？为什么它不指向分支，却能‘跟随’分支？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "HEAD 是什么？为什么它不指向分支，却能‘跟随’分支？"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 394,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "HEAD"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 54,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "分支（branch）"
+        ],
+        "w": 136,
+        "h": 48,
+        "x": 200,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "detached HEAD"
+        ],
+        "w": 136,
+        "h": 48,
+        "x": 364,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "提交（commit）"
+        ],
+        "w": 136,
+        "h": 48,
+        "x": 528,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "HEAD 是一个文件，内容是字符串：要么"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "分支（如 main）也是一个文件，内容是"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "当你执行 git checkout ma"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "当你执行 git checkout v1"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 230,
+    "ariaLabel": "HEAD 是什么？为什么它不指向分支，却能‘跟随’分支？ 概念关系图"
+  },
+  "s08": {
+    "title": "为什么 git checkout 文件会覆盖工作区，却不影响提交？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "为什么 git checkout 文件会覆盖工作区，却不影响提交？"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 410,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "工作区 (Working Directory)"
+        ],
+        "w": 234,
+        "h": 48,
+        "x": 34,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "暂存区 (Staging Area / Index)"
+        ],
+        "w": 258,
+        "h": 48,
+        "x": 308,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "对象库 (Object Database)"
+        ],
+        "w": 218,
+        "h": 48,
+        "x": 574,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "HEAD"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 300,
+        "y": 210
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "1. 你执行 git checkout "
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "2. Git 读取该 blob 的内容（"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "3. Git 直接将该 blob 内容写"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "4. 暂存区中的 README.md 记"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 310,
+    "ariaLabel": "为什么 git checkout 文件会覆盖工作区，却不影响提交？ 概念关系图"
+  },
+  "s09": {
+    "title": "Git 如何在没有数据库的情况下，快速找到任意文件的历史？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "Git 如何在没有数据库的情况下，快速找到任意文件的历史？"
+        ],
+        "x": 278,
+        "y": 50,
+        "w": 414,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "commit 对象"
+        ],
+        "w": 116,
+        "h": 48,
+        "x": 78,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "tree 对象"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 214,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "blob 对象"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 342,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "路径前缀匹配"
+        ],
+        "w": 116,
+        "h": 48,
+        "x": 478,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "Git 不存储文件变更日志，只存储提交快"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "每个 tree 对象只记录当前目录下所有"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "要找文件的历史，必须从最近提交开始，反向"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "在每个 tree 中，Git 按路径分段"
+      }
+    ],
+    "svgW": 556,
+    "svgH": 230,
+    "ariaLabel": "Git 如何在没有数据库的情况下，快速找到任意文件的历史？ 概念关系图"
+  },
+  "s10": {
+    "title": "误删了分支，怎么靠哈希找回丢失的提交？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "误删了分支，怎么靠哈希找回丢失的提交？"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 298,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "提交对象（Commit Object）"
+        ],
+        "w": 220,
+        "h": 48,
+        "x": 100,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "分支指针（Branch Reference）"
+        ],
+        "w": 244,
+        "h": 48,
+        "x": 360,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "reflog"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 560,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "git fsck"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 300,
+        "y": 210
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "用户删除分支，Git 仅删除 refs/"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "删除后，这些提交变成‘孤立对象’，不再被"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "reflog 自动记录 HEAD 的每一"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "运行 git fsck --lost-f"
+      }
+    ],
+    "svgW": 600,
+    "svgH": 310,
+    "ariaLabel": "误删了分支，怎么靠哈希找回丢失的提交？ 概念关系图"
+  },
+  "s11": {
+    "title": "为什么 git merge 会产生两个父提交？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "为什么 git merge 会产生两个父提交？"
+        ],
+        "x": 257,
+        "y": 50,
+        "w": 288,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "commit 对象"
+        ],
+        "w": 116,
+        "h": 48,
+        "x": 78,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "父提交（parent）"
+        ],
+        "w": 150,
+        "h": 48,
+        "x": 239,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "快照（snapshot）"
+        ],
+        "w": 152,
+        "h": 48,
+        "x": 418,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "合并提交（merge commit）"
+        ],
+        "w": 212,
+        "h": 48,
+        "x": 257,
+        "y": 210
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "一个普通提交只有一个父提交，它表示‘从上"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "当两个分支并行开发时，它们的历史分叉成两"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "执行 git merge 时，Git 不"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "这个新 commit 的快照内容，是通过"
+      }
+    ],
+    "svgW": 514,
+    "svgH": 310,
+    "ariaLabel": "为什么 git merge 会产生两个父提交？ 概念关系图"
+  },
+  "s12": {
+    "title": "如果 .git 文件夹被删了，还能恢复 Git 仓库吗？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "如果 .git 文件夹被删了，还能恢复 Git 仓库吗？"
+        ],
+        "x": 300,
+        "y": 50,
+        "w": 358,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "Git 对象（Objects）"
+        ],
+        "w": 176,
+        "h": 48,
+        "x": 93,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "工作区（Working Directory）"
+        ],
+        "w": 238,
+        "h": 48,
+        "x": 328,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "引用（Refs）"
+        ],
+        "w": 120,
+        "h": 48,
+        "x": 535,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "对象图（Object Graph）"
+        ],
+        "w": 198,
+        "h": 48,
+        "x": 300,
+        "y": 210
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "工作区文件是某个 commit 的 tr"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "Git 的提交历史依赖 commit 对"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "分支名（如 main）只是指向 comm"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "即使你重新 git init，新生成的 "
+      }
+    ],
+    "svgW": 600,
+    "svgH": 310,
+    "ariaLabel": "如果 .git 文件夹被删了，还能恢复 Git 仓库吗？ 概念关系图"
+  },
+  "s13": {
+    "title": "为什么 Git 没有‘撤销’按钮，却比任何系统都更安全？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "为什么 Git 没有‘撤销’按钮，却比任何系统都更安全？"
+        ],
+        "x": 295,
+        "y": 50,
+        "w": 394,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "对象持久化"
+        ],
+        "w": 102,
+        "h": 48,
+        "x": 71,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "引用分离"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 200,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "不可变性"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 328,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "引用日志（reflog）"
+        ],
+        "w": 164,
+        "h": 48,
+        "x": 488,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "用户执行 git reset --har"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "C2 和 C3 的 commit 对象未"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "C2 和 C3 的父对象（tree、bl"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "reflog 记录了 HEAD 从 C3"
+      }
+    ],
+    "svgW": 590,
+    "svgH": 230,
+    "ariaLabel": "为什么 Git 没有‘撤销’按钮，却比任何系统都更安全？ 概念关系图"
+  },
+  "s14": {
+    "title": "现在，你能画出你最后一次 commit 的对象图吗？",
+    "type": "conceptMap",
+    "nodes": [
+      {
+        "id": "core",
+        "label": [
+          "现在，你能画出你最后一次 commit 的对象图吗？"
+        ],
+        "x": 262,
+        "y": 50,
+        "w": 348,
+        "h": 52,
+        "accent": true
+      },
+      {
+        "id": "n1",
+        "label": [
+          "blob"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 70,
+        "y": 130
+      },
+      {
+        "id": "n2",
+        "label": [
+          "tree"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 198,
+        "y": 130
+      },
+      {
+        "id": "n3",
+        "label": [
+          "commit"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 326,
+        "y": 130
+      },
+      {
+        "id": "n4",
+        "label": [
+          "ref"
+        ],
+        "w": 100,
+        "h": 48,
+        "x": 454,
+        "y": 130
+      }
+    ],
+    "edges": [
+      {
+        "from": "core",
+        "to": "n1",
+        "label": "你修改了一个文件 → Git 计算其内容"
+      },
+      {
+        "from": "core",
+        "to": "n2",
+        "label": "Git 遍历当前目录，为每个文件/子目录"
+      },
+      {
+        "from": "core",
+        "to": "n3",
+        "label": "Git 创建一个新的 commit 对象"
+      },
+      {
+        "from": "core",
+        "to": "n4",
+        "label": "HEAD 被更新为指向这个新 commi"
+      }
+    ],
+    "svgW": 524,
+    "svgH": 230,
+    "ariaLabel": "现在，你能画出你最后一次 commit 的对象图吗？ 概念关系图"
+  }
+}

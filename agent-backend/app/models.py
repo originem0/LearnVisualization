@@ -79,3 +79,30 @@ def normalize_promote_request(payload: dict[str, Any] | None) -> dict[str, Any]:
         "target_slug": str(payload.get("target_slug") or "").strip() or source_slug,
         "overwrite": _to_bool(payload.get("overwrite"), default=False),
     }
+
+
+def normalize_job_create_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    topic_req = normalize_topic_request(payload)
+    return {
+        **topic_req,
+        "output_slug": str(payload.get("output_slug") or "").strip() or None,
+        "overwrite": _to_bool(payload.get("overwrite"), default=False),
+    }
+
+
+def normalize_job_retry_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    stage = str(payload.get("stage") or "").strip() or None
+    if stage and stage not in {"plan", "compose", "validate", "export"}:
+        raise ValueError("stage must be one of: plan, compose, validate, export")
+    return {"stage": stage}
+
+
+def normalize_review_request(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    return {
+        "approved": _to_bool(payload.get("approved"), default=False),
+        "reviewed_by": str(payload.get("reviewed_by") or payload.get("reviewedBy") or "").strip() or None,
+        "notes": str(payload.get("notes") or "").strip() or None,
+    }

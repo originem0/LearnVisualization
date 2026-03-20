@@ -1,0 +1,174 @@
+{
+  "id": "s01",
+  "number": 1,
+  "title": "Git 不存文件差异，那它怎么知道你改了什么？",
+  "subtitle": "误解：Git 记录的是‘修改’，其实是‘快照’",
+  "category": "storage",
+  "moduleKind": "concept-clarification",
+  "primaryCognitiveAction": "distinguish",
+  "focusQuestion": "为什么两个几乎相同的文件在 Git 中会占用两倍空间？",
+  "misconception": "认为 Git 像 SVN 一样记录‘第1行改了A→B’，所以小改动应该省空间，文件改动越小，存储越省，Git 应该像压缩差分工具一样智能。",
+  "keyInsight": "Git 不记录‘改了什么’，而是为每个文件版本生成唯一快照（blob），通过内容哈希寻址，相同内容复用，不同内容独立存储——即使只改了一个字符，也会创建全新对象。",
+  "opening": "你可能以为 Git 像一个聪明的编辑器，悄悄记下你删了第3行、加了‘hello’——所以它应该很省空间。但如果你真这么想，那当你提交一个只改了一个字母的文件时，Git 应该只存‘+1字节’。可事实是：它存了整整一个新文件。而且，两个只差一个空格的文件，会占用两倍硬盘空间。这看起来浪费，但正是这种‘愚蠢’，让 Git 在十年后依然能准确还原你2018年写的代码。它的可靠性，来自不试图‘聪明’，而是彻底拥抱‘不变’。",
+  "quote": "Git 的核心哲学不是‘高效存储’，而是‘永不丢失’。",
+  "concepts": [
+    {
+      "name": "blob 对象",
+      "note": "Git 中存储文件内容的最小单元，内容完全不可变，由 SHA-1 哈希唯一标识。"
+    },
+    {
+      "name": "内容寻址",
+      "note": "Git 不按文件名或路径查找数据，而是用文件内容的哈希值作为键。相同内容，相同哈希；不同内容，必然不同哈希。"
+    },
+    {
+      "name": "不可变性",
+      "note": "一旦创建，blob 对象永远不能被修改。任何变更都会生成全新的对象，旧对象仍可被历史引用。"
+    },
+    {
+      "name": "哈希碰撞",
+      "note": "理论上可能两个不同内容产生相同 SHA-1，但概率极低（约 2^80 分之一），实践中可忽略。"
+    },
+    {
+      "name": "快照模型",
+      "note": "Git 的每一次提交，都是对整个项目状态的完整快照，而非差异列表。"
+    }
+  ],
+  "logicChain": [
+    "用户修改文件内容，哪怕只改了一个字符。",
+    "Git 计算该文件内容的 SHA-1 哈希值，作为唯一标识。",
+    "如果该哈希值已存在于对象库中，说明内容重复，直接复用；否则创建新 blob 对象存储完整内容。",
+    "提交时，Git 创建一个 tree 对象，记录当前目录结构和对应 blob 的哈希值。",
+    "再创建一个 commit 对象，指向该 tree，并记录作者、时间、父提交等元数据。",
+    "整个项目状态被编码为一串哈希链，任何改动都会产生新的哈希分支。",
+    "旧版本不会被删除，即使你‘覆盖’了文件，历史快照仍完整保留。"
+  ],
+  "examples": [
+    "{'description': \"文件 a.txt 内容为 'hello'，提交后生成 blob: a94a8fe5ccb19ba61c4c0873d391e987982fbbd3\", 'hash': 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3'}",
+    "{'description': \"修改 a.txt 为 'hello!'，新内容哈希为 '5d41402abc4b2a76b9719d911017c592'\", 'hash': '5d41402abc4b2a76b9719d911017c592'}",
+    "{'description': \"另一个文件 b.txt 也写入 'hello'，Git 不重复存储，直接复用 a94a8fe5... 这个 blob。\", 'hash': 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3'}",
+    "{'description': \"删除 a.txt 后重新创建为 'hello'，Git 仍复用原 blob，不创建新对象。\", 'hash': 'a94a8fe5ccb19ba61c4c0873d391e987982fbbd3'}"
+  ],
+  "counterexamples": [
+    "{'description': \"SVN 记录差异：提交时只上传第3行从 'cat' 改为 'dog'，存储量小，但恢复旧版本需逐个应用补丁，易出错。\", 'whyWrong': '依赖线性变更序列，一旦中间版本损坏，后续全部失效。'}",
+    "{'description': 'Dropbox 或 OneDrive 的版本控制：保留多个副本，但按时间点压缩存储，无法跨仓库共享内容。', 'whyWrong': '不是内容寻址，无法保证全局唯一性，也无法在分布式环境中高效同步。'}"
+  ],
+  "pitfalls": [
+    {
+      "point": "以为 Git 会自动压缩小改动来节省空间",
+      "rootCause": "混淆了 Git 的对象存储层（blob）与打包层（packfile）——压缩只在 git gc 时发生，且是后处理，不影响核心模型。"
+    },
+    {
+      "point": "提交大文件后后悔，以为删掉就能释放空间",
+      "rootCause": "Git 的不可变性意味着只要被 commit 引用过，对象就永久存在，除非显式执行 git filter-branch 或 git gc --prune。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你以为的 Git：差分编辑器"
+    },
+    {
+      "type": "text",
+      "content": "你修改了 config.json，把 \"port\": 3000 改成 \"port\": 8080。你心想：Git 应该只记‘改了这一行’，像 Word 的修订模式一样，轻巧高效。"
+    },
+    {
+      "type": "comparison",
+      "content": "你的想象：Git 记录变更指令 → 存储量小 → 恢复快。真实 Git：Git 记录完整文件快照 → 存储量大 → 恢复更快。",
+      "label": "你的想象 vs 真实 Git"
+    },
+    {
+      "type": "callout",
+      "content": "Git 不关心‘你改了什么’，它只关心‘这个文件现在长什么样’。"
+    },
+    {
+      "type": "steps",
+      "content": "我们从一个文件开始，一步步看 Git 如何处理一次看似微小的变更。",
+      "label": "一个字符的改动，如何触发全新对象",
+      "steps": [
+        {
+          "title": "初始状态：文件内容为 'hello'",
+          "description": "你创建了一个文件 a.txt，内容是 'hello'。",
+          "visual": "a.txt: \"hello\"\nSHA-1: a94a8fe5ccb19ba61c4c0873d391e987982fbbd3\n→ 新建 blob 对象，存入 .git/objects/a9/4a8fe5...",
+          "highlight": "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+        },
+        {
+          "title": "你修改了一个字符：'hello' → 'hello!'",
+          "description": "你添加了一个感叹号，文件变成 'hello!'。",
+          "visual": "a.txt: \"hello!\"\nSHA-1: 5d41402abc4b2a76b9719d911017c592\n→ 新建 blob 对象，存入 .git/objects/5d/41402a...",
+          "highlight": "5d41402abc4b2a76b9719d911017c592"
+        },
+        {
+          "title": "Git 检查是否有相同内容",
+          "description": "Git 计算新内容的哈希，发现它与任何现有 blob 都不匹配。",
+          "visual": "检查 .git/objects/ 中所有 blob 哈希\n→ 未找到 5d41402abc4b2a76b9719d911017c592\n→ 必须创建新对象",
+          "highlight": "5d41402abc4b2a76b9719d911017c592"
+        },
+        {
+          "title": "提交：创建新的 tree 和 commit",
+          "description": "Git 创建一个新 tree 对象，指向新 blob，再创建 commit 指向这个 tree。",
+          "visual": "commit: parent=old-commit, tree=NEW-TREE\nNEW-TREE: a.txt → 5d41402abc4b2a76b9719d911017c592\nold-commit: a.txt → a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+          "highlight": "a94a8fe5... 和 5d41402a... 同时存在"
+        },
+        {
+          "title": "结果：两个文件版本都完整保留",
+          "description": "旧版本和新版本都存在于对象库中，占用两倍空间。",
+          "visual": ".git/objects/\n├── a9/4a8fe5...  ← 'hello'\n└── 5d/41402a...  ← 'hello!'",
+          "highlight": "两个对象，大小几乎相同"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "content": "你可能觉得这很浪费——但正是这种‘浪费’，让 Git 在硬盘损坏、网络中断、多人协作时依然可靠。它不依赖‘变更序列’，只依赖‘内容指纹’。"
+    },
+    {
+      "type": "diagram",
+      "content": "a.txt → blob (a94a...) → tree → commit1\nb.txt → blob (5d41...) → tree → commit2\ncommit1 和 commit2 共享相同的 tree 结构，但 blob 不同",
+      "label": "Git 对象模型：blob 与快照"
+    },
+    {
+      "type": "callout",
+      "content": "Git 的可靠性，来自它拒绝‘优化’——它不试图猜你想要什么，它只忠实地记录你拥有什么。"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "s01-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "step-through",
+      "purpose": "让用户逐步观察一个字符修改如何触发新 blob 创建",
+      "priority": "core",
+      "componentHint": "可交互的 steps 模块"
+    },
+    {
+      "capability": "compare",
+      "purpose": "对比两个只差一个字符的文件在 Git 中的存储行为",
+      "priority": "secondary",
+      "componentHint": "对比面板显示两个 blob 哈希与大小"
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "当文件内容从 'cat' 变为 'dog'，Git 不会记录‘c→d’或‘a→o’，而是创建一个全新的 ______，其哈希值由 ______ 决定。",
+      "answerShape": "blob 对象 / 文件完整内容"
+    },
+    {
+      "type": "predict-next-step",
+      "prompt": "如果现在你把 'hello!' 改回 'hello'，Git 会创建新 blob 吗？为什么？",
+      "answerShape": "不会，因为 'hello' 的哈希已存在，Git 会复用旧 blob"
+    },
+    {
+      "type": "compare-variants",
+      "prompt": "对比：1）SVN 记录变更 vs 2）Git 记录快照。哪种方式在多人同时修改同一文件时更不容易冲突？为什么？",
+      "answerShape": "Git 更不容易冲突，因为每个提交是独立快照，合并时可追溯完整状态，而非依赖线性补丁序列。"
+    }
+  ],
+  "bridgeTo": "一个 commit 为什么能代表整个项目状态？如果它只存了文件哈希，那目录结构、权限、子模块呢？",
+  "nextModuleId": "s02"
+}

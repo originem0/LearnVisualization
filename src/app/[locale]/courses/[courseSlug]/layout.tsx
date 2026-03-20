@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { getCourseData } from '@/lib/data';
+import { getCoursePackage } from '@/lib/data';
 import { listMirroredCourseSlugs } from '@/lib/course-package-adapter';
 import { enabledLocales, type Locale } from '@/lib/i18n';
 
@@ -22,15 +22,15 @@ export default function CourseLayout({
     notFound();
   }
 
-  const data = getCourseData(params.locale, params.courseSlug);
+  const pkg = getCoursePackage(params.locale, params.courseSlug);
   const basePath = `/${params.locale}/courses/${params.courseSlug}`;
 
   return (
     <div className="min-h-screen bg-[color:var(--color-bg)] text-[color:var(--color-text)]">
-      <Header project={data.project} locale={params.locale} basePath={basePath} />
-      <div className="mx-auto flex max-w-6xl gap-6 px-4 pb-12 pt-6">
-        <Sidebar categories={data.categories} modules={data.modules} locale={params.locale} basePath={basePath} />
-        <main className="min-w-0 flex-1">{children}</main>
+      <Header project={{ title: pkg.title, goal: pkg.goal }} locale={params.locale} basePath={basePath} />
+      <div className="mx-auto flex max-w-[1440px] gap-5 px-4 pb-12 pt-6 xl:gap-8">
+        <Sidebar categories={pkg.categories} modules={pkg.modules} locale={params.locale} basePath={basePath} />
+        <main id="main-content" className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   );

@@ -1,15 +1,18 @@
 /**
- * Module Registry — single source of truth for module → component mapping.
+ * Frontend interaction whitelist.
  *
- * Adding a new module? Add ONE entry here.
+ * The course package is the source of truth for runtime intent.
+ * This file only resolves trusted componentHint strings to actual
+ * client components that the frontend is willing to load.
  */
 
 import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
-import type { ConceptMapSchema } from '@/components/ConceptMapRenderer';
-import { conceptMapSchemas } from '@/lib/concept-map-schemas';
-
-/* ── Interactive Components (client-only, dynamic import) ── */
+import type {
+  CompiledInteractionRuntime,
+  CompiledModuleRuntime,
+  RuntimeWarning,
+} from '../../engine/course-package-engine.mjs';
 
 const TokenizerPlayground = dynamic(() => import('@/components/interactive/TokenizerPlayground'), { ssr: false });
 const BPESimulator = dynamic(() => import('@/components/interactive/BPESimulator'), { ssr: false });
@@ -35,76 +38,68 @@ const ContextLengthCalc = dynamic(() => import('@/components/interactive/Context
 const ContextFitCalc = dynamic(() => import('@/components/interactive/ContextFitCalc'), { ssr: false });
 const FullPipelineTracer = dynamic(() => import('@/components/interactive/FullPipelineTracer'), { ssr: false });
 const KnowledgeNetwork = dynamic(() => import('@/components/interactive/KnowledgeNetwork'), { ssr: false });
+const PostgresPageLayoutTrace = dynamic(() => import('@/components/interactive/PostgresPageLayoutTrace'), { ssr: false });
+const MVCCVisibilitySimulator = dynamic(() => import('@/components/interactive/MVCCVisibilitySimulator'), { ssr: false });
+const WALRecoveryTracer = dynamic(() => import('@/components/interactive/WALRecoveryTracer'), { ssr: false });
 
-export interface ModuleRegistryEntry {
-  conceptMapSchema: ConceptMapSchema;
-  heroInteractive: ComponentType;
-  secondaryInteractive: ComponentType;
-}
-
-export const moduleRegistry: Record<number, ModuleRegistryEntry> = {
-  1: {
-    conceptMapSchema: conceptMapSchemas[1],
-    heroInteractive: TokenizerPlayground,
-    secondaryInteractive: BPESimulator,
-  },
-  2: {
-    conceptMapSchema: conceptMapSchemas[2],
-    heroInteractive: VectorArithmetic,
-    secondaryInteractive: EmbeddingLookup,
-  },
-  3: {
-    conceptMapSchema: conceptMapSchemas[3],
-    heroInteractive: AttentionHeatmap,
-    secondaryInteractive: QKVStepper,
-  },
-  4: {
-    conceptMapSchema: conceptMapSchemas[4],
-    heroInteractive: TransformerFlow,
-    secondaryInteractive: ArchitectureCompare,
-  },
-  5: {
-    conceptMapSchema: conceptMapSchemas[5],
-    heroInteractive: NextWordGame,
-    secondaryInteractive: MLMvsCLM,
-  },
-  6: {
-    conceptMapSchema: conceptMapSchemas[6],
-    heroInteractive: LossLandscape,
-    secondaryInteractive: LRScheduleViz,
-  },
-  7: {
-    conceptMapSchema: conceptMapSchemas[7],
-    heroInteractive: AlignmentCompare,
-    secondaryInteractive: LoRACalculator,
-  },
-  8: {
-    conceptMapSchema: conceptMapSchemas[8],
-    heroInteractive: PromptWorkshop,
-    secondaryInteractive: FewShotBuilder,
-  },
-  9: {
-    conceptMapSchema: conceptMapSchemas[9],
-    heroInteractive: ScalingLawPlotter,
-    secondaryInteractive: TrainingBudgetCalc,
-  },
-  10: {
-    conceptMapSchema: conceptMapSchemas[10],
-    heroInteractive: EmergenceStaircase,
-    secondaryInteractive: CoTToggle,
-  },
-  11: {
-    conceptMapSchema: conceptMapSchemas[11],
-    heroInteractive: ContextLengthCalc,
-    secondaryInteractive: ContextFitCalc,
-  },
-  12: {
-    conceptMapSchema: conceptMapSchemas[12],
-    heroInteractive: FullPipelineTracer,
-    secondaryInteractive: KnowledgeNetwork,
-  },
+const componentWhitelist: Record<string, ComponentType> = {
+  TokenizerPlayground,
+  BPESimulator,
+  VectorArithmetic,
+  EmbeddingLookup,
+  AttentionHeatmap,
+  QKVStepper,
+  TransformerFlow,
+  ArchitectureCompare,
+  NextWordGame,
+  MLMvsCLM,
+  LossLandscape,
+  LRScheduleViz,
+  AlignmentCompare,
+  LoRACalculator,
+  PromptWorkshop,
+  FewShotBuilder,
+  ScalingLawPlotter,
+  TrainingBudgetCalc,
+  EmergenceStaircase,
+  CoTToggle,
+  ContextLengthCalc,
+  ContextFitCalc,
+  FullPipelineTracer,
+  KnowledgeNetwork,
+  PostgresPageLayoutTrace,
+  MVCCVisibilitySimulator,
+  WALRecoveryTracer,
 };
 
-export function getModuleComponents(moduleId: number): ModuleRegistryEntry | null {
-  return moduleRegistry[moduleId] ?? null;
+export interface ResolvedInteraction extends CompiledInteractionRuntime {
+  Component: ComponentType | null;
+  warnings: RuntimeWarning[];
+}
+
+export function resolveInteractionComponent(componentHint?: string | null): ComponentType | null {
+  if (!componentHint) return null;
+  return componentWhitelist[componentHint] ?? null;
+}
+
+export function resolveModuleInteractions(moduleRuntime: CompiledModuleRuntime): ResolvedInteraction[] {
+  return moduleRuntime.interactions.map((interaction) => {
+    const Component = resolveInteractionComponent(interaction.componentHint);
+    const warnings = [...interaction.warnings];
+
+    if (interaction.componentHint && !Component) {
+      warnings.push({
+        code: 'interaction-component-unregistered',
+        message: `componentHint '${interaction.componentHint}' is not registered in the frontend whitelist.`,
+        moduleId: moduleRuntime.moduleId,
+        priority: interaction.priority,
+      });
+    }
+
+    return {
+      ...interaction,
+      Component,
+      warnings,
+    };
+  });
 }

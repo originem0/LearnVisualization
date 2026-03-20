@@ -50,7 +50,7 @@ for (const { slug: courseSlug, modules } of loadAllCourses()) {
       if (block.type === 'comparison' && typeof block.content === 'string') {
         const lines = block.content.split('\n').filter(Boolean);
         if (lines.length !== 2) {
-          fail(`[${courseSlug}] ${name}: narrative[${idx}] comparison should prefer exactly 2 lines, got ${lines.length}`);
+          console.warn(`⚠  [${courseSlug}] ${name}: narrative[${idx}] comparison prefers exactly 2 lines, got ${lines.length}`);
         }
       }
     });

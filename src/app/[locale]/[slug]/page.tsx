@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import RedirectPage from '@/components/RedirectPage';
-import { getData } from '@/lib/data';
+import { getCoursePackage, PRIMARY_COURSE_SLUG } from '@/lib/data';
 import { getModuleSlug } from '@/lib/module-slug';
 import { enabledLocales, type Locale } from '@/lib/i18n';
 
@@ -9,9 +9,9 @@ export const dynamicParams = false;
 export function generateStaticParams() {
   const params: { locale: Locale; slug: string }[] = [];
   enabledLocales.forEach((locale) => {
-    const data = getData(locale);
-    data.modules.forEach((module) => {
-      params.push({ locale, slug: getModuleSlug(module.id) });
+    const pkg = getCoursePackage(locale, PRIMARY_COURSE_SLUG);
+    pkg.modules.forEach((module) => {
+      params.push({ locale, slug: module.id });
     });
   });
   return params;

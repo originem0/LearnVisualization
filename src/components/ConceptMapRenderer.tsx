@@ -104,7 +104,33 @@ const NODE_RX = 12;
 const FONT = 14;
 const FONT_SM = 11;
 
+/** Estimate text width: CJK chars ~14px, ASCII ~8px at font-size 14 */
+function estimateTextWidth(text: string, fontSize: number): number {
+  let w = 0;
+  for (const ch of text) {
+    w += ch.charCodeAt(0) > 0x7f ? fontSize : fontSize * 0.6;
+  }
+  return w;
+}
+
+/** Truncate text to fit within maxWidth at given fontSize */
+function truncateLabel(text: string, maxWidth: number, fontSize: number): string {
+  const ellipsis = '…';
+  const ellipsisW = fontSize * 0.6;
+  if (estimateTextWidth(text, fontSize) <= maxWidth) return text;
+  let result = '';
+  let w = 0;
+  for (const ch of text) {
+    const chW = ch.charCodeAt(0) > 0x7f ? fontSize : fontSize * 0.6;
+    if (w + chW + ellipsisW > maxWidth) break;
+    result += ch;
+    w += chW;
+  }
+  return result + ellipsis;
+}
+
 function NodeRect({ node, theme }: { node: MapNode; theme: typeof colorThemes.blue }) {
+  const availableWidth = node.w - 16; // 8px padding each side
   return (
     <g className="concept-node">
       <rect
@@ -122,6 +148,8 @@ function NodeRect({ node, theme }: { node: MapNode; theme: typeof colorThemes.bl
         const totalLines = node.label.length;
         const lineHeight = 18;
         const offsetY = node.y + (i - (totalLines - 1) / 2) * lineHeight;
+        const fontSize = i === 0 ? FONT : FONT_SM;
+        const displayText = truncateLabel(line, availableWidth, fontSize);
         return (
           <text
             key={i}
@@ -130,10 +158,10 @@ function NodeRect({ node, theme }: { node: MapNode; theme: typeof colorThemes.bl
             textAnchor="middle"
             dominantBaseline="central"
             className="fill-[color:var(--color-text)]"
-            fontSize={i === 0 ? FONT : FONT_SM}
+            fontSize={fontSize}
             fontWeight={i === 0 ? 600 : 400}
           >
-            {line}
+            {displayText}
           </text>
         );
       })}
@@ -146,11 +174,13 @@ function EdgePath({
   nodes,
   theme,
   arrowId,
+  labelOffsetY = 0,
 }: {
   edge: MapEdge;
   nodes: MapNode[];
   theme: typeof colorThemes.blue;
   arrowId: string;
+  labelOffsetY?: number;
 }) {
   const from = nodes.find((n) => n.id === edge.from);
   const to = nodes.find((n) => n.id === edge.to);
@@ -163,6 +193,11 @@ function EdgePath({
   const midY = (y1 + y2) / 2;
   const d = `M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`;
 
+  const labelX = (x1 + x2) / 2 + (x1 === x2 ? 0 : x2 > x1 ? 10 : -10);
+  const labelY = midY + labelOffsetY;
+  const displayLabel = edge.label ? truncateLabel(edge.label, 120, FONT_SM) : null;
+  const labelW = displayLabel ? estimateTextWidth(displayLabel, FONT_SM) + 8 : 0;
+
   return (
     <g>
       <path
@@ -173,17 +208,29 @@ function EdgePath({
         markerEnd={`url(#${arrowId})`}
         strokeDasharray={edge.dashed ? '5,4' : undefined}
       />
-      {edge.label && (
-        <text
-          x={(x1 + x2) / 2 + (x1 === x2 ? 0 : x2 > x1 ? 10 : -10)}
-          y={midY}
-          textAnchor={x1 === x2 ? 'start' : 'middle'}
-          dx={x1 === x2 ? 8 : 0}
-          className="fill-[color:var(--color-muted)]"
-          fontSize={11}
-        >
-          {edge.label}
-        </text>
+      {displayLabel && (
+        <>
+          {/* White background rect for label readability */}
+          <rect
+            x={labelX - labelW / 2}
+            y={labelY - 7}
+            width={labelW}
+            height={14}
+            rx={3}
+            className="fill-[color:var(--color-bg)]"
+            opacity={0.85}
+          />
+          <text
+            x={labelX}
+            y={labelY}
+            textAnchor="middle"
+            dominantBaseline="central"
+            className="fill-[color:var(--color-muted)]"
+            fontSize={FONT_SM}
+          >
+            {displayLabel}
+          </text>
+        </>
       )}
     </g>
   );
@@ -192,16 +239,18 @@ function EdgePath({
 export default function ConceptMapRenderer({ schema, color }: ConceptMapRendererProps) {
   const theme = colorThemes[color];
   const arrowId = `arrow-${color}-${schema.svgW}`;
+  const renderWidth = Math.min(schema.svgW + 80, 760);
 
   return (
-    <section className="my-10 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-4 sm:p-6">
-      <h2 className="mb-4 text-center text-sm font-semibold uppercase tracking-widest text-[color:var(--color-muted)]">
+    <section className="my-5 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] p-4 sm:my-7 sm:p-6">
+      <h2 className="mb-4 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--color-muted)]">
         {schema.title || '概念关系图'}
       </h2>
       <div className="overflow-x-auto">
         <svg
           viewBox={`0 0 ${schema.svgW} ${schema.svgH}`}
-          className="mx-auto block w-full max-w-[560px]"
+          className="mx-auto block w-full"
+          style={{ maxWidth: `${renderWidth}px` }}
           role="img"
           aria-label={schema.ariaLabel}
         >
@@ -268,10 +317,40 @@ export default function ConceptMapRenderer({ schema, color }: ConceptMapRenderer
             return null;
           })}
 
-          {/* Edges */}
-          {schema.edges.map((e, i) => (
-            <EdgePath key={i} edge={e} nodes={schema.nodes} theme={theme} arrowId={arrowId} />
-          ))}
+          {/* Edges — group by source node to distribute labels vertically */}
+          {(() => {
+            // Group edges by 'from' node, sort each group by target x for consistent ordering
+            const edgesByFrom = new Map<string, { edge: MapEdge; idx: number }[]>();
+            schema.edges.forEach((e, i) => {
+              const group = edgesByFrom.get(e.from) || [];
+              group.push({ edge: e, idx: i });
+              edgesByFrom.set(e.from, group);
+            });
+            // Sort each group by target node's x position
+            for (const group of edgesByFrom.values()) {
+              group.sort((a, b) => {
+                const aTo = schema.nodes.find(n => n.id === a.edge.to);
+                const bTo = schema.nodes.find(n => n.id === b.edge.to);
+                return (aTo?.x ?? 0) - (bTo?.x ?? 0);
+              });
+            }
+            return schema.edges.map((e, i) => {
+              const group = edgesByFrom.get(e.from) || [];
+              const indexInGroup = group.findIndex(g => g.idx === i);
+              const totalInGroup = group.length;
+              const labelOffsetY = (indexInGroup - (totalInGroup - 1) / 2) * 16;
+              return (
+                <EdgePath
+                  key={i}
+                  edge={e}
+                  nodes={schema.nodes}
+                  theme={theme}
+                  arrowId={arrowId}
+                  labelOffsetY={labelOffsetY}
+                />
+              );
+            });
+          })()}
 
           {/* Nodes */}
           {schema.nodes.map((n) => (
