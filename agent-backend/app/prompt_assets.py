@@ -15,6 +15,18 @@ try:
 except ImportError:
     from quality import load_frontend_component_whitelist
 
+# Mapping from interaction capability to a good few-shot example component
+_CAPABILITY_EXAMPLE_MAP = {
+    "compare": "ArchitectureCompare",
+    "trace": "TransformerFlow",
+    "step-through": "TransformerFlow",
+    "simulate": "LossLandscape",
+    "parameter-play": "ScalingLawPlotter",
+    "classify": "CoTToggle",
+    "rebuild": "FullPipelineTracer",
+    "retrieve": "ContextLengthCalc",
+}
+
 PROMPT_VERSION = "v1-course-generation"
 
 ALLOWED_CATEGORY_COLORS = ["blue", "emerald", "purple", "amber", "red"]
@@ -126,7 +138,7 @@ def build_plan_prompts(request_payload: dict[str, Any], planning_seed: dict[str,
         "- primaryCognitiveAction 只能使用: " + ", ".join(ALLOWED_COGNITIVE_ACTIONS) + "\n"
         "- moduleGraph.edges[].type 只能使用: " + ", ".join(ALLOWED_EDGE_TYPES) + "\n"
         "- moduleOutlines 必须按学习顺序排列，id 必须是 s01, s02 ...\n"
-        "- 所有字符串必须具体，不能写“结构化理解”“关键问题”等空套话。\n"
+        "- 所有字符串必须具体，不能写空套话。\n"
     )
     user_prompt = (
         "为下面的主题设计一门 zh 课程的课程计划。\n\n"
@@ -167,8 +179,8 @@ def build_module_prompts(
         "- interactionRequirements[].capability 只能使用: " + ", ".join(ALLOWED_INTERACTION_CAPABILITIES) + "\n"
         "- retrievalPrompts[].type 只能使用: " + ", ".join(ALLOWED_RETRIEVAL_PROMPTS) + "\n"
         "- narrative 至少 6 个 block，必须包含至少 1 个 heading、1 个 steps、1 个 callout。\n"
-        “- examples 必须具体到主题内实体、过程或案例，不能写”举一个例子”。\n”
-        “- concepts[].name 必须是名词短语（≤8 字），不是完整句子。\n”
+        "- examples 必须具体到主题内实体、过程或案例，不能写空泛描述。\n"
+        "- concepts[].name 必须是名词短语（8 字以内），不是完整句子。\n"
         "- bridgeTo 必须自然导向下一章；如果是最后一章，bridgeTo 设为 null。\n"
         "- componentHint 只允许以下值之一: " + ", ".join(sorted(load_frontend_component_whitelist())) + "。"
         "不匹配则必须设为 null。不要编造组件名。\n"
@@ -323,3 +335,62 @@ def _extract_section(content: str, start_heading: str, end_heading: str) -> str:
     if end == -1:
         end = len(content)
     return content[start:end]
+
+
+def _load_example_component(capability: str) -> str:
+    """Load an existing interactive component as a few-shot example."""
+    component_name = _CAPABILITY_EXAMPLE_MAP.get(capability, "ContextLengthCalc")
+    path = REPO_ROOT / "src" / "components" / "interactive" / f"{component_name}.tsx"
+    if path.exists():
+        return read_text(path)
+    # Fallback
+    fallback = REPO_ROOT / "src" / "components" / "interactive" / "ContextLengthCalc.tsx"
+    return read_text(fallback) if fallback.exists() else ""
+
+
+def build_interaction_component_prompt(
+    *,
+    component_name: str,
+    module: dict[str, Any],
+    interaction: dict[str, Any],
+) -> tuple[str, str]:
+    """Build prompts for generating an interactive React component."""
+    example_code = _load_example_component(interaction.get("capability", ""))
+
+    system_prompt = (
+        "你是一位 React + TypeScript 组件开发者，为学习可视化平台编写交互式教学组件。\n\n"
+        "技术约束（必须严格遵守）：\n"
+        "- 第一行必须是 'use client';\n"
+        "- 只使用 React hooks（useState, useMemo, useCallback 等）和 Tailwind CSS\n"
+        "- 零外部依赖——不允许 import 任何第三方包（d3、recharts、lodash 等全部不行）\n"
+        "- 使用项目 CSS 变量：var(--color-text)、var(--color-bg)、var(--color-border)、"
+        "var(--color-muted)、var(--color-panel)、var(--color-accent)\n"
+        "- 暗色模式通过 Tailwind dark: 前缀支持，darkMode 策略是 class\n"
+        "- 组件必须 export default function " + component_name + "()\n"
+        "- 200-400 行 TypeScript 代码，一个文件完成\n"
+        "- 只输出代码，不要 markdown 围栏、不要解释、不要注释块\n\n"
+        "组件设计原则：\n"
+        "- 组件服务于学习目标——用户操作后应该产生认知洞见，不是纯展示\n"
+        "- 提供有意义的默认数据，用户打开就能看到有内容的状态\n"
+        "- 包含简短的中文说明文字，解释操作和背后的原理\n"
+        "- 外层容器用 rounded-xl border bg-[color:var(--color-panel)] overflow-hidden\n"
+        "- header 区域显示图标 + 中文标题 + 英文副标题\n"
+    )
+
+    user_prompt = (
+        f"为以下学习模块生成交互组件，组件名为 {component_name}。\n\n"
+        f"模块标题：{module.get('title', '')}\n"
+        f"焦点问题：{module.get('focusQuestion', '')}\n"
+        f"关键洞见：{module.get('keyInsight', '')}\n"
+        f"概念列表：{json.dumps([c.get('name', '') for c in module.get('concepts', [])], ensure_ascii=False)}\n"
+        f"逻辑链：{json.dumps(module.get('logicChain', [])[:5], ensure_ascii=False)}\n\n"
+        f"交互需求：\n"
+        f"- 能力类型：{interaction.get('capability', '')}\n"
+        f"- 交互目的：{interaction.get('purpose', '')}\n\n"
+        "参考组件（学习风格、结构和 CSS 变量用法，不要照抄业务逻辑）：\n"
+        "```tsx\n"
+        f"{example_code}\n"
+        "```\n"
+    )
+
+    return system_prompt, user_prompt

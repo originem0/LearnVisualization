@@ -106,9 +106,42 @@ class OpenAICompatibleClient:
         except ProviderError:
             if not self.config.fallback_model or self.config.fallback_model == self.config.model:
                 raise
-            # Retry with fallback model
             body["model"] = self.config.fallback_model
             return self._call_and_parse(body, schema_name)
+
+    def generate_text(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.2,
+        max_tokens: int = 12000,
+    ) -> dict[str, Any]:
+        """Generate plain text (no JSON mode). Used for code generation."""
+        body = {
+            "model": self.config.model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        }
+
+        try:
+            payload = self._post_json(body)
+        except ProviderError:
+            if not self.config.fallback_model or self.config.fallback_model == self.config.model:
+                raise
+            body["model"] = self.config.fallback_model
+            payload = self._post_json(body)
+
+        content = self._extract_message_content(payload)
+        return {
+            "content": content,
+            "usage": payload.get("usage") or {},
+            "model": payload.get("model") or body["model"],
+        }
 
     def _call_and_parse(self, body: dict[str, Any], schema_name: str) -> dict[str, Any]:
         payload = self._post_json(body)
