@@ -24,15 +24,19 @@ def patch_course(course_dir: Path, whitelist: set[str], dry_run: bool = False) -
     if not modules_dir.is_dir():
         return stats
 
+    # Courses with hand-written components — preserve their componentHints
+    KEEP_HINTS_COURSES = {"llm-fundamentals", "postgresql-internals"}
+    should_clear_all_hints = course_dir.name not in KEEP_HINTS_COURSES
+
     # Load and patch each module
     for module_path in sorted(modules_dir.glob("*.json")):
         data = json.loads(module_path.read_text(encoding="utf-8"))
         changed = False
 
-        # 1. Validate componentHint in interactionRequirements
+        # 1. Validate/clear componentHint in interactionRequirements
         for req in data.get("interactionRequirements") or []:
             hint = req.get("componentHint")
-            if hint and hint not in whitelist:
+            if hint and (should_clear_all_hints or hint not in whitelist):
                 req["componentHint"] = None
                 stats["hints_nulled"] += 1
                 changed = True

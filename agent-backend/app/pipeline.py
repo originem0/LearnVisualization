@@ -589,12 +589,15 @@ class CourseGenerationPipeline:
         job_id: str,
         compose_logs: list[dict[str, Any]],
     ) -> None:
-        """Generate structured interaction data for core interaction requirements."""
+        """Generate structured interaction data for core + first secondary interaction."""
         import sys
 
+        generated_count = 0
+        max_generations = 2  # core + first secondary
+
         for idx, req in enumerate(module.get("interactionRequirements") or []):
-            if req.get("priority") != "core":
-                continue
+            if generated_count >= max_generations:
+                break
 
             try:
                 sys_prompt, usr_prompt = build_interaction_data_prompt(
@@ -615,6 +618,7 @@ class CourseGenerationPipeline:
                     "usage": response["usage"],
                 })
                 print(f"[interaction-data] {module['id']}/{req['capability']} generated", file=sys.stderr)
+                generated_count += 1
             except Exception as exc:
                 print(f"[interaction-data] {module['id']}/{req['capability']} failed: {exc}", file=sys.stderr)
 
