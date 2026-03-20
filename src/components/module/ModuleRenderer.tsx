@@ -63,7 +63,7 @@ export default function ModuleRenderer({
   const coreInteraction = interactions.find((interaction) => interaction.priority === 'core') ?? null;
   const secondaryInteraction = interactions.find((interaction) => interaction.priority === 'secondary') ?? null;
   const headings = getNarrativeHeadings(module.narrative);
-  const hasFloatingTOC = headings.length >= 5;
+  const hasFloatingTOC = headings.length > 0;
   const conceptMap = renderConceptMapSlot(module, moduleRuntime, category.color, locale);
   const coreInteractionNode = renderInteractionSlot(coreInteraction, module, locale);
   const secondaryInteractionNode = renderInteractionSlot(secondaryInteraction, module, locale);

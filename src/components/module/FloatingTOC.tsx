@@ -7,7 +7,7 @@ interface FloatingTOCProps {
 }
 
 export default function FloatingTOC({ headings, locale }: FloatingTOCProps) {
-  if (headings.length < 5) return null;
+  if (headings.length === 0) return null;
 
   const isZh = locale === 'zh';
 
