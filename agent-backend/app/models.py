@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 
@@ -17,6 +18,21 @@ def _to_bool(value: Any, default: bool = False) -> bool:
         if lowered in {"0", "false", "no", "off"}:
             return False
     return default
+
+
+def validate_topic_text(topic: str) -> str | None:
+    """Validate topic text. Returns error message or None if valid."""
+    if len(topic) < 2:
+        return "主题太短，请输入至少 2 个字符"
+    if len(topic) > 80:
+        return "主题太长，请控制在 80 字符以内"
+    # All punctuation/digits/whitespace
+    if re.fullmatch(r"[\s\d\W]+", topic):
+        return "请输入有效的学习主题"
+    # Chat-like sentences (ends with 吗/呢/啊/？ and shorter than 15 chars)
+    if len(topic) < 15 and re.search(r"[吗呢啊哦嘛？]$", topic):
+        return "请输入一个知识主题，而不是一个问题"
+    return None
 
 
 def normalize_topic_request(payload: dict[str, Any] | None) -> dict[str, Any]:
@@ -84,6 +100,9 @@ def normalize_promote_request(payload: dict[str, Any] | None) -> dict[str, Any]:
 def normalize_job_create_request(payload: dict[str, Any] | None) -> dict[str, Any]:
     payload = payload or {}
     topic_req = normalize_topic_request(payload)
+    topic_error = validate_topic_text(topic_req["topic"])
+    if topic_error:
+        raise ValueError(topic_error)
     return {
         **topic_req,
         "output_slug": str(payload.get("output_slug") or "").strip() or None,

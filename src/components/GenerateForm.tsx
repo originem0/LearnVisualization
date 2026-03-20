@@ -267,7 +267,20 @@ export default function GenerateForm({ locale }: { locale: string }) {
 
   function handleTopicSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!topic.trim()) return;
+    const t = topic.trim();
+    if (!t) return;
+    if (t.length < 2) {
+      setSubmitError(isZh ? '主题太短，请输入至少 2 个字符' : 'Topic too short, at least 2 characters');
+      return;
+    }
+    if (t.length > 80) {
+      setSubmitError(isZh ? '主题太长，请控制在 80 字符以内' : 'Topic too long, max 80 characters');
+      return;
+    }
+    if (/^[\s\d\W]+$/.test(t)) {
+      setSubmitError(isZh ? '请输入有效的学习主题' : 'Please enter a valid learning topic');
+      return;
+    }
     setShowQuestions(true);
     setSubmitError('');
   }

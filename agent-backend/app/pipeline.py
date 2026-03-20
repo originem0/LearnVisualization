@@ -11,7 +11,7 @@ from typing import Any
 try:
     from .common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
     from .job_store import JobStore
-    from .prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_data_prompt
+    from .prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_data_prompt, build_topic_validation_prompt
     from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError
     from .quality import (
         build_concept_map,
@@ -115,6 +115,29 @@ class CourseGenerationPipeline:
         if course_count + generated_count >= MAX_TOTAL_COURSES:
             raise ValueError(f"课程总数已达上限（{MAX_TOTAL_COURSES} 门），请删除旧课程后再生成")
 
+        # --- LLM topic validation (graceful degradation) ---
+        topic_validation = None
+        try:
+            sys_prompt, usr_prompt = build_topic_validation_prompt(request_payload["topic"])
+            val_response = self.client.generate_json(
+                schema_name="topic_validation",
+                system_prompt=sys_prompt,
+                user_prompt=usr_prompt,
+                max_tokens=300,
+            )
+            topic_validation = val_response["content"]
+            if not topic_validation.get("valid"):
+                reason = topic_validation.get("reason") or "请输入一个有效的学习主题"
+                raise ValueError(reason)
+            # Use canonical topic if available
+            canonical = str(topic_validation.get("canonicalTopic") or "").strip()
+            if canonical:
+                request_payload["topic"] = canonical
+        except ProviderError:
+            pass  # LLM unavailable — continue with original topic
+        except ValueError:
+            raise  # re-raise validation rejection
+
         request_payload = {
             **request_payload,
             "output_slug": request_payload.get("output_slug") or slugify(request_payload["topic"]),
@@ -122,14 +145,28 @@ class CourseGenerationPipeline:
         }
         output_slug = request_payload["output_slug"]
 
-        # --- Duplicate detection ---
-        # 1. Already-published course
+        # --- Duplicate detection (slug-based + semantic) ---
         courses_root = self.repo_root / "courses"
+
+        # Slug-based
         if (courses_root / output_slug / "course.json").exists():
             raise ValueError(f"课程 '{output_slug}' 已存在于 courses/ 中，如需重新生成请先删除")
-        # 2. Already-generated output
         if (self.generated_root / output_slug).exists():
             raise ValueError(f"课程 '{output_slug}' 已生成，如需重新生成请先删除")
+
+        # Semantic dedup: check if canonical topic matches any existing course title
+        canonical_topic = request_payload["topic"]
+        if courses_root.is_dir():
+            for course_dir in courses_root.iterdir():
+                course_json = course_dir / "course.json"
+                if course_dir.is_dir() and course_json.exists():
+                    try:
+                        existing = json.loads(course_json.read_text(encoding="utf-8"))
+                        existing_title = existing.get("title", "")
+                        if (canonical_topic in existing_title or existing_title in canonical_topic) and len(canonical_topic) >= 4:
+                            raise ValueError(f"已有相似课程: {existing_title}")
+                    except (json.JSONDecodeError, OSError):
+                        continue
         # 3. Queued or running job with same slug
         for existing in self.store.list_jobs():
             if existing.get("status") in ("queued", "running"):
@@ -144,7 +181,11 @@ class CourseGenerationPipeline:
         )
         if run_async:
             self._submit_job(job["id"])
-        return self.store.load_job(job["id"])
+        result = self.store.load_job(job["id"])
+        # Attach narrow suggestions if topic was broad
+        if topic_validation and topic_validation.get("narrowSuggestions"):
+            result["suggestions"] = topic_validation["narrowSuggestions"]
+        return result
 
     def cancel_job(self, job_id: str) -> dict[str, Any]:
         """Cancel a queued or running job."""
