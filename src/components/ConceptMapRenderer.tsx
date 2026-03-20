@@ -186,16 +186,36 @@ function EdgePath({
   const to = nodes.find((n) => n.id === edge.to);
   if (!from || !to) return null;
 
-  const x1 = from.x;
-  const y1 = from.y + from.h / 2;
-  const x2 = to.x;
-  const y2 = to.y - to.h / 2;
-  const midY = (y1 + y2) / 2;
-  const d = `M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`;
+  // Detect horizontal (same-layer) vs vertical edge
+  const isHorizontal = Math.abs(from.y - to.y) < 10;
 
-  const labelX = (x1 + x2) / 2 + (x1 === x2 ? 0 : x2 > x1 ? 10 : -10);
-  const labelY = midY + labelOffsetY;
-  const displayLabel = edge.label ? truncateLabel(edge.label, 80, FONT_SM) : null;
+  let d: string;
+  let labelX: number;
+  let labelY: number;
+
+  if (isHorizontal) {
+    // Horizontal arc for same-layer connections
+    const x1 = from.x + (to.x > from.x ? from.w / 2 : -from.w / 2);
+    const x2 = to.x + (to.x > from.x ? -to.w / 2 : to.w / 2);
+    const y = from.y;
+    const arcHeight = 30;
+    const midX = (x1 + x2) / 2;
+    d = `M${x1},${y} Q${midX},${y - arcHeight} ${x2},${y}`;
+    labelX = midX;
+    labelY = y - arcHeight - 4 + labelOffsetY;
+  } else {
+    // Vertical bezier curve
+    const x1 = from.x;
+    const y1 = from.y + from.h / 2;
+    const x2 = to.x;
+    const y2 = to.y - to.h / 2;
+    const midY = (y1 + y2) / 2;
+    d = `M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`;
+    labelX = (x1 + x2) / 2 + (x1 === x2 ? 0 : x2 > x1 ? 10 : -10);
+    labelY = midY + labelOffsetY;
+  }
+
+  const displayLabel = edge.label ? truncateLabel(edge.label, 120, FONT_SM) : null;
   const isTruncated = displayLabel !== edge.label;
   const labelW = displayLabel ? estimateTextWidth(displayLabel, FONT_SM) + 16 : 0;
 

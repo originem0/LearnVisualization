@@ -145,8 +145,8 @@ export function NarrativeSteps({ label, steps }: { label?: string; steps: StepIt
               <div>
                 <div className="text-sm font-semibold text-[color:var(--color-text)]">{step.title}</div>
                 <div className="mt-0.5 text-xs leading-5 text-[color:var(--color-muted)]">{step.description}</div>
-                <div className="mt-2 overflow-x-auto rounded-lg bg-zinc-50/70 px-3 py-3 dark:bg-[#0b3a45]/30">
-                  <pre className="text-sm leading-7 text-[color:var(--color-text)]">
+                <div className="mt-2 overflow-x-auto rounded-xl bg-[#F8FAFC] px-3 py-3 shadow-sm dark:bg-[#0b3a45]/30">
+                  <pre className="text-sm leading-7 text-zinc-700 dark:text-[color:var(--color-text)]">
                     <code>{renderVisual(step.visual, step.highlight)}</code>
                   </pre>
                 </div>

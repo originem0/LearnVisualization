@@ -204,30 +204,6 @@ function renderInteractionSlot(interaction: ResolvedInteraction | null, locale: 
     );
   }
 
-  const isZh = locale === 'zh';
-  const meta = [
-    interaction.purpose ? `${isZh ? '目标' : 'Purpose'}: ${interaction.purpose}` : '',
-    interaction.capability ? `${isZh ? '能力类型' : 'Capability'}: ${interaction.capability}` : '',
-    interaction.componentHint ? `${isZh ? '组件提示' : 'Component hint'}: ${interaction.componentHint}` : '',
-  ].filter(Boolean);
-
-  return (
-    <div className="mx-auto w-full max-w-[54rem] pb-8">
-      <RuntimePlaceholderCard
-        kind="interaction"
-        locale={locale}
-        title={
-          interaction.priority === 'core'
-            ? (isZh ? '核心交互制作中' : 'Core interaction in progress')
-            : (isZh ? '补充交互制作中' : 'Secondary interaction in progress')
-        }
-        description={
-          isZh
-            ? '这一步的交互还没有连到前端白名单组件，先保留学习节奏和文字叙事。'
-            : 'This interaction is not wired to a frontend-whitelisted component yet, so the learning flow falls back to narrative content for now.'
-        }
-        meta={meta}
-      />
-    </div>
-  );
+  // No whitelisted component available — hide placeholder silently
+  return null;
 }

@@ -399,58 +399,179 @@ def _infer_link_word(logic_chain: list[str], concept_name: str, index: int) -> s
     """Infer a short Novak-style link word from logicChain context, fallback to rotation."""
     for step in logic_chain:
         if concept_name in step:
-            for word in ("包含", "依赖", "推导", "实现", "约束", "影响", "组成", "触发"):
+            for word in ("包含", "依赖", "推导", "实现", "约束", "影响", "组成", "触发", "产生", "决定", "需要"):
                 if word in step:
                     return word
     return _NOVAK_LINK_WORDS[index % len(_NOVAK_LINK_WORDS)]
 
 
+def _estimate_node_width(text: str) -> int:
+    """Estimate node width based on text length. CJK chars ~14px, ASCII ~8px, plus padding."""
+    w = 0
+    for ch in text:
+        w += 14 if ord(ch) > 0x7f else 8
+    return max(w + 32, 100)  # min 100px
+
+
+def _assign_layers(concepts: list[dict[str, Any]], logic_chain: list[str]) -> list[list[int]]:
+    """Assign concepts to hierarchical layers based on logicChain mention order."""
+    n = len(concepts)
+    # Find first mention index in logicChain for each concept
+    mention_order: list[tuple[int, int]] = []
+    for ci, concept in enumerate(concepts):
+        name = concept["name"]
+        first_mention = len(logic_chain)  # default: not mentioned
+        for si, step in enumerate(logic_chain):
+            if name in step:
+                first_mention = si
+                break
+        mention_order.append((first_mention, ci))
+
+    mention_order.sort()
+
+    # Group into layers: concepts mentioned in same logicChain step → same layer
+    # Aim for 2-4 concepts per layer
+    layers: list[list[int]] = []
+    current_layer: list[int] = []
+    prev_mention = -1
+    for mention_idx, concept_idx in mention_order:
+        if current_layer and (mention_idx != prev_mention or len(current_layer) >= 4):
+            layers.append(current_layer)
+            current_layer = []
+        current_layer.append(concept_idx)
+        prev_mention = mention_idx
+    if current_layer:
+        layers.append(current_layer)
+
+    return layers
+
+
 def build_concept_map(module: dict[str, Any]) -> dict[str, Any]:
     concepts = module.get("concepts") or []
     logic_chain = module.get("logicChain") or []
-    nodes = [
-        {"id": "core", "label": [module["title"]], "x": 280, "y": 64, "w": 220, "h": 52, "accent": True},
-    ]
-    edges = []
-    positions = [(120, 170), (280, 170), (440, 170), (280, 274)]
-    for index, concept in enumerate(concepts[:4]):
-        x, y = positions[index]
-        node_id = f"n{index + 1}"
-        nodes.append(
-            {
-                "id": node_id,
-                "label": [concept["name"]],
-                "x": x,
-                "y": y,
-                "w": 180,
-                "h": 48,
-            }
-        )
-        label = _infer_link_word(logic_chain, concept["name"], index)
-        edges.append({"from": "core", "to": node_id, "label": label})
+    title = module["title"]
 
-    if len(nodes) < 3:
-        nodes.extend(
-            [
+    # Limit to 10 concepts
+    concepts = concepts[:10]
+    n = len(concepts)
+
+    if n == 0:
+        # Minimal fallback
+        return {
+            "title": title,
+            "type": "conceptMap",
+            "nodes": [
+                {"id": "core", "label": [title], "x": 280, "y": 64, "w": 220, "h": 52, "accent": True},
                 {"id": "nX", "label": ["机制"], "x": 160, "y": 180, "w": 160, "h": 48},
                 {"id": "nY", "label": ["结果"], "x": 400, "y": 180, "w": 160, "h": 48},
-            ]
-        )
-        edges.extend(
-            [
+            ],
+            "edges": [
                 {"from": "core", "to": "nX", "label": "包含"},
                 {"from": "nX", "to": "nY", "label": "推导"},
-            ]
-        )
+            ],
+            "svgW": 560,
+            "svgH": 280,
+            "ariaLabel": f"{title} 概念关系图",
+        }
+
+    # Assign concepts to layers
+    layers = _assign_layers(concepts, logic_chain)
+
+    # Layout parameters
+    layer_gap_y = 110
+    node_h = 48
+    core_y = 50
+    core_w = _estimate_node_width(title)
+    h_padding = 40  # horizontal padding between nodes
+    min_svg_w = 480
+
+    # Calculate node positions layer by layer
+    nodes = [{"id": "core", "label": [title], "x": 0, "y": core_y, "w": core_w, "h": 52, "accent": True}]
+    edges = []
+    node_map: dict[int, str] = {}  # concept index -> node id
+
+    max_layer_width = core_w
+    for layer_idx, layer in enumerate(layers):
+        y = core_y + (layer_idx + 1) * layer_gap_y
+        # Calculate widths for this layer
+        widths = [_estimate_node_width(concepts[ci]["name"]) for ci in layer]
+        total_width = sum(widths) + h_padding * (len(layer) - 1)
+        max_layer_width = max(max_layer_width, total_width)
+
+        # Center the layer
+        start_x = -total_width / 2
+        current_x = start_x
+        for j, ci in enumerate(layer):
+            w = widths[j]
+            node_id = f"n{ci + 1}"
+            node_map[ci] = node_id
+            nodes.append({
+                "id": node_id,
+                "label": [concepts[ci]["name"]],
+                "x": int(current_x + w / 2),
+                "y": y,
+                "w": w,
+                "h": node_h,
+            })
+            current_x += w + h_padding
+
+    # Center everything: shift all x coordinates so the diagram is centered
+    svg_w = max(int(max_layer_width + 80), min_svg_w)
+    center_x = svg_w // 2
+    for node in nodes:
+        node["x"] += center_x
+
+    svg_h = core_y + (len(layers) + 1) * layer_gap_y
+
+    # Build edges: core → first layer, then layer[i] → layer[i+1]
+    for ci in (layers[0] if layers else []):
+        node_id = node_map.get(ci)
+        if node_id:
+            label = _infer_link_word(logic_chain, concepts[ci]["name"], ci)
+            edges.append({"from": "core", "to": node_id, "label": label})
+
+    for li in range(len(layers) - 1):
+        upper = layers[li]
+        lower = layers[li + 1]
+        # Connect each lower node to the closest upper node
+        for ci_lower in lower:
+            # Find best parent: prefer concept that co-occurs in same logicChain step
+            best_parent = upper[0] if upper else None
+            for ci_upper in upper:
+                upper_name = concepts[ci_upper]["name"]
+                lower_name = concepts[ci_lower]["name"]
+                for step in logic_chain:
+                    if upper_name in step and lower_name in step:
+                        best_parent = ci_upper
+                        break
+            if best_parent is not None and node_map.get(best_parent) and node_map.get(ci_lower):
+                label = _infer_link_word(logic_chain, concepts[ci_lower]["name"], ci_lower)
+                edges.append({"from": node_map[best_parent], "to": node_map[ci_lower], "label": label})
+
+    # Add cross-links within layers for concepts that co-occur in logicChain
+    for layer in layers:
+        if len(layer) < 2:
+            continue
+        for i in range(len(layer)):
+            for j in range(i + 1, len(layer)):
+                name_i = concepts[layer[i]]["name"]
+                name_j = concepts[layer[j]]["name"]
+                for step in logic_chain:
+                    if name_i in step and name_j in step:
+                        nid_i = node_map.get(layer[i])
+                        nid_j = node_map.get(layer[j])
+                        if nid_i and nid_j:
+                            edges.append({"from": nid_i, "to": nid_j, "label": "关联", "dashed": True})
+                        break
 
     return {
-        "title": module["title"],
+        "title": title,
         "type": "conceptMap",
         "nodes": nodes,
         "edges": edges,
-        "svgW": 560,
-        "svgH": 320,
-        "ariaLabel": f"{module['title']} 概念关系图",
+        "svgW": svg_w,
+        "svgH": svg_h,
+        "ariaLabel": f"{title} 概念关系图",
     }
 
 
