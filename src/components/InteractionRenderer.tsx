@@ -29,7 +29,7 @@ function CompareRenderer({ data }: { data: InteractionData }) {
 
   return (
     <div>
-      <p className="text-sm text-[color:var(--color-muted)] mb-4">{data.description}</p>
+      <p className="text-sm text-zinc-500 mb-4">{data.description}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <button
@@ -37,19 +37,19 @@ function CompareRenderer({ data }: { data: InteractionData }) {
             onClick={() => setSelected(selected === item.id ? null : item.id)}
             className={`rounded-lg border p-4 text-left transition ${
               selected === item.id
-                ? 'border-[color:var(--color-accent)] bg-blue-50/50 dark:bg-blue-500/10'
-                : 'border-[color:var(--color-border)] hover:border-[color:var(--color-accent)]'
+                ? 'border-blue-400 bg-blue-50/50'
+                : 'border-zinc-200 hover:border-blue-400'
             }`}
           >
-            <div className="text-sm font-semibold text-[color:var(--color-text)]">{item.label}</div>
-            <p className="mt-1 text-xs text-[color:var(--color-muted)] leading-relaxed">{item.detail}</p>
+            <div className="text-sm font-semibold text-zinc-800">{item.label}</div>
+            <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{item.detail}</p>
             {selected === item.id && (
               <div className="mt-3 space-y-2">
                 {item.pros && item.pros.length > 0 && (
-                  <div>{item.pros.map((p, i) => <span key={i} className="mr-1.5 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">+ {p}</span>)}</div>
+                  <div>{item.pros.map((p, i) => <span key={i} className="mr-1.5 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700">+ {p}</span>)}</div>
                 )}
                 {item.cons && item.cons.length > 0 && (
-                  <div>{item.cons.map((c, i) => <span key={i} className="mr-1.5 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700 dark:bg-red-500/15 dark:text-red-300">- {c}</span>)}</div>
+                  <div>{item.cons.map((c, i) => <span key={i} className="mr-1.5 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700">- {c}</span>)}</div>
                 )}
               </div>
             )}
@@ -58,9 +58,9 @@ function CompareRenderer({ data }: { data: InteractionData }) {
       </div>
       {dimensions.length > 0 && (
         <div className="mt-4 space-y-2">
-          <div className="text-xs font-medium text-[color:var(--color-muted)]">比较维度</div>
+          <div className="text-xs font-medium text-zinc-500">比较维度</div>
           {dimensions.map((d, i) => (
-            <div key={i} className="text-xs text-[color:var(--color-text)]"><span className="font-medium">{d.name}：</span>{d.description}</div>
+            <div key={i} className="text-xs text-zinc-800"><span className="font-medium">{d.name}：</span>{d.description}</div>
           ))}
         </div>
       )}
@@ -79,31 +79,31 @@ function TraceRenderer({ data }: { data: InteractionData }) {
 
   return (
     <div>
-      <p className="text-sm text-[color:var(--color-muted)] mb-4">{data.description}</p>
+      <p className="text-sm text-zinc-500 mb-4">{data.description}</p>
       {/* Progress */}
       <div className="mb-4 flex gap-1">
         {steps.map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className={`h-1.5 flex-1 rounded-full transition ${i <= current ? 'bg-[color:var(--color-accent)]' : 'bg-[color:var(--color-border)]'}`}
+            className={`h-1.5 flex-1 rounded-full transition ${i <= current ? 'bg-blue-500' : 'bg-zinc-200'}`}
           />
         ))}
       </div>
       {/* Current step */}
-      <div className="rounded-lg border border-[color:var(--color-border)] p-4">
+      <div className="rounded-lg border border-zinc-200 p-4">
         <div className="flex items-center gap-2 mb-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--color-accent)] text-[10px] font-bold text-white">{current + 1}</span>
-          <span className="text-sm font-semibold text-[color:var(--color-text)]">{step.label}</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">{current + 1}</span>
+          <span className="text-sm font-semibold text-zinc-800">{step.label}</span>
         </div>
-        <p className="text-sm text-[color:var(--color-text)] leading-relaxed">{step.detail}</p>
+        <p className="text-sm text-zinc-800 leading-relaxed">{step.detail}</p>
         {step.state && (
           <div className="mt-3 rounded-lg bg-zinc-100 px-3 py-2">
             <pre className="text-xs text-zinc-800 whitespace-pre-wrap font-mono">{step.state}</pre>
           </div>
         )}
         {step.highlight && (
-          <div className="mt-2 text-xs font-medium text-[color:var(--color-accent)]">{step.highlight}</div>
+          <div className="mt-2 text-xs font-medium text-blue-500">{step.highlight}</div>
         )}
       </div>
       {/* Navigation */}
@@ -111,15 +111,15 @@ function TraceRenderer({ data }: { data: InteractionData }) {
         <button
           onClick={() => setCurrent(Math.max(0, current - 1))}
           disabled={current === 0}
-          className="rounded px-3 py-1.5 text-xs font-medium text-[color:var(--color-muted)] transition hover:text-[color:var(--color-text)] disabled:opacity-30"
+          className="rounded px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:text-zinc-800 disabled:opacity-30"
         >
           上一步
         </button>
-        <span className="text-xs text-[color:var(--color-muted)] self-center">{current + 1} / {steps.length}</span>
+        <span className="text-xs text-zinc-500 self-center">{current + 1} / {steps.length}</span>
         <button
           onClick={() => setCurrent(Math.min(steps.length - 1, current + 1))}
           disabled={current === steps.length - 1}
-          className="rounded px-3 py-1.5 text-xs font-medium text-[color:var(--color-accent)] transition hover:opacity-80 disabled:opacity-30"
+          className="rounded px-3 py-1.5 text-xs font-medium text-blue-500 transition hover:opacity-80 disabled:opacity-30"
         >
           下一步
         </button>
@@ -146,13 +146,13 @@ function SimulateRenderer({ data }: { data: InteractionData }) {
 
   return (
     <div>
-      <p className="text-sm text-[color:var(--color-muted)] mb-4">{data.description}</p>
+      <p className="text-sm text-zinc-500 mb-4">{data.description}</p>
       <div className="space-y-4">
         {parameters.map((p) => (
           <div key={p.id}>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-[color:var(--color-text)]">{p.label}</label>
-              <span className="text-xs font-mono font-semibold text-[color:var(--color-accent)]">
+              <label className="text-xs font-medium text-zinc-800">{p.label}</label>
+              <span className="text-xs font-mono font-semibold text-blue-500">
                 {values[p.id]}{p.unit ? ` ${p.unit}` : ''}
               </span>
             </div>
@@ -174,7 +174,7 @@ function SimulateRenderer({ data }: { data: InteractionData }) {
             <button
               key={i}
               onClick={() => applyPreset(preset)}
-              className="rounded-full border border-[color:var(--color-border)] px-2.5 py-1 text-[10px] text-[color:var(--color-muted)] transition hover:border-[color:var(--color-accent)] hover:text-[color:var(--color-accent)]"
+              className="rounded-full border border-zinc-200 px-2.5 py-1 text-[10px] text-zinc-500 transition hover:border-blue-400 hover:text-blue-500"
               title={preset.note}
             >
               {preset.label}
@@ -209,11 +209,11 @@ function ClassifyRenderer({ data }: { data: InteractionData }) {
 
   return (
     <div>
-      <p className="text-sm text-[color:var(--color-muted)] mb-4">{data.description}</p>
+      <p className="text-sm text-zinc-500 mb-4">{data.description}</p>
       {/* Category legend */}
       <div className="mb-4 flex flex-wrap gap-2">
         {categories.map((cat) => (
-          <div key={cat.id} className="rounded-full border border-[color:var(--color-border)] px-2.5 py-1 text-[10px] text-[color:var(--color-text)]" title={cat.description}>
+          <div key={cat.id} className="rounded-full border border-zinc-200 px-2.5 py-1 text-[10px] text-zinc-800" title={cat.description}>
             {cat.label}
           </div>
         ))}
@@ -221,8 +221,8 @@ function ClassifyRenderer({ data }: { data: InteractionData }) {
       {/* Items */}
       <div className="space-y-3">
         {items.map((item) => (
-          <div key={item.id} className="rounded-lg border border-[color:var(--color-border)] p-3">
-            <p className="text-sm text-[color:var(--color-text)] mb-2">{item.content}</p>
+          <div key={item.id} className="rounded-lg border border-zinc-200 p-3">
+            <p className="text-sm text-zinc-800 mb-2">{item.content}</p>
             <div className="flex flex-wrap gap-1.5">
               {categories.map((cat) => {
                 const isSelected = answers[item.id] === cat.id;
@@ -233,10 +233,10 @@ function ClassifyRenderer({ data }: { data: InteractionData }) {
                     key={cat.id}
                     onClick={() => handleSelect(item.id, cat.id)}
                     className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition ${
-                      isCorrect ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                      : isWrong ? 'border-red-400 bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300'
-                      : isSelected ? 'border-[color:var(--color-accent)] bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
-                      : 'border-[color:var(--color-border)] text-[color:var(--color-muted)] hover:border-[color:var(--color-accent)]'
+                      isCorrect ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                      : isWrong ? 'border-red-400 bg-red-50 text-red-700'
+                      : isSelected ? 'border-blue-400 bg-blue-50 text-blue-700'
+                      : 'border-zinc-200 text-zinc-500 hover:border-blue-400'
                     }`}
                   >
                     {cat.label}
@@ -245,7 +245,7 @@ function ClassifyRenderer({ data }: { data: InteractionData }) {
               })}
             </div>
             {showResults && (
-              <p className="mt-2 text-[10px] text-[color:var(--color-muted)]">{item.explanation}</p>
+              <p className="mt-2 text-[10px] text-zinc-500">{item.explanation}</p>
             )}
           </div>
         ))}
@@ -253,13 +253,13 @@ function ClassifyRenderer({ data }: { data: InteractionData }) {
       {allAnswered && !showResults && (
         <button
           onClick={() => setShowResults(true)}
-          className="mt-4 w-full rounded-lg bg-[color:var(--color-accent)] py-2 text-xs font-medium text-white transition hover:opacity-90"
+          className="mt-4 w-full rounded-lg bg-blue-500 py-2 text-xs font-medium text-white transition hover:opacity-90"
         >
           检查答案
         </button>
       )}
       {showResults && (
-        <div className="mt-3 text-center text-sm font-medium text-[color:var(--color-text)]">
+        <div className="mt-3 text-center text-sm font-medium text-zinc-800">
           {score}/{items.length} 正确
         </div>
       )}
@@ -299,9 +299,9 @@ function RebuildRenderer({ data }: { data: InteractionData }) {
 
   return (
     <div>
-      <p className="text-sm text-[color:var(--color-muted)] mb-2">{data.description}</p>
+      <p className="text-sm text-zinc-500 mb-2">{data.description}</p>
       {targetStructure && (
-        <p className="text-xs text-[color:var(--color-muted)] mb-4 italic">{targetStructure}</p>
+        <p className="text-xs text-zinc-500 mb-4 italic">{targetStructure}</p>
       )}
       <div className="space-y-1.5">
         {order.map((id, idx) => {
@@ -314,15 +314,15 @@ function RebuildRenderer({ data }: { data: InteractionData }) {
               key={id}
               onClick={() => moveUp(idx)}
               className={`flex w-full items-center gap-2 rounded-lg border p-2.5 text-left text-sm transition ${
-                correct ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-500/10'
-                : wrong ? 'border-red-400 bg-red-50/50 dark:bg-red-500/10'
-                : 'border-[color:var(--color-border)] hover:border-[color:var(--color-accent)]'
+                correct ? 'border-emerald-400 bg-emerald-50/50'
+                : wrong ? 'border-red-400 bg-red-50/50'
+                : 'border-zinc-200 hover:border-blue-400'
               }`}
             >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold text-[color:var(--color-muted)] bg-[color:var(--color-bg)]">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-bold text-zinc-500 bg-zinc-100">
                 {idx + 1}
               </span>
-              <span className="text-[color:var(--color-text)]">{piece.label}</span>
+              <span className="text-zinc-800">{piece.label}</span>
             </button>
           );
         })}
@@ -331,7 +331,7 @@ function RebuildRenderer({ data }: { data: InteractionData }) {
         {!checked && (
           <button
             onClick={() => setChecked(true)}
-            className="flex-1 rounded-lg bg-[color:var(--color-accent)] py-2 text-xs font-medium text-white transition hover:opacity-90"
+            className="flex-1 rounded-lg bg-blue-500 py-2 text-xs font-medium text-white transition hover:opacity-90"
           >
             检查顺序
           </button>
@@ -339,13 +339,13 @@ function RebuildRenderer({ data }: { data: InteractionData }) {
         {checked && !allCorrect && (
           <button
             onClick={() => setChecked(false)}
-            className="flex-1 rounded-lg border border-[color:var(--color-border)] py-2 text-xs font-medium text-[color:var(--color-text)] transition hover:bg-zinc-100"
+            className="flex-1 rounded-lg border border-zinc-200 py-2 text-xs font-medium text-zinc-800 transition hover:bg-zinc-100"
           >
             继续调整
           </button>
         )}
         {checked && allCorrect && (
-          <div className="flex-1 text-center text-sm font-medium text-emerald-600 dark:text-emerald-400 py-2">
+          <div className="flex-1 text-center text-sm font-medium text-emerald-600 py-2">
             顺序正确!
           </div>
         )}
@@ -372,16 +372,16 @@ export default function InteractionRenderer({ data }: InteractionRendererProps) 
   if (!Renderer) return null;
 
   return (
-    <div className="my-10 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)] overflow-hidden">
-      <div className="border-b border-[color:var(--color-border)] px-5 py-4">
-        <h3 className="text-sm font-semibold text-[color:var(--color-text)]">{data.title}</h3>
+    <div className="my-10 rounded-xl border border-zinc-200 bg-white overflow-hidden">
+      <div className="border-b border-zinc-200 px-5 py-4">
+        <h3 className="text-sm font-semibold text-zinc-800">{data.title}</h3>
       </div>
       <div className="px-5 py-5">
         <Renderer data={data} />
       </div>
       {data.insight && (
-        <div className="border-t border-[color:var(--color-border)] px-5 py-3 bg-blue-50/50 dark:bg-blue-500/5">
-          <p className="text-xs text-blue-700 dark:text-blue-300">
+        <div className="border-t border-zinc-200 px-5 py-3 bg-blue-50">
+          <p className="text-xs text-blue-700">
             <span className="font-semibold">关键认知：</span>{data.insight}
           </p>
         </div>
