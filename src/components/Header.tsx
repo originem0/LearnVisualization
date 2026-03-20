@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import ThemeToggle from './ThemeToggle';
 import AnnouncementBell from './AnnouncementBell';
 import type { Locale } from '@/lib/i18n';
 import { getLabels } from '@/lib/labels';
@@ -47,7 +46,6 @@ export default function Header({ project, locale, basePath = `/${locale}` }: Hea
         </div>
         <div className="flex items-center gap-2">
           <AnnouncementBell locale={locale} />
-          <ThemeToggle locale={locale} />
         </div>
       </div>
     </header>
