@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import Link from 'next/link';
 
-// Agent-backend is reverse-proxied through nginx at /api/agent/.
 const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || '/api/agent';
 
@@ -16,15 +15,27 @@ interface JobStage {
   error?: string | null;
 }
 
+interface JobRequest {
+  topic?: string;
+  audience?: string;
+  goals?: string[];
+  constraints?: string[];
+  background?: string;
+  learning_style?: string[];
+  output_slug?: string;
+}
+
 interface JobState {
   id: string;
   status: string;
   currentStage?: string | null;
-  request?: { topic?: string } | null;
+  request?: JobRequest | null;
   error?: { stage?: string; message?: string } | null;
   stages: JobStage[];
   resultSummary?: Record<string, unknown>;
 }
+
+// --- Question options ---
 
 const LEVEL_OPTIONS = [
   { value: 'beginner', label: '完全没接触过', en: 'Complete beginner' },
@@ -36,12 +47,26 @@ const GOAL_OPTIONS = [
   { value: 'framework', label: '建立整体理解框架', en: 'Build a mental framework' },
   { value: 'understand-mechanism', label: '理解底层机制/原理', en: 'Understand underlying mechanisms' },
   { value: 'hands-on', label: '能实际动手操作', en: 'Be able to do it hands-on' },
+  { value: 'teach-others', label: '能教给别人', en: 'Be able to teach others' },
 ] as const;
 
 const DEPTH_OPTIONS = [
   { value: 'overview', label: '入门概览（5-6 章）', en: 'Overview (5-6 chapters)' },
   { value: 'systematic', label: '系统理解（8-10 章）', en: 'Systematic (8-10 chapters)' },
   { value: 'deep-dive', label: '深度钻研（12+ 章）', en: 'Deep dive (12+ chapters)' },
+] as const;
+
+const BACKGROUND_OPTIONS = [
+  { value: 'non-tech', label: '非技术背景', en: 'Non-technical background' },
+  { value: 'tech-other', label: '有编程基础但非该领域', en: 'Developer, different domain' },
+  { value: 'tech-domain', label: '该领域有一定经验', en: 'Some domain experience' },
+] as const;
+
+const STYLE_OPTIONS = [
+  { value: 'theory-first', label: '先看理论再实践', en: 'Theory first, then practice' },
+  { value: 'hands-on-first', label: '直接上手边做边学', en: 'Learn by doing' },
+  { value: 'compare', label: '通过对比案例理解', en: 'Learn by comparing cases' },
+  { value: 'deconstruct', label: '拆解内部机制', en: 'Deconstruct internals' },
 ] as const;
 
 const LEVEL_MAP: Record<string, string> = {
@@ -54,12 +79,26 @@ const GOAL_MAP: Record<string, string> = {
   framework: '建立整体理解框架',
   'understand-mechanism': '理解底层机制/原理',
   'hands-on': '能实际动手操作',
+  'teach-others': '能教给别人',
 };
 
 const DEPTH_MAP: Record<string, string> = {
   overview: '入门概览，5-6个模块',
   systematic: '系统理解，8-10个模块',
   'deep-dive': '深度钻研，12个以上模块',
+};
+
+const BACKGROUND_MAP: Record<string, string> = {
+  'non-tech': '非技术背景',
+  'tech-other': '有编程基础但非该领域',
+  'tech-domain': '该领域有一定经验',
+};
+
+const STYLE_MAP: Record<string, string> = {
+  'theory-first': '先看理论再实践',
+  'hands-on-first': '直接上手边做边学',
+  compare: '通过对比案例理解',
+  deconstruct: '拆解内部机制',
 };
 
 const STAGE_LABELS_ZH: Record<string, string> = {
@@ -146,10 +185,6 @@ function isActive(job: JobState): boolean {
   return job.status === 'running' || job.status === 'queued';
 }
 
-function isTerminal(job: JobState): boolean {
-  return job.status === 'completed' || job.status === 'waiting_review' || job.status === 'failed';
-}
-
 // --- Component ---
 
 export default function GenerateForm({ locale }: { locale: string }) {
@@ -159,8 +194,10 @@ export default function GenerateForm({ locale }: { locale: string }) {
   const [topic, setTopic] = useState('');
   const [showQuestions, setShowQuestions] = useState(false);
   const [level, setLevel] = useState('');
-  const [goal, setGoal] = useState('');
+  const [goals, setGoals] = useState<string[]>([]);
   const [depth, setDepth] = useState('');
+  const [background, setBackground] = useState('');
+  const [learningStyle, setLearningStyle] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState('');
 
   // Job list
@@ -168,7 +205,6 @@ export default function GenerateForm({ locale }: { locale: string }) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
 
-  // Stop polling
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
@@ -176,7 +212,6 @@ export default function GenerateForm({ locale }: { locale: string }) {
     }
   }, []);
 
-  // Fetch a single job's state
   const fetchJob = useCallback(async (id: string): Promise<JobState | null> => {
     try {
       const res = await fetch(`${AGENT_BACKEND_URL}/jobs/${id}`);
@@ -198,7 +233,6 @@ export default function GenerateForm({ locale }: { locale: string }) {
       if (!mountedRef.current) return;
       const valid = results.filter((j): j is JobState => j !== null);
       setJobs(valid);
-      // Clean up IDs for jobs that no longer exist on server
       const validIds = new Set(valid.map((j) => j.id));
       saveJobIds(ids.filter((id) => validIds.has(id)));
     })();
@@ -229,7 +263,8 @@ export default function GenerateForm({ locale }: { locale: string }) {
     return stopPolling;
   }, [jobs, fetchJob, stopPolling]);
 
-  // Submit handlers
+  // --- Handlers ---
+
   function handleTopicSubmit(e: FormEvent) {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -238,15 +273,17 @@ export default function GenerateForm({ locale }: { locale: string }) {
   }
 
   async function handleGenerate() {
-    if (!level || !goal || !depth) return;
+    if (!level || goals.length === 0 || !depth) return;
     setSubmitError('');
 
     try {
       const body: Record<string, unknown> = {
         topic: topic.trim(),
         audience: LEVEL_MAP[level] || level,
-        goals: [GOAL_MAP[goal] || goal],
+        goals: goals.map((g) => GOAL_MAP[g] || g),
         constraints: [DEPTH_MAP[depth] || depth],
+        background: BACKGROUND_MAP[background] || undefined,
+        learning_style: learningStyle.map((s) => STYLE_MAP[s] || s),
       };
 
       const res = await fetch(`${AGENT_BACKEND_URL}/jobs/course-generation`, {
@@ -264,12 +301,90 @@ export default function GenerateForm({ locale }: { locale: string }) {
       addJobId(data.id);
       setJobs((prev) => [data, ...prev]);
 
-      // Reset input for next submission
       setTopic('');
       setLevel('');
-      setGoal('');
+      setGoals([]);
       setDepth('');
+      setBackground('');
+      setLearningStyle([]);
       setShowQuestions(false);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function handleCancel(jobId: string) {
+    try {
+      const res = await fetch(`${AGENT_BACKEND_URL}/jobs/${jobId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const fresh = await fetchJob(jobId);
+      if (fresh) {
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? fresh : j)));
+      }
+    } catch {
+      // will update on next poll
+    }
+  }
+
+  async function handleDelete(jobId: string) {
+    if (!confirm(isZh ? '确定要删除这个任务及其生成的课程文件吗？此操作不可撤销。' : 'Delete this job and its generated files? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`${AGENT_BACKEND_URL}/jobs/${jobId}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      removeJobId(jobId);
+      setJobs((prev) => prev.filter((j) => j.id !== jobId));
+    } catch {
+      // silent
+    }
+  }
+
+  async function handleRegenerate(job: JobState) {
+    const req = job.request;
+    if (!req?.topic) return;
+
+    // Delete first, then create with same params
+    try {
+      await fetch(`${AGENT_BACKEND_URL}/jobs/${job.id}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      removeJobId(job.id);
+
+      const body: Record<string, unknown> = {
+        topic: req.topic,
+        audience: req.audience || undefined,
+        goals: req.goals || [],
+        constraints: req.constraints || [],
+        background: req.background || undefined,
+        learning_style: req.learning_style || [],
+      };
+      const res = await fetch(`${AGENT_BACKEND_URL}/jobs/course-generation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const data: JobState = await res.json();
+      addJobId(data.id);
+      setJobs((prev) => [data, ...prev.filter((j) => j.id !== job.id)]);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : String(err));
     }
@@ -291,7 +406,7 @@ export default function GenerateForm({ locale }: { locale: string }) {
         setJobs((prev) => prev.map((j) => (j.id === jobId ? fresh : j)));
       }
     } catch {
-      // retry failed silently, will show on next poll
+      // will show on next poll
     }
   }
 
@@ -300,7 +415,8 @@ export default function GenerateForm({ locale }: { locale: string }) {
     setJobs((prev) => prev.filter((j) => j.id !== jobId));
   }
 
-  // Radio group helper
+  // --- Shared input components ---
+
   function RadioGroup({
     question,
     options,
@@ -341,9 +457,55 @@ export default function GenerateForm({ locale }: { locale: string }) {
     );
   }
 
+  function CheckboxGroup({
+    question,
+    options,
+    values,
+    onChange,
+  }: {
+    question: string;
+    options: ReadonlyArray<{ value: string; label: string; en: string }>;
+    values: string[];
+    onChange: (v: string[]) => void;
+  }) {
+    function toggle(v: string) {
+      onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v]);
+    }
+    return (
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium text-[color:var(--color-text)]">
+          {question}
+          <span className="ml-1.5 text-xs font-normal text-[color:var(--color-muted)]">{isZh ? '可多选' : 'multi'}</span>
+        </legend>
+        <div className="space-y-1.5">
+          {options.map((opt) => (
+            <label
+              key={opt.value}
+              className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                values.includes(opt.value)
+                  ? 'bg-zinc-100 dark:bg-[#0b3a45]'
+                  : 'hover:bg-zinc-50 dark:hover:bg-[#0b3a45]/50'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={values.includes(opt.value)}
+                onChange={() => toggle(opt.value)}
+                className="accent-[color:var(--color-accent)]"
+              />
+              <span className="text-[color:var(--color-text)]">{isZh ? opt.label : opt.en}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    );
+  }
+
+  const canGenerate = level && goals.length > 0 && depth;
+
   return (
     <>
-      {/* ---- Always-visible input form ---- */}
+      {/* ---- Input form ---- */}
       {!showQuestions ? (
         <form onSubmit={handleTopicSubmit} className="mt-8 space-y-3 text-left">
           <div className="flex gap-2">
@@ -382,11 +544,11 @@ export default function GenerateForm({ locale }: { locale: string }) {
             value={level}
             onChange={setLevel}
           />
-          <RadioGroup
-            question={isZh ? '你最想从中获得什么？' : 'What do you want to get out of it?'}
+          <CheckboxGroup
+            question={isZh ? '你的学习目标是什么？' : 'What are your learning goals?'}
             options={GOAL_OPTIONS}
-            value={goal}
-            onChange={setGoal}
+            values={goals}
+            onChange={setGoals}
           />
           <RadioGroup
             question={isZh ? '你希望课程多深？' : 'How deep should the course go?'}
@@ -394,10 +556,22 @@ export default function GenerateForm({ locale }: { locale: string }) {
             value={depth}
             onChange={setDepth}
           />
+          <RadioGroup
+            question={isZh ? '你的技术背景是？' : 'What is your technical background?'}
+            options={BACKGROUND_OPTIONS}
+            value={background}
+            onChange={setBackground}
+          />
+          <CheckboxGroup
+            question={isZh ? '你偏好的学习方式？' : 'Preferred learning style?'}
+            options={STYLE_OPTIONS}
+            values={learningStyle}
+            onChange={setLearningStyle}
+          />
 
           <button
             type="button"
-            disabled={!level || !goal || !depth}
+            disabled={!canGenerate}
             onClick={handleGenerate}
             className="w-full rounded-lg bg-[color:var(--color-text)] px-5 py-3 text-sm font-semibold text-[color:var(--color-bg)] transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
@@ -419,6 +593,9 @@ export default function GenerateForm({ locale }: { locale: string }) {
               job={job}
               locale={locale}
               isZh={isZh}
+              onCancel={() => handleCancel(job.id)}
+              onDelete={() => handleDelete(job.id)}
+              onRegenerate={() => handleRegenerate(job)}
               onRetry={() => handleRetry(job.id)}
               onDismiss={() => handleDismiss(job.id)}
             />
@@ -435,12 +612,18 @@ function JobCard({
   job,
   locale,
   isZh,
+  onCancel,
+  onDelete,
+  onRegenerate,
   onRetry,
   onDismiss,
 }: {
   job: JobState;
   locale: string;
   isZh: boolean;
+  onCancel: () => void;
+  onDelete: () => void;
+  onRegenerate: () => void;
   onRetry: () => void;
   onDismiss: () => void;
 }) {
@@ -459,6 +642,13 @@ function JobCard({
             {isZh ? '排队中' : 'Queued'}
           </span>
         </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs font-medium text-[color:var(--color-danger)] hover:underline"
+        >
+          {isZh ? '取消' : 'Cancel'}
+        </button>
       </div>
     );
   }
@@ -491,6 +681,35 @@ function JobCard({
             </div>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs font-medium text-[color:var(--color-danger)] hover:underline"
+        >
+          {isZh ? '取消' : 'Cancel'}
+        </button>
+      </div>
+    );
+  }
+
+  // Cancelled
+  if (job.status === 'cancelled') {
+    return (
+      <div className="rounded-lg border border-zinc-300 dark:border-zinc-700 p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-[color:var(--color-text)]">{topicName}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[color:var(--color-muted)]">
+            {isZh ? '已取消' : 'Cancelled'}
+          </span>
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button type="button" onClick={onRegenerate} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
+            {isZh ? '重新生成' : 'Regenerate'}
+          </button>
+          <button type="button" onClick={onDelete} className="text-xs font-medium text-[color:var(--color-danger)] hover:underline">
+            {isZh ? '删除' : 'Delete'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -506,13 +725,17 @@ function JobCard({
           <button type="button" onClick={onDismiss} className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]">&times;</button>
         </div>
         <p className="text-xs text-[color:var(--color-danger)] line-clamp-3">{message}</p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="text-xs font-medium text-[color:var(--color-accent)] hover:underline"
-        >
-          {isZh ? '重试' : 'Retry'}
-        </button>
+        <div className="flex gap-3 pt-1">
+          <button type="button" onClick={onRetry} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
+            {isZh ? '重试' : 'Retry'}
+          </button>
+          <button type="button" onClick={onRegenerate} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
+            {isZh ? '重新生成' : 'Regenerate'}
+          </button>
+          <button type="button" onClick={onDelete} className="text-xs font-medium text-[color:var(--color-danger)] hover:underline">
+            {isZh ? '删除' : 'Delete'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -540,6 +763,12 @@ function JobCard({
             {isZh ? '查看课程' : 'View course'}
           </Link>
         )}
+        <button type="button" onClick={onRegenerate} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
+          {isZh ? '重新生成' : 'Regenerate'}
+        </button>
+        <button type="button" onClick={onDelete} className="text-xs font-medium text-[color:var(--color-danger)] hover:underline">
+          {isZh ? '删除' : 'Delete'}
+        </button>
       </div>
     </div>
   );

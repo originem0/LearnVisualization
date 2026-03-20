@@ -23,13 +23,24 @@ export function NarrativeText({ content }: { content: string }) {
   );
 }
 
-export function NarrativeCode({ content }: { content: string }) {
+function inferCodeLabel(content: string): string {
+  const first = content.trimStart();
+  if (/^(\$|sudo |npm |npx |yarn |pnpm |git |pip |brew |apt |docker |curl |wget )/.test(first)) return 'Shell';
+  if (/[∑∏∫∂√≈≠≤≥∈∉⊂⊃∧∨¬∀∃]/.test(first) || /\\(frac|sqrt|sum|int)\b/.test(first)) return 'Formula';
+  if (/^(SELECT |INSERT |UPDATE |DELETE |CREATE |ALTER |DROP |WITH )/im.test(first)) return 'SQL';
+  if (/\b(def |import |from |class |if __name__|print\(|lambda )/.test(first)) return 'Python';
+  if (/\b(const |let |var |function |=>|async |import \{)/.test(first)) return 'JavaScript';
+  return 'Code';
+}
+
+export function NarrativeCode({ content, label }: { content: string; label?: string }) {
+  const displayLabel = label || inferCodeLabel(content);
   return (
-    <div className="my-5 overflow-hidden rounded-xl border border-zinc-200/70 bg-[#f5f5f4] dark:border-[#586e75]/40 dark:bg-[#001f27] sm:my-7">
-      <div className="border-b border-zinc-200/70 bg-[#eeeeec] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:border-[#586e75]/40 dark:bg-transparent dark:text-[#93a1a1]">
-        Code / Pseudocode
-      </div>
-      <pre className="overflow-x-auto px-4 pb-4 pt-2 text-sm leading-relaxed text-zinc-800 dark:text-[#eee8d5]">
+    <div className="relative my-5 overflow-hidden rounded-xl bg-[#F8FAFC] shadow-sm dark:bg-[#001f27] sm:my-7">
+      <span className="absolute right-3 top-2 text-[10px] font-medium tracking-wide text-zinc-400 select-none dark:text-zinc-500">
+        {displayLabel}
+      </span>
+      <pre className="overflow-x-auto px-4 py-4 text-sm leading-relaxed text-zinc-700 dark:text-[#eee8d5]">
         <code>{content}</code>
       </pre>
     </div>
@@ -155,7 +166,7 @@ export function NarrativeBlockRenderer({ block }: { block: NarrativeBlock }) {
     case 'text':
       return <NarrativeText content={block.content} />;
     case 'code':
-      return <NarrativeCode content={block.content} />;
+      return <NarrativeCode content={block.content} label={block.label} />;
     case 'diagram':
       return <NarrativeDiagram content={block.content} label={block.label} />;
     case 'comparison':

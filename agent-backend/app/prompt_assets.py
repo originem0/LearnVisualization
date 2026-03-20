@@ -10,6 +10,11 @@ try:
 except ImportError:
     from common import COURSES_ROOT, DESIGN_PATH, REPO_ROOT, read_json, read_text
 
+try:
+    from .quality import load_frontend_component_whitelist
+except ImportError:
+    from quality import load_frontend_component_whitelist
+
 PROMPT_VERSION = "v1-course-generation"
 
 ALLOWED_CATEGORY_COLORS = ["blue", "emerald", "purple", "amber", "red"]
@@ -129,6 +134,8 @@ def build_plan_prompts(request_payload: dict[str, Any], planning_seed: dict[str,
         f"audience: {request_payload.get('audience') or '想系统理解复杂主题的中文学习者'}\n"
         f"goals: {json.dumps(request_payload.get('goals') or [], ensure_ascii=False)}\n"
         f"constraints: {json.dumps(request_payload.get('constraints') or [], ensure_ascii=False)}\n"
+        f"background: {request_payload.get('background') or '未指定'}\n"
+        f"learning_style: {json.dumps(request_payload.get('learning_style') or [], ensure_ascii=False)}\n"
         f"planning_seed: {json.dumps(planning_seed, ensure_ascii=False, indent=2)}\n\n"
         "few-shot 参考（不是照抄模板，而是学习颗粒度和张力）：\n"
         f"{json.dumps(load_few_shot_examples(), ensure_ascii=False, indent=2)}\n\n"
@@ -160,9 +167,11 @@ def build_module_prompts(
         "- interactionRequirements[].capability 只能使用: " + ", ".join(ALLOWED_INTERACTION_CAPABILITIES) + "\n"
         "- retrievalPrompts[].type 只能使用: " + ", ".join(ALLOWED_RETRIEVAL_PROMPTS) + "\n"
         "- narrative 至少 6 个 block，必须包含至少 1 个 heading、1 个 steps、1 个 callout。\n"
-        "- examples 必须具体到主题内实体、过程或案例，不能写“举一个例子”。\n"
+        “- examples 必须具体到主题内实体、过程或案例，不能写”举一个例子”。\n”
+        “- concepts[].name 必须是名词短语（≤8 字），不是完整句子。\n”
         "- bridgeTo 必须自然导向下一章；如果是最后一章，bridgeTo 设为 null。\n"
-        "- componentHint 只有在你确信前端已有现成组件时才填写，否则设为 null。\n"
+        "- componentHint 只允许以下值之一: " + ", ".join(sorted(load_frontend_component_whitelist())) + "。"
+        "不匹配则必须设为 null。不要编造组件名。\n"
     )
     user_prompt = (
         "基于课程计划，生成一个完整模块。\n\n"

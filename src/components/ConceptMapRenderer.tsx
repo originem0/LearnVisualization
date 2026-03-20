@@ -195,8 +195,9 @@ function EdgePath({
 
   const labelX = (x1 + x2) / 2 + (x1 === x2 ? 0 : x2 > x1 ? 10 : -10);
   const labelY = midY + labelOffsetY;
-  const displayLabel = edge.label ? truncateLabel(edge.label, 120, FONT_SM) : null;
-  const labelW = displayLabel ? estimateTextWidth(displayLabel, FONT_SM) + 8 : 0;
+  const displayLabel = edge.label ? truncateLabel(edge.label, 80, FONT_SM) : null;
+  const isTruncated = displayLabel !== edge.label;
+  const labelW = displayLabel ? estimateTextWidth(displayLabel, FONT_SM) + 16 : 0;
 
   return (
     <g>
@@ -229,6 +230,7 @@ function EdgePath({
             fontSize={FONT_SM}
           >
             {displayLabel}
+            {isTruncated && <title>{edge.label}</title>}
           </text>
         </>
       )}

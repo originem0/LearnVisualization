@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
+import re
 import subprocess
 import tempfile
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -22,7 +25,18 @@ def now_iso() -> str:
 
 
 def slugify(text: str) -> str:
-    return "-".join(text.strip().lower().replace("/", " ").replace("_", " ").split())
+    original = text
+    # Full-width → half-width, decompose accented chars
+    text = unicodedata.normalize("NFKD", text)
+    # Drop anything that isn't ASCII
+    text = text.encode("ascii", "ignore").decode("ascii")
+    # Only keep alphanumeric, replace everything else with space
+    text = re.sub(r"[^a-z0-9]+", " ", text.lower())
+    slug = "-".join(text.split())
+    if not slug:
+        # Pure non-ASCII input (CJK etc.) — use a short hash
+        slug = "course-" + hashlib.md5(original.strip().encode("utf-8")).hexdigest()[:8]
+    return slug
 
 
 def ensure_dir(path: Path) -> Path:

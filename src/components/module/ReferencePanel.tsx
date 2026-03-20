@@ -37,18 +37,28 @@ export default function ReferencePanel({
     <section className="my-8">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between border-t border-[color:var(--color-border)] px-0 py-4 text-left"
+        className="flex w-full items-center justify-between rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/5"
       >
         <span className="text-sm font-semibold text-[color:var(--color-text)]">
           {isZh ? '参考资料与结构化数据' : 'Reference & structured data'}
         </span>
-        <span className="text-[color:var(--color-muted)] transition-transform" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-          ▾
+        <span className="flex items-center gap-2 text-[color:var(--color-muted)]">
+          {!open && <span className="text-xs">{isZh ? '点击展开' : 'Click to expand'}</span>}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            className="transition-transform duration-200"
+            style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          >
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </span>
       </button>
 
       {open && (
-        <div className="space-y-6 pb-4">
+        <div className="space-y-6 border-l-2 border-[color:var(--color-border)] pl-4 pt-4 pb-4 ml-4">
           {concepts.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-[color:var(--color-text)]">{labels.sections.conceptList}</h3>

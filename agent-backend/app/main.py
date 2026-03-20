@@ -53,7 +53,6 @@ REPO_ROOT = DEFAULT_REPO_ROOT
 COURSES_ROOT = DEFAULT_COURSES_ROOT
 GENERATED_ROOT = DEFAULT_GENERATED_ROOT
 JOBS_ROOT = DEFAULT_JOBS_ROOT
-_JOBS_REPAIRED = False
 
 LEGACY_GENERATION_ENDPOINTS = {
     "/topic-framing/dry-run",
@@ -67,20 +66,22 @@ LEGACY_GENERATION_ENDPOINTS = {
 
 load_env_file(REPO_ROOT / "agent-backend" / ".env")
 
+# Module-level singleton — one Pipeline, one thread pool, shared across all requests
+_pipeline: CourseGenerationPipeline | None = None
 
-def build_generation_pipeline() -> CourseGenerationPipeline:
-    global _JOBS_REPAIRED
-    pipeline = CourseGenerationPipeline(
-        provider_config=ProviderConfig.from_env(),
-        jobs_root=JOBS_ROOT,
-        generated_root=GENERATED_ROOT,
-        repo_root=REPO_ROOT,
-    )
-    if not _JOBS_REPAIRED:
-        pipeline.store.repair_interrupted_jobs()
-        pipeline.enqueue_pending_jobs()
-        _JOBS_REPAIRED = True
-    return pipeline
+
+def get_pipeline() -> CourseGenerationPipeline:
+    global _pipeline
+    if _pipeline is None:
+        _pipeline = CourseGenerationPipeline(
+            provider_config=ProviderConfig.from_env(),
+            jobs_root=JOBS_ROOT,
+            generated_root=GENERATED_ROOT,
+            repo_root=REPO_ROOT,
+        )
+        _pipeline.store.repair_interrupted_jobs()
+        _pipeline.enqueue_pending_jobs()
+    return _pipeline
 
 
 def health() -> dict:
@@ -110,6 +111,39 @@ def deprecated_generation_response(path: str) -> tuple[dict, int]:
         },
         410,
     )
+
+
+def list_courses() -> dict:
+    courses = []
+    if COURSES_ROOT.is_dir():
+        for entry in sorted(COURSES_ROOT.iterdir()):
+            plan_path = entry / "plan.json"
+            if entry.is_dir() and plan_path.exists():
+                plan = json.loads(plan_path.read_text(encoding="utf-8"))
+                modules_dir = entry / "modules"
+                module_count = len(list(modules_dir.glob("*.json"))) if modules_dir.is_dir() else 0
+                courses.append({
+                    "slug": entry.name,
+                    "title": plan.get("title", entry.name),
+                    "topic": plan.get("topic", ""),
+                    "moduleCount": module_count,
+                })
+    return {"courses": courses}
+
+
+def delete_course(slug: str) -> dict:
+    course_dir = COURSES_ROOT / slug
+    if not course_dir.is_dir():
+        raise FileNotFoundError(f"Course not found: {slug}")
+    plan_path = course_dir / "plan.json"
+    title = ""
+    topic = ""
+    if plan_path.exists():
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+        title = plan.get("title", "")
+        topic = plan.get("topic", "")
+    shutil.rmtree(course_dir)
+    return {"deleted": True, "slug": slug, "title": title, "topic": topic}
 
 
 def promote_dry_run(req: dict) -> dict:
@@ -236,8 +270,10 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 return self._send_json(health())
             if path == "/workflow":
                 return self._send_json(workflow())
+            if path == "/courses":
+                return self._send_json(list_courses())
 
-            pipeline = build_generation_pipeline()
+            pipeline = get_pipeline()
             parts = [part for part in path.split("/") if part]
             if len(parts) == 1 and parts[0] == "jobs":
                 jobs = pipeline.store.list_jobs()
@@ -263,7 +299,7 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 return self._send_json(body, status=status)
 
             if path == "/jobs/course-generation":
-                pipeline = build_generation_pipeline()
+                pipeline = get_pipeline()
                 return self._send_json(pipeline.create_job(normalize_job_create_request(payload)), status=202)
 
             if path == "/validate-build/dry-run":
@@ -276,11 +312,19 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 return self._send_json(promote_generated_course_package(normalize_promote_request(payload)))
 
             parts = [part for part in path.split("/") if part]
+            if len(parts) == 3 and parts[0] == "courses" and parts[2] == "delete":
+                return self._send_json(delete_course(parts[1]))
+            if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "cancel":
+                pipeline = get_pipeline()
+                return self._send_json(pipeline.cancel_job(parts[1]))
+            if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "delete":
+                pipeline = get_pipeline()
+                return self._send_json(pipeline.delete_job(parts[1]))
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "retry":
-                pipeline = build_generation_pipeline()
+                pipeline = get_pipeline()
                 return self._send_json(pipeline.retry_job(parts[1], **normalize_job_retry_request(payload)), status=202)
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "review":
-                pipeline = build_generation_pipeline()
+                pipeline = get_pipeline()
                 return self._send_json(pipeline.review_job(parts[1], **normalize_review_request(payload)))
 
             return self._send_json({"error": f"Unknown route: {path}"}, status=404)

@@ -274,7 +274,7 @@ def normalize_module_payload(
                 "capability": capability,
                 "purpose": str(requirement.get("purpose") or "").strip(),
                 "priority": priority,
-                "componentHint": _normalize_optional_string(requirement.get("componentHint")),
+                "componentHint": _validate_component_hint(requirement.get("componentHint")),
             }
         )
 
@@ -392,8 +392,22 @@ def validate_narrative_block(block: Any, index: int) -> dict[str, Any]:
     return normalized
 
 
+_NOVAK_LINK_WORDS = ["包含", "依赖", "推导", "实现", "约束", "区别于", "影响", "组成", "触发", "支撑"]
+
+
+def _infer_link_word(logic_chain: list[str], concept_name: str, index: int) -> str:
+    """Infer a short Novak-style link word from logicChain context, fallback to rotation."""
+    for step in logic_chain:
+        if concept_name in step:
+            for word in ("包含", "依赖", "推导", "实现", "约束", "影响", "组成", "触发"):
+                if word in step:
+                    return word
+    return _NOVAK_LINK_WORDS[index % len(_NOVAK_LINK_WORDS)]
+
+
 def build_concept_map(module: dict[str, Any]) -> dict[str, Any]:
     concepts = module.get("concepts") or []
+    logic_chain = module.get("logicChain") or []
     nodes = [
         {"id": "core", "label": [module["title"]], "x": 280, "y": 64, "w": 220, "h": 52, "accent": True},
     ]
@@ -412,8 +426,8 @@ def build_concept_map(module: dict[str, Any]) -> dict[str, Any]:
                 "h": 48,
             }
         )
-        label = module.get("logicChain", ["关联"])[min(index, len(module.get("logicChain", [])) - 1)] if module.get("logicChain") else "关联"
-        edges.append({"from": "core", "to": node_id, "label": label[:28]})
+        label = _infer_link_word(logic_chain, concept["name"], index)
+        edges.append({"from": "core", "to": node_id, "label": label})
 
     if len(nodes) < 3:
         nodes.extend(
@@ -424,7 +438,7 @@ def build_concept_map(module: dict[str, Any]) -> dict[str, Any]:
         )
         edges.extend(
             [
-                {"from": "core", "to": "nX", "label": "拆解"},
+                {"from": "core", "to": "nX", "label": "包含"},
                 {"from": "nX", "to": "nY", "label": "推导"},
             ]
         )
@@ -517,6 +531,11 @@ def run_quality_checks(package: dict[str, Any]) -> list[dict[str, Any]]:
         schema = concept_maps.get(module_id) or concept_maps.get(str(module.get("number")))
         if not isinstance(schema, dict) or len(schema.get("nodes") or []) < 3 or len(schema.get("edges") or []) < 2:
             issues.append(_issue("warning", module_id, "concept-map-thin", "concept map is renderable but still too thin"))
+        elif isinstance(schema, dict):
+            for edge in schema.get("edges") or []:
+                edge_label = edge.get("label") or ""
+                if len(edge_label) > 10:
+                    issues.append(_issue("warning", module_id, "concept-map-edge-verbose", f"concept map edge label too long ({len(edge_label)} chars): '{edge_label}'"))
 
     return issues
 
@@ -549,6 +568,14 @@ def _normalize_optional_string(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _validate_component_hint(value: Any) -> str | None:
+    hint = _normalize_optional_string(value)
+    if hint is None:
+        return None
+    whitelist = load_frontend_component_whitelist()
+    return hint if hint in whitelist else None
 
 
 def _to_clean_str_list(value: Any) -> list[str]:

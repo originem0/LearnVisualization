@@ -1,18 +1,20 @@
-import Link from 'next/link';
 import { listMirroredCourseSlugs } from '@/lib/course-package-adapter';
 import type { Locale } from '@/lib/i18n';
 import { getCoursePackage } from '@/lib/data';
 import { getModuleSlug } from '@/lib/module-slug';
 import { siteProject } from '@/lib/site-config';
 import GenerateForm from '@/components/GenerateForm';
+import CourseList from '@/components/CourseList';
 
 export default function LocaleHome({ params }: { params: { locale: Locale } }) {
   const courses = listMirroredCourseSlugs().map((slug) => {
     const pkg = getCoursePackage(params.locale, slug);
     return {
-      ...pkg,
+      slug,
+      title: pkg.title,
+      topic: (pkg as any).topic || '',
       moduleCount: pkg.modules.length,
-      firstModule: pkg.modules[0],
+      firstModuleSlug: getModuleSlug(pkg.modules[0].id),
     };
   });
   const isZh = params.locale === 'zh';
@@ -30,29 +32,8 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
         <GenerateForm locale={params.locale} />
       </section>
 
-      {/* ---- Existing courses — minimal list ---- */}
-      {courses.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[color:var(--color-muted)]">
-            {isZh ? '已有课程' : 'Existing courses'}
-          </h2>
-          <div className="mt-4 divide-y divide-[color:var(--color-border)]">
-            {courses.map((course) => (
-              <Link
-                key={course.slug}
-                href={`/${params.locale}/courses/${course.slug}/${getModuleSlug(course.firstModule.id)}/`}
-                className="flex items-center justify-between py-3 text-[color:var(--color-text)] transition-colors hover:text-[color:var(--color-accent)]"
-              >
-                <span className="text-sm font-medium">{course.title}</span>
-                <span className="flex items-center gap-3 text-xs text-[color:var(--color-muted)]">
-                  <span>{course.moduleCount} {isZh ? '章' : 'ch'}</span>
-                  <span aria-hidden="true">→</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* ---- Existing courses ---- */}
+      <CourseList initialCourses={courses} locale={params.locale} />
     </div>
   );
 }
