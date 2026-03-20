@@ -42,10 +42,9 @@ def patch_course(course_dir: Path, whitelist: set[str], dry_run: bool = False) -
         if not dry_run and changed:
             module_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    # 2. Rebuild concept maps
-    concept_maps_path = course_dir / "concept-maps.json"
+    # 2. Rebuild concept maps (visuals/concept-maps.json)
+    concept_maps_path = course_dir / "visuals" / "concept-maps.json"
     if concept_maps_path.exists():
-        maps = json.loads(concept_maps_path.read_text(encoding="utf-8"))
         new_maps = {}
         for module_path in sorted(modules_dir.glob("*.json")):
             data = json.loads(module_path.read_text(encoding="utf-8"))
@@ -55,8 +54,8 @@ def patch_course(course_dir: Path, whitelist: set[str], dry_run: bool = False) -
         if not dry_run:
             concept_maps_path.write_text(json.dumps(new_maps, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
-    # 3. Rebuild interaction registry
-    registry_path = course_dir / "interaction-registry.json"
+    # 3. Rebuild interaction registry (interactions/registry.json)
+    registry_path = course_dir / "interactions" / "registry.json"
     if registry_path.exists():
         new_registry = {}
         for module_path in sorted(modules_dir.glob("*.json")):
@@ -80,7 +79,7 @@ def main():
         print("DRY RUN — no files will be modified\n")
 
     for course_dir in sorted(COURSES_ROOT.iterdir()):
-        if not course_dir.is_dir() or not (course_dir / "plan.json").exists():
+        if not course_dir.is_dir() or not (course_dir / "course.json").exists():
             continue
         stats = patch_course(course_dir, whitelist, dry_run=dry_run)
         print(f"  {stats['slug']}: {stats['concept_maps_rebuilt']} maps rebuilt, {stats['hints_nulled']} hints nulled")
