@@ -204,6 +204,29 @@ function renderInteractionSlot(interaction: ResolvedInteraction | null, locale: 
     );
   }
 
-  // No whitelisted component available — hide placeholder silently
-  return null;
+  const isZh = locale === 'zh';
+  const meta = [
+    interaction.purpose ? `${isZh ? '目标' : 'Purpose'}: ${interaction.purpose}` : '',
+    interaction.capability ? `${isZh ? '能力类型' : 'Capability'}: ${interaction.capability}` : '',
+  ].filter(Boolean);
+
+  return (
+    <div className="mx-auto w-full max-w-[54rem] pb-8">
+      <RuntimePlaceholderCard
+        kind="interaction"
+        locale={locale}
+        title={
+          interaction.priority === 'core'
+            ? (isZh ? '核心交互组件待开发' : 'Core interaction pending')
+            : (isZh ? '补充交互组件待开发' : 'Secondary interaction pending')
+        }
+        description={
+          isZh
+            ? '交互设计已规划，对应的前端组件尚在开发中。'
+            : 'Interaction design is planned. The frontend component is pending development.'
+        }
+        meta={meta}
+      />
+    </div>
+  );
 }
