@@ -15,18 +15,6 @@ try:
 except ImportError:
     from quality import load_frontend_component_whitelist
 
-# Mapping from interaction capability to a good few-shot example component
-_CAPABILITY_EXAMPLE_MAP = {
-    "compare": "ArchitectureCompare",
-    "trace": "TransformerFlow",
-    "step-through": "TransformerFlow",
-    "simulate": "LossLandscape",
-    "parameter-play": "ScalingLawPlotter",
-    "classify": "CoTToggle",
-    "rebuild": "FullPipelineTracer",
-    "retrieve": "ContextLengthCalc",
-}
-
 PROMPT_VERSION = "v1-course-generation"
 
 ALLOWED_CATEGORY_COLORS = ["blue", "emerald", "purple", "amber", "red"]
@@ -337,60 +325,129 @@ def _extract_section(content: str, start_heading: str, end_heading: str) -> str:
     return content[start:end]
 
 
-def _load_example_component(capability: str) -> str:
-    """Load an existing interactive component as a few-shot example."""
-    component_name = _CAPABILITY_EXAMPLE_MAP.get(capability, "ContextLengthCalc")
-    path = REPO_ROOT / "src" / "components" / "interactive" / f"{component_name}.tsx"
-    if path.exists():
-        return read_text(path)
-    # Fallback
-    fallback = REPO_ROOT / "src" / "components" / "interactive" / "ContextLengthCalc.tsx"
-    return read_text(fallback) if fallback.exists() else ""
-
-
-def build_interaction_component_prompt(
+def build_interaction_data_prompt(
     *,
-    component_name: str,
     module: dict[str, Any],
     interaction: dict[str, Any],
 ) -> tuple[str, str]:
-    """Build prompts for generating an interactive React component."""
-    example_code = _load_example_component(interaction.get("capability", ""))
+    """Build prompts for generating structured interaction data (not code)."""
+    capability = interaction.get("capability", "compare")
+
+    schema_by_capability = {
+        "compare": {
+            "type": "compare",
+            "title": "对比标题",
+            "description": "引导说明",
+            "items": [
+                {"id": "a", "label": "选项A", "detail": "详细说明", "pros": ["优势1"], "cons": ["劣势1"]},
+                {"id": "b", "label": "选项B", "detail": "详细说明", "pros": ["优势1"], "cons": ["劣势1"]},
+            ],
+            "dimensions": [{"name": "维度名", "description": "比较维度说明"}],
+            "insight": "对比后应得出的关键认知",
+        },
+        "trace": {
+            "type": "trace",
+            "title": "追踪标题",
+            "description": "引导说明",
+            "steps": [
+                {"id": "1", "label": "步骤名", "detail": "本步骤发生了什么", "state": "当前状态的文字描述", "highlight": "需要关注的关键变化"},
+            ],
+            "insight": "追踪完成后应得出的关键认知",
+        },
+        "step-through": {
+            "type": "step-through",
+            "title": "分步演示标题",
+            "description": "引导说明",
+            "steps": [
+                {"id": "1", "label": "步骤名", "detail": "本步骤发生了什么", "state": "当前状态的文字描述", "highlight": "需要关注的关键变化"},
+            ],
+            "insight": "演示完成后应得出的关键认知",
+        },
+        "simulate": {
+            "type": "simulate",
+            "title": "模拟标题",
+            "description": "引导说明",
+            "parameters": [
+                {"id": "param1", "label": "参数名", "min": 0, "max": 100, "default": 50, "step": 1, "unit": "单位"},
+            ],
+            "computeDescription": "参数如何影响结果的文字描述（前端用此解释变化）",
+            "presets": [
+                {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
+            ],
+            "insight": "调参后应得出的关键认知",
+        },
+        "parameter-play": {
+            "type": "simulate",
+            "title": "参数调节标题",
+            "description": "引导说明",
+            "parameters": [
+                {"id": "param1", "label": "参数名", "min": 0, "max": 100, "default": 50, "step": 1, "unit": "单位"},
+            ],
+            "computeDescription": "参数如何影响结果的文字描述",
+            "presets": [
+                {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
+            ],
+            "insight": "调参后应得出的关键认知",
+        },
+        "classify": {
+            "type": "classify",
+            "title": "分类练习标题",
+            "description": "引导说明",
+            "categories": [
+                {"id": "cat1", "label": "类别名", "description": "类别定义"},
+            ],
+            "items": [
+                {"id": "item1", "content": "待分类内容", "correctCategory": "cat1", "explanation": "为什么属于这个类别"},
+            ],
+            "insight": "分类练习后应得出的关键认知",
+        },
+        "rebuild": {
+            "type": "rebuild",
+            "title": "重建练习标题",
+            "description": "引导说明",
+            "targetStructure": "需要重建的目标结构描述",
+            "pieces": [
+                {"id": "p1", "label": "拼图块", "correctPosition": 1},
+            ],
+            "insight": "重建后应得出的关键认知",
+        },
+        "retrieve": {
+            "type": "classify",
+            "title": "检索练习标题",
+            "description": "引导说明",
+            "categories": [
+                {"id": "cat1", "label": "类别名", "description": "类别定义"},
+            ],
+            "items": [
+                {"id": "item1", "content": "问题", "correctCategory": "cat1", "explanation": "答案与解释"},
+            ],
+            "insight": "练习后应得出的关键认知",
+        },
+    }
+
+    schema = schema_by_capability.get(capability, schema_by_capability["compare"])
 
     system_prompt = (
-        "你是一位 React + TypeScript 组件开发者，为学习可视化平台编写交互式教学组件。\n\n"
-        "技术约束（必须严格遵守）：\n"
-        "- 第一行必须是 'use client';\n"
-        "- 只使用 React hooks（useState, useMemo, useCallback 等）和 Tailwind CSS\n"
-        "- 零外部依赖——不允许 import 任何第三方包（d3、recharts、lodash 等全部不行）\n"
-        "- 使用项目 CSS 变量：var(--color-text)、var(--color-bg)、var(--color-border)、"
-        "var(--color-muted)、var(--color-panel)、var(--color-accent)\n"
-        "- 暗色模式通过 Tailwind dark: 前缀支持，darkMode 策略是 class\n"
-        "- 组件必须 export default function " + component_name + "()\n"
-        "- 200-400 行 TypeScript 代码，一个文件完成\n"
-        "- 只输出代码，不要 markdown 围栏、不要解释、不要注释块\n\n"
-        "组件设计原则：\n"
-        "- 组件服务于学习目标——用户操作后应该产生认知洞见，不是纯展示\n"
-        "- 提供有意义的默认数据，用户打开就能看到有内容的状态\n"
-        "- 包含简短的中文说明文字，解释操作和背后的原理\n"
-        "- 外层容器用 rounded-xl border bg-[color:var(--color-panel)] overflow-hidden\n"
-        "- header 区域显示图标 + 中文标题 + 英文副标题\n"
+        "你是一位教学交互设计师。根据模块内容生成结构化的交互数据（JSON）。\n"
+        "不是生成代码，而是生成数据——前端有预建的渲染器会根据数据类型自动展示。\n\n"
+        "要求：\n"
+        "- 内容必须与模块的焦点问题和关键洞见直接相关\n"
+        "- 每个交互都要有明确的认知目标（insight 字段）\n"
+        "- 数据要具体到真实内容，不能用占位符\n"
+        "- 只输出 JSON\n"
     )
 
     user_prompt = (
-        f"为以下学习模块生成交互组件，组件名为 {component_name}。\n\n"
         f"模块标题：{module.get('title', '')}\n"
         f"焦点问题：{module.get('focusQuestion', '')}\n"
         f"关键洞见：{module.get('keyInsight', '')}\n"
         f"概念列表：{json.dumps([c.get('name', '') for c in module.get('concepts', [])], ensure_ascii=False)}\n"
         f"逻辑链：{json.dumps(module.get('logicChain', [])[:5], ensure_ascii=False)}\n\n"
         f"交互需求：\n"
-        f"- 能力类型：{interaction.get('capability', '')}\n"
+        f"- 能力类型：{capability}\n"
         f"- 交互目的：{interaction.get('purpose', '')}\n\n"
-        "参考组件（学习风格、结构和 CSS 变量用法，不要照抄业务逻辑）：\n"
-        "```tsx\n"
-        f"{example_code}\n"
-        "```\n"
+        f"按以下 JSON 结构输出（字段含义见示例值）：\n"
+        f"{json.dumps(schema, ensure_ascii=False, indent=2)}\n"
     )
 
     return system_prompt, user_prompt

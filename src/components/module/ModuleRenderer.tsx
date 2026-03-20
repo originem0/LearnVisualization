@@ -17,6 +17,7 @@ import FloatingTOC from './FloatingTOC';
 import RuntimePlaceholderCard from './RuntimePlaceholderCard';
 import ModuleNav from '@/components/ModuleNav';
 import ConceptMapRenderer from '@/components/ConceptMapRenderer';
+import InteractionRenderer from '@/components/InteractionRenderer';
 import { resolveModuleInteractions, type ResolvedInteraction } from '@/lib/module-registry';
 import { getNarrativeHeadings } from './narrative-headings';
 import { layout } from '@/lib/design-tokens';
@@ -64,8 +65,8 @@ export default function ModuleRenderer({
   const headings = getNarrativeHeadings(module.narrative);
   const hasFloatingTOC = headings.length >= 5;
   const conceptMap = renderConceptMapSlot(module, moduleRuntime, category.color, locale);
-  const coreInteractionNode = renderInteractionSlot(coreInteraction, locale);
-  const secondaryInteractionNode = renderInteractionSlot(secondaryInteraction, locale);
+  const coreInteractionNode = renderInteractionSlot(coreInteraction, module, locale);
+  const secondaryInteractionNode = renderInteractionSlot(secondaryInteraction, module, locale);
 
   return (
     <div
@@ -192,7 +193,7 @@ function renderConceptMapSlot(
   );
 }
 
-function renderInteractionSlot(interaction: ResolvedInteraction | null, locale: Locale) {
+function renderInteractionSlot(interaction: ResolvedInteraction | null, moduleData: CourseModule, locale: Locale) {
   if (!interaction) return null;
 
   if (interaction.Component) {
@@ -202,6 +203,21 @@ function renderInteractionSlot(interaction: ResolvedInteraction | null, locale: 
         <Component />
       </div>
     );
+  }
+
+  // Data-driven interaction: check if module JSON has interactionData
+  const requirements = (moduleData as Record<string, unknown>).interactionRequirements as Array<Record<string, unknown>> | undefined;
+  if (requirements) {
+    const matchingReq = requirements.find(
+      (r) => r.capability === interaction.capability && r.priority === interaction.priority && r.interactionData
+    );
+    if (matchingReq?.interactionData) {
+      return (
+        <div className="mx-auto w-full max-w-[54rem] pb-8">
+          <InteractionRenderer data={matchingReq.interactionData as any} />
+        </div>
+      );
+    }
   }
 
   const isZh = locale === 'zh';

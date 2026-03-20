@@ -11,15 +11,8 @@ from typing import Any
 try:
     from .common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
     from .job_store import JobStore
-    from .prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_component_prompt
+    from .prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_data_prompt
     from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError
-    from .component_writer import (
-        extract_code_from_response,
-        generate_component_name,
-        register_component_in_whitelist,
-        validate_component_code,
-        write_interactive_component,
-    )
     from .quality import (
         build_concept_map,
         build_interaction_registry,
@@ -31,15 +24,8 @@ try:
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
     from job_store import JobStore
-    from prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_component_prompt
+    from prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_data_prompt
     from provider import OpenAICompatibleClient, ProviderConfig, ProviderError
-    from component_writer import (
-        extract_code_from_response,
-        generate_component_name,
-        register_component_in_whitelist,
-        validate_component_code,
-        write_interactive_component,
-    )
     from quality import (
         build_concept_map,
         build_interaction_registry,
@@ -257,6 +243,18 @@ class CourseGenerationPipeline:
                 artifact_path=export_path,
                 summary=export_artifact,
             )
+
+            self._check_cancelled(job_id)
+
+            # --- AUTO-PROMOTE to courses/ ---
+            courses_dir = self.repo_root / "courses" / request_payload["output_slug"]
+            if courses_dir.exists():
+                shutil.rmtree(courses_dir)
+            shutil.copytree(Path(export_artifact["outputDir"]), courses_dir)
+
+            # --- AUTO-BUILD (so static pages include the new course) ---
+            self._run_next_build(job_id)
+
             self.store.mark_waiting_review(
                 job_id,
                 output_dir=Path(export_artifact["outputDir"]),
@@ -407,10 +405,8 @@ class CourseGenerationPipeline:
                     concept_maps[module["id"]] = build_concept_map(module)
                     interaction_registry[module["id"]] = build_interaction_registry(module)
 
-                    # Generate interactive components for core interactions
-                    self._generate_interaction_components(
-                        module, request_payload["output_slug"], job_id, compose_logs
-                    )
+                    # Generate interaction data for core interactions
+                    self._generate_interaction_data(module, job_id, compose_logs)
 
                     compose_logs.append(
                         {
@@ -465,67 +461,56 @@ class CourseGenerationPipeline:
             },
         }
 
-    def _generate_interaction_components(
+    def _run_next_build(self, job_id: str) -> None:
+        """Run npm run build to regenerate static pages with the new course."""
+        import subprocess, sys
+        print("[pipeline] Running npm run build...", file=sys.stderr)
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd=self.repo_root,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+        if result.returncode != 0:
+            print(f"[pipeline] Build failed (non-blocking): {result.stderr[-500:]}", file=sys.stderr)
+        else:
+            print("[pipeline] Build completed successfully", file=sys.stderr)
+
+    def _generate_interaction_data(
         self,
         module: dict[str, Any],
-        course_slug: str,
         job_id: str,
         compose_logs: list[dict[str, Any]],
     ) -> None:
-        """Generate React interactive components for core interaction requirements."""
+        """Generate structured interaction data for core interaction requirements."""
         import sys
 
         for idx, req in enumerate(module.get("interactionRequirements") or []):
             if req.get("priority") != "core":
                 continue
-            if req.get("componentHint"):
-                continue  # already has a component
-
-            component_name = generate_component_name(course_slug, module["id"], req["capability"], idx)
 
             try:
-                sys_prompt, usr_prompt = build_interaction_component_prompt(
-                    component_name=component_name,
+                sys_prompt, usr_prompt = build_interaction_data_prompt(
                     module=module,
                     interaction=req,
                 )
-
-                # Try up to 2 attempts
-                code = ""
-                for gen_attempt in range(2):
-                    response = self.client.generate_text(
-                        system_prompt=sys_prompt,
-                        user_prompt=usr_prompt,
-                        temperature=0.3,
-                        max_tokens=12000,
-                    )
-                    code = extract_code_from_response(response["content"])
-                    issues = validate_component_code(code, component_name)
-                    if not issues:
-                        break
-                    print(f"[component-gen] {component_name} attempt {gen_attempt + 1} issues: {issues}", file=sys.stderr)
-
-                if validate_component_code(code, component_name):
-                    print(f"[component-gen] {component_name} failed validation after retries, skipping", file=sys.stderr)
-                    continue
-
-                write_interactive_component(component_name, code, self.repo_root)
-                register_component_in_whitelist(component_name, self.repo_root)
-                req["componentHint"] = component_name
-
+                response = self.client.generate_json(
+                    schema_name=f"{module['id']}_interaction_{idx}",
+                    system_prompt=sys_prompt,
+                    user_prompt=usr_prompt,
+                    temperature=0.3,
+                )
+                req["interactionData"] = response["content"]
                 compose_logs.append({
-                    "type": "component_generation",
+                    "type": "interaction_data",
                     "moduleId": module["id"],
-                    "componentName": component_name,
                     "capability": req["capability"],
-                    "codeLength": len(code),
+                    "usage": response["usage"],
                 })
-                print(f"[component-gen] {component_name} generated ({len(code)} chars)", file=sys.stderr)
-
+                print(f"[interaction-data] {module['id']}/{req['capability']} generated", file=sys.stderr)
             except Exception as exc:
-                print(f"[component-gen] {component_name} failed: {exc}", file=sys.stderr)
-                # Don't block course generation
-                continue
+                print(f"[interaction-data] {module['id']}/{req['capability']} failed: {exc}", file=sys.stderr)
 
     def _run_validate(self, job_id: str, composed_artifact: dict[str, Any]) -> dict[str, Any]:
         staging_dir = self.store.job_dir(job_id) / "staging" / composed_artifact["course"]["slug"]
