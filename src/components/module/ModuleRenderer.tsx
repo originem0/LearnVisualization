@@ -206,7 +206,7 @@ function renderInteractionSlot(interaction: ResolvedInteraction | null, moduleDa
   }
 
   // Data-driven interaction: check if module JSON has interactionData
-  const requirements = (moduleData as Record<string, unknown>).interactionRequirements as Array<Record<string, unknown>> | undefined;
+  const requirements = (moduleData as unknown as Record<string, unknown>).interactionRequirements as Array<Record<string, unknown>> | undefined;
   if (requirements) {
     const matchingReq = requirements.find(
       (r) => r.capability === interaction.capability && r.priority === interaction.priority && r.interactionData
