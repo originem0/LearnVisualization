@@ -39,15 +39,15 @@ interface JobState {
 
 const LEVEL_OPTIONS = [
   { value: 'beginner', label: '完全没接触过', en: 'Complete beginner' },
-  { value: 'used-not-understood', label: '用过但不懂原理', en: "Used it, don't understand how" },
-  { value: 'intermediate', label: '有一定基础想深入', en: 'Some foundation, want depth' },
+  { value: 'used-not-understood', label: '接触过但理解不深', en: 'Some exposure, shallow understanding' },
+  { value: 'intermediate', label: '有基础，想系统深入', en: 'Have foundation, want depth' },
 ] as const;
 
 const GOAL_OPTIONS = [
-  { value: 'framework', label: '建立整体理解框架', en: 'Build a mental framework' },
-  { value: 'understand-mechanism', label: '理解底层机制/原理', en: 'Understand underlying mechanisms' },
-  { value: 'hands-on', label: '能实际动手操作', en: 'Be able to do it hands-on' },
-  { value: 'teach-others', label: '能教给别人', en: 'Be able to teach others' },
+  { value: 'framework', label: '建立整体认知框架', en: 'Build a mental framework' },
+  { value: 'understand-mechanism', label: '理解底层原理和逻辑', en: 'Understand underlying principles' },
+  { value: 'hands-on', label: '能解决实际问题', en: 'Solve real problems' },
+  { value: 'teach-others', label: '能向别人清晰解释', en: 'Explain clearly to others' },
 ] as const;
 
 const DEPTH_OPTIONS = [
@@ -57,29 +57,29 @@ const DEPTH_OPTIONS = [
 ] as const;
 
 const BACKGROUND_OPTIONS = [
-  { value: 'non-tech', label: '非技术背景', en: 'Non-technical background' },
-  { value: 'tech-other', label: '有编程基础但非该领域', en: 'Developer, different domain' },
-  { value: 'tech-domain', label: '该领域有一定经验', en: 'Some domain experience' },
+  { value: 'non-domain', label: '这个领域的新手', en: 'New to this field' },
+  { value: 'adjacent', label: '了解相关领域但非本主题', en: 'Know related areas, not this topic' },
+  { value: 'domain-exp', label: '本主题有一定经验', en: 'Some experience with this topic' },
 ] as const;
 
 const STYLE_OPTIONS = [
-  { value: 'theory-first', label: '先看理论再实践', en: 'Theory first, then practice' },
-  { value: 'hands-on-first', label: '直接上手边做边学', en: 'Learn by doing' },
-  { value: 'compare', label: '通过对比案例理解', en: 'Learn by comparing cases' },
-  { value: 'deconstruct', label: '拆解内部机制', en: 'Deconstruct internals' },
+  { value: 'theory-first', label: '先理解原理再看实例', en: 'Principles first, then examples' },
+  { value: 'hands-on-first', label: '从具体案例入手', en: 'Start with concrete cases' },
+  { value: 'compare', label: '通过对比加深理解', en: 'Learn by comparing' },
+  { value: 'deconstruct', label: '拆解结构和机制', en: 'Deconstruct structures' },
 ] as const;
 
 const LEVEL_MAP: Record<string, string> = {
   beginner: '完全没接触过该主题',
-  'used-not-understood': '用过但不理解底层原理',
-  intermediate: '有一定基础，想系统深入',
+  'used-not-understood': '接触过但理解不深',
+  intermediate: '有基础，想系统深入',
 };
 
 const GOAL_MAP: Record<string, string> = {
-  framework: '建立整体理解框架',
-  'understand-mechanism': '理解底层机制/原理',
-  'hands-on': '能实际动手操作',
-  'teach-others': '能教给别人',
+  framework: '建立整体认知框架',
+  'understand-mechanism': '理解底层原理和逻辑',
+  'hands-on': '能解决实际问题',
+  'teach-others': '能向别人清晰解释',
 };
 
 const DEPTH_MAP: Record<string, string> = {
@@ -89,16 +89,16 @@ const DEPTH_MAP: Record<string, string> = {
 };
 
 const BACKGROUND_MAP: Record<string, string> = {
-  'non-tech': '非技术背景',
-  'tech-other': '有编程基础但非该领域',
-  'tech-domain': '该领域有一定经验',
+  'non-domain': '这个领域的新手',
+  adjacent: '了解相关领域但非本主题',
+  'domain-exp': '本主题有一定经验',
 };
 
 const STYLE_MAP: Record<string, string> = {
-  'theory-first': '先看理论再实践',
-  'hands-on-first': '直接上手边做边学',
-  compare: '通过对比案例理解',
-  deconstruct: '拆解内部机制',
+  'theory-first': '先理解原理再看实例',
+  'hands-on-first': '从具体案例入手',
+  compare: '通过对比加深理解',
+  deconstruct: '拆解结构和机制',
 };
 
 const STAGE_LABELS_ZH: Record<string, string> = {
@@ -552,31 +552,31 @@ export default function GenerateForm({ locale }: { locale: string }) {
           </div>
 
           <RadioGroup
-            question={isZh ? '你对这个主题了解多少？' : 'How much do you know about this topic?'}
+            question={isZh ? '你对这个主题了解多少？' : 'How familiar are you with this topic?'}
             options={LEVEL_OPTIONS}
             value={level}
             onChange={setLevel}
           />
           <CheckboxGroup
-            question={isZh ? '你的学习目标是什么？' : 'What are your learning goals?'}
+            question={isZh ? '学完后你希望能做到什么？' : 'What do you want to be able to do?'}
             options={GOAL_OPTIONS}
             values={goals}
             onChange={setGoals}
           />
           <RadioGroup
-            question={isZh ? '你希望课程多深？' : 'How deep should the course go?'}
+            question={isZh ? '你希望课程多深入？' : 'How deep should it go?'}
             options={DEPTH_OPTIONS}
             value={depth}
             onChange={setDepth}
           />
           <RadioGroup
-            question={isZh ? '你的技术背景是？' : 'What is your technical background?'}
+            question={isZh ? '你和这个主题的关系是？' : 'What is your relationship with this topic?'}
             options={BACKGROUND_OPTIONS}
             value={background}
             onChange={setBackground}
           />
           <CheckboxGroup
-            question={isZh ? '你偏好的学习方式？' : 'Preferred learning style?'}
+            question={isZh ? '你偏好怎样的学习路径？' : 'How do you prefer to learn?'}
             options={STYLE_OPTIONS}
             values={learningStyle}
             onChange={setLearningStyle}
