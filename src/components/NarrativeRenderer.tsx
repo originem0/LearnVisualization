@@ -36,11 +36,11 @@ function inferCodeLabel(content: string): string {
 export function NarrativeCode({ content, label }: { content: string; label?: string }) {
   const displayLabel = label || inferCodeLabel(content);
   return (
-    <div className="relative my-4 overflow-hidden rounded-lg bg-[#F3F4F6] px-4 py-3 shadow-sm sm:my-5">
-      <span className="absolute right-3 top-2 text-[10px] font-medium tracking-wide text-zinc-400 select-none">
+    <div className="relative my-4 overflow-hidden rounded-lg bg-[#F3F4F6] px-4 py-3 shadow-sm dark:bg-[#073642] sm:my-5">
+      <span className="absolute right-3 top-2 text-[10px] font-medium tracking-wide text-zinc-400 select-none dark:text-zinc-500">
         {displayLabel}
       </span>
-      <pre className="overflow-x-auto text-sm leading-relaxed text-zinc-800">
+      <pre className="overflow-x-auto text-sm leading-relaxed text-zinc-800 dark:text-[#eee8d5]">
         <code>{content}</code>
       </pre>
     </div>
@@ -145,8 +145,8 @@ export function NarrativeSteps({ label, steps }: { label?: string; steps: StepIt
               <div>
                 <div className="text-sm font-semibold text-[color:var(--color-text)]">{step.title}</div>
                 <div className="mt-0.5 text-xs leading-5 text-[color:var(--color-muted)]">{step.description}</div>
-                <div className="mt-1.5 overflow-x-auto rounded-lg bg-[#F3F4F6] px-3 py-2 shadow-sm">
-                  <pre className="text-sm leading-6 text-zinc-800">
+                <div className="mt-1.5 overflow-x-auto rounded-lg bg-[#F3F4F6] px-3 py-2 shadow-sm dark:bg-[#073642]">
+                  <pre className="text-sm leading-6 text-zinc-800 dark:text-[#eee8d5]">
                     <code>{renderVisual(step.visual, step.highlight)}</code>
                   </pre>
                 </div>
