@@ -88,6 +88,8 @@ def normalize_job_create_request(payload: dict[str, Any] | None) -> dict[str, An
         **topic_req,
         "output_slug": str(payload.get("output_slug") or "").strip() or None,
         "overwrite": _to_bool(payload.get("overwrite"), default=False),
+        "background": str(payload.get("background") or "").strip() or None,
+        "learning_style": _to_str_list(payload.get("learning_style")),
     }
 
 

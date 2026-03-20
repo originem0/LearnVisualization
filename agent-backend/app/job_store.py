@@ -157,6 +157,21 @@ class JobStore:
             job["error"] = None
             return self.write_job(job)
 
+    def mark_cancelled(self, job_id: str) -> dict[str, Any]:
+        with self.job_lock(job_id):
+            job = self.load_job(job_id)
+            job["status"] = "cancelled"
+            job["currentStage"] = None
+            job["error"] = {"stage": job.get("currentStage"), "message": "cancelled by user", "failedAt": now_iso()}
+            return self.write_job(job)
+
+    def delete_job(self, job_id: str) -> None:
+        """Remove all on-disk state for a job."""
+        import shutil
+        job_dir = self.job_dir(job_id)
+        if job_dir.exists():
+            shutil.rmtree(job_dir)
+
     def update_review(
         self,
         job_id: str,

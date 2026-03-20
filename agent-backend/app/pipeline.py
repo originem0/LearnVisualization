@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-import queue
 import shutil
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -35,6 +35,12 @@ except ImportError:
     )
     from workflow import planning_seed_for_topic
 
+MAX_CONCURRENT_JOBS = 3
+
+
+class CancelledError(Exception):
+    """Raised when a job is cancelled via cooperative cancellation."""
+
 
 class CourseGenerationPipeline:
     def __init__(
@@ -51,29 +57,16 @@ class CourseGenerationPipeline:
         self.store = JobStore(jobs_root)
         self.generated_root = ensure_dir(generated_root)
         self.repo_root = repo_root
-        self._queue: queue.Queue[str] = queue.Queue()
-        self._worker_started = False
-        self._worker_lock = threading.Lock()
+        self._executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_JOBS, thread_name_prefix="course-job")
+        # Cooperative cancellation: job_id -> Event (set = cancelled)
+        self._cancel_events: dict[str, threading.Event] = {}
+        self._lock = threading.Lock()
 
-    def _ensure_worker(self) -> None:
-        """Start the single background worker thread if not already running."""
-        with self._worker_lock:
-            if self._worker_started:
-                return
-            self._worker_started = True
-            t = threading.Thread(target=self._worker_loop, daemon=True, name="course-job-worker")
-            t.start()
-
-    def _worker_loop(self) -> None:
-        """Sequentially process queued jobs."""
-        while True:
-            job_id = self._queue.get()
-            try:
-                self.run_job(job_id)
-            except Exception:
-                pass  # run_job already marks the job as failed
-            finally:
-                self._queue.task_done()
+    def _check_cancelled(self, job_id: str) -> None:
+        """Raise CancelledError if the job has been cancelled."""
+        event = self._cancel_events.get(job_id)
+        if event and event.is_set():
+            raise CancelledError("job cancelled by user")
 
     def enqueue_pending_jobs(self) -> None:
         """Re-enqueue any jobs left in queued status (e.g. after restart)."""
@@ -81,9 +74,23 @@ class CourseGenerationPipeline:
         queued = [j for j in jobs if j.get("status") == "queued"]
         queued.sort(key=lambda j: j.get("createdAt", ""))
         for j in queued:
-            self._queue.put(j["id"])
-        if queued:
-            self._ensure_worker()
+            self._submit_job(j["id"])
+
+    def _submit_job(self, job_id: str) -> None:
+        """Submit a job to the thread pool."""
+        with self._lock:
+            self._cancel_events[job_id] = threading.Event()
+        self._executor.submit(self._run_job_wrapper, job_id)
+
+    def _run_job_wrapper(self, job_id: str) -> None:
+        """Wrapper that runs in the thread pool and cleans up cancel events."""
+        try:
+            self.run_job(job_id)
+        except Exception:
+            pass  # run_job already marks the job as failed
+        finally:
+            with self._lock:
+                self._cancel_events.pop(job_id, None)
 
     def create_job(self, request_payload: dict[str, Any], *, run_async: bool = True) -> dict[str, Any]:
         if not request_payload.get("topic"):
@@ -94,15 +101,71 @@ class CourseGenerationPipeline:
             "output_slug": request_payload.get("output_slug") or slugify(request_payload["topic"]),
             "overwrite": bool(request_payload.get("overwrite", False)),
         }
+        output_slug = request_payload["output_slug"]
+
+        # --- Duplicate detection ---
+        # 1. Already-published course
+        courses_root = self.repo_root / "courses"
+        if (courses_root / output_slug / "course.json").exists():
+            raise ValueError(f"课程 '{output_slug}' 已存在于 courses/ 中，如需重新生成请先删除")
+        # 2. Already-generated output
+        if (self.generated_root / output_slug).exists():
+            raise ValueError(f"课程 '{output_slug}' 已生成，如需重新生成请先删除")
+        # 3. Queued or running job with same slug
+        for existing in self.store.list_jobs():
+            if existing.get("status") in ("queued", "running"):
+                existing_slug = (existing.get("request") or {}).get("output_slug")
+                if existing_slug == output_slug:
+                    raise ValueError(f"已有相同主题 '{output_slug}' 的任务在队列中")
+
         job = self.store.create_job(
             request_payload,
             provider=self.provider_config.masked,
             prompt_version=PROMPT_VERSION,
         )
         if run_async:
-            self._queue.put(job["id"])
-            self._ensure_worker()
+            self._submit_job(job["id"])
         return self.store.load_job(job["id"])
+
+    def cancel_job(self, job_id: str) -> dict[str, Any]:
+        """Cancel a queued or running job."""
+        job = self.store.load_job(job_id)
+        status = job.get("status")
+        if status not in ("queued", "running"):
+            raise ValueError(f"cannot cancel job in '{status}' status")
+
+        # Signal the cancel event so the worker thread stops
+        with self._lock:
+            event = self._cancel_events.get(job_id)
+            if event:
+                event.set()
+
+        self.store.mark_cancelled(job_id)
+
+        # Clean up staging directory
+        staging_dir = self.store.job_dir(job_id) / "staging"
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir, ignore_errors=True)
+
+        return self.store.load_job(job_id)
+
+    def delete_job(self, job_id: str) -> dict[str, Any]:
+        """Delete a job and its generated output."""
+        job = self.store.load_job(job_id)
+        status = job.get("status")
+        if status in ("queued", "running"):
+            raise ValueError("cannot delete a queued/running job — cancel it first")
+
+        # Remove generated output directory
+        output_slug = (job.get("request") or {}).get("output_slug")
+        if output_slug:
+            output_dir = self.generated_root / output_slug
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
+
+        # Remove job directory
+        self.store.delete_job(job_id)
+        return {"deleted": True, "id": job_id}
 
     def run_job(self, job_id: str) -> dict[str, Any]:
         job = self.store.load_job(job_id)
@@ -112,6 +175,8 @@ class CourseGenerationPipeline:
         stage_status = {s["name"]: s["status"] for s in job["stages"]}
 
         try:
+            self._check_cancelled(job_id)
+
             # --- PLAN ---
             if stage_status.get("plan") == "succeeded" and job["artifacts"].get("plan"):
                 plan_artifact = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
@@ -126,6 +191,8 @@ class CourseGenerationPipeline:
                     summary={"moduleCount": len(plan_artifact["moduleOutlines"]), "categoryCount": len(plan_artifact["categories"])},
                 )
 
+            self._check_cancelled(job_id)
+
             # --- COMPOSE (with per-module checkpointing) ---
             if stage_status.get("compose") == "succeeded" and job["artifacts"].get("compose"):
                 composed_artifact = json.loads(Path(job["artifacts"]["compose"]).read_text("utf-8"))
@@ -139,6 +206,8 @@ class CourseGenerationPipeline:
                     artifact_path=compose_path,
                     summary={"moduleCount": len(composed_artifact["modules"]), "outputSlug": composed_artifact["course"]["slug"]},
                 )
+
+            self._check_cancelled(job_id)
 
             # --- VALIDATE ---
             self.store.mark_stage_running(job_id, "validate")
@@ -162,6 +231,8 @@ class CourseGenerationPipeline:
                 messages = [item["message"] for item in validation_artifact["blockingIssues"]]
                 raise ValueError(f"validation blocked export: {messages}")
 
+            self._check_cancelled(job_id)
+
             # --- EXPORT ---
             self.store.mark_stage_running(job_id, "export")
             export_artifact = self._run_export(job_id, request_payload, composed_artifact, validation_artifact)
@@ -183,6 +254,12 @@ class CourseGenerationPipeline:
                 },
             )
             return self.store.load_job(job_id)
+        except CancelledError:
+            # Already marked as cancelled by cancel_job(); just clean up staging
+            staging_dir = self.store.job_dir(job_id) / "staging"
+            if staging_dir.exists():
+                shutil.rmtree(staging_dir, ignore_errors=True)
+            return self.store.load_job(job_id)
         except Exception as exc:
             current_job = self.store.load_job(job_id)
             stage = current_job.get("currentStage") or "plan"
@@ -197,8 +274,7 @@ class CourseGenerationPipeline:
 
     def retry_job(self, job_id: str, *, stage: str | None = None) -> dict[str, Any]:
         job = self.store.prepare_retry(job_id, stage)
-        self._queue.put(job_id)
-        self._ensure_worker()
+        self._submit_job(job_id)
         return job
 
     def review_job(
@@ -287,6 +363,9 @@ class CourseGenerationPipeline:
             if outline["id"] in completed_ids:
                 continue  # skip already-completed modules from checkpoint
 
+            # Check cancellation before each module
+            self._check_cancelled(job_id)
+
             next_module_id = outlines[index]["id"] if index < len(outlines) else None
             system_prompt, user_prompt = build_module_prompts(
                 request_payload=request_payload,
@@ -331,10 +410,6 @@ class CourseGenerationPipeline:
                     time.sleep(1.0 * (2 ** attempt))  # backoff between module retries
 
             # Save checkpoint after each module (success or final failure)
-            try:
-                from .common import write_json_atomic
-            except ImportError:
-                from common import write_json_atomic
             write_json_atomic(checkpoint_path, {
                 "modules": modules,
                 "concept_maps": concept_maps,
