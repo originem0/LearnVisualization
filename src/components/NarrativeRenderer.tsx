@@ -36,7 +36,7 @@ function inferCodeLabel(content: string): string {
 export function NarrativeCode({ content, label }: { content: string; label?: string }) {
   const displayLabel = label || inferCodeLabel(content);
   return (
-    <div className="relative my-5 overflow-hidden rounded-xl bg-slate-50 shadow-sm dark:bg-[#001f27] sm:my-7">
+    <div className="relative my-5 overflow-hidden rounded-xl bg-slate-50 shadow-sm dark:bg-zinc-800/60 sm:my-7">
       <span className="absolute right-3 top-2 text-[10px] font-medium tracking-wide text-zinc-400 select-none dark:text-zinc-500">
         {displayLabel}
       </span>
@@ -145,7 +145,7 @@ export function NarrativeSteps({ label, steps }: { label?: string; steps: StepIt
               <div>
                 <div className="text-sm font-semibold text-[color:var(--color-text)]">{step.title}</div>
                 <div className="mt-0.5 text-xs leading-5 text-[color:var(--color-muted)]">{step.description}</div>
-                <div className="mt-2 overflow-x-auto rounded-xl bg-slate-50 px-3 py-3 shadow-sm dark:bg-[#0b3a45]/30">
+                <div className="mt-2 overflow-x-auto rounded-xl bg-slate-50 px-3 py-3 shadow-sm dark:bg-zinc-800/60">
                   <pre className="text-sm leading-7 text-zinc-700 dark:text-[color:var(--color-text)]">
                     <code>{renderVisual(step.visual, step.highlight)}</code>
                   </pre>
