@@ -146,16 +146,16 @@
   margin: 1rem 0;
   padding: 1rem 1.25rem;
   border-radius: 0.75rem;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: #f4f4f5;
+  color: #27272a;
   font-size: 0.85rem;
   line-height: 1.6;
   overflow-x: auto;
 }
 
 .dark .prose-custom pre {
-  background: #001f27;
-  color: #eee8d5;
+  background: #f4f4f5;
+  color: #27272a;
 }
 
 .prose-custom :not(pre) > code {
