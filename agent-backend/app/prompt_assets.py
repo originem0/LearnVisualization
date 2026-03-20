@@ -127,6 +127,12 @@ def build_plan_prompts(request_payload: dict[str, Any], planning_seed: dict[str,
         "- moduleGraph.edges[].type 只能使用: " + ", ".join(ALLOWED_EDGE_TYPES) + "\n"
         "- moduleOutlines 必须按学习顺序排列，id 必须是 s01, s02 ...\n"
         "- 所有字符串必须具体，不能写空套话。\n"
+        "- 每个 moduleOutline 必须标注 knowledgeTypes（至少一个，可选：factual/conceptual/procedural/strategic/metacognitive/situational）。\n"
+        "- 每个 moduleOutline 必须标注 bloomLevel（remember/understand/apply/analyze/evaluate/create）。\n"
+        "- 每个 moduleOutline 必须标注 elementInteractivity（low/medium/high）。\n"
+        "- 不允许连续 3 个相同 moduleKind。\n"
+        "- 课程前 1/3 模块可以是 remember/understand，中间 1/3 必须达到 apply/analyze，后 1/3 应有 evaluate/create。\n"
+        "- focusQuestion 不能是定义式（不能用'X 是什么'句式），必须指向认知冲突或设计决策。\n"
     )
     user_prompt = (
         "为下面的主题设计一门 zh 课程的课程计划。\n\n"
@@ -172,6 +178,24 @@ def build_module_prompts(
         "- bridgeTo 必须自然导向下一章；如果是最后一章，bridgeTo 设为 null。\n"
         "- componentHint 只允许以下值之一: " + ", ".join(sorted(load_frontend_component_whitelist())) + "。"
         "不匹配则必须设为 null。不要编造组件名。\n"
+        "\nv3 必选字段：\n"
+        "- knowledgeTypes: 标注本模块教的知识类型（factual/conceptual/procedural/strategic/metacognitive/situational），至少一个。\n"
+        "- bloomLevel: 本模块的认知层级（remember/understand/apply/analyze/evaluate/create）。\n"
+        "- elementInteractivity: 概念间交互复杂度（low/medium/high），决定脚手架强度。\n"
+        "- exercises: 至少 1 个练习。程序性模块至少 2 个且 scaffoldLevel 不同。每个 exercise 必须标注 bloomLevel。\n"
+        "  exercise.type 可选: fill-blank/rebuild-map/compare-variants/predict-next-step/classify/explain/free-response/self-explanation/trace-execution。\n"
+        "  exercise.scaffoldLevel 可选: full/faded-1/faded-2/free。\n"
+        "  exercise.responseType 可选: select/generate/arrange/code/explain。\n"
+        "- scaffoldProgression: 渐退序列，如 ['full', 'faded-1', 'free']。\n"
+        "- retrievalPrompts 的每一项必须标注 bloomLevel。remember 层最多占 30%。\n"
+        "- misconception 必须是具体的错误直觉，不能是空泛描述。\n"
+        "\n负面样本（不要这样做）：\n"
+        "差的焦点问题: 'Transformer 的全称是什么？' — 定义式 | '深入理解注意力机制' — 不是问题\n"
+        "好的焦点问题: '为什么 Attention 不用 CNN 的局部窗口，而要看全部位置？' — 指向设计决策\n"
+        "差的误解: '很多人对注意力机制理解不深' — 空泛 | '注意力是一个重要概念' — 不是误解\n"
+        "好的误解: '认为注意力就是给每个词打分，分高的就重要' — 具体的错误心智模型\n"
+        "差的检索: type=fill-gap, '______的全称是Transformer' — 事实记忆\n"
+        "好的检索: type=compare-variants, bloomLevel=analyze, '如果把 Self-Attention 的 softmax 换成 hardmax，长句翻译会怎样？' — 反事实推理\n"
     )
     user_prompt = (
         "基于课程计划，生成一个完整模块。\n\n"
@@ -227,6 +251,9 @@ def _plan_contract() -> dict[str, Any]:
                 "misconception": "需要先打穿的错误直觉",
                 "targetChunk": "这章帮助形成的认知组块",
                 "priorKnowledge": ["前知识模块或概念"],
+                "knowledgeTypes": ["conceptual"],
+                "bloomLevel": "understand",
+                "elementInteractivity": "medium",
             }
         ],
         "moduleGraph": {
@@ -251,6 +278,9 @@ def _module_contract() -> dict[str, Any]:
         "quote": "本章金句",
         "keyInsight": "本章关键洞见",
         "opening": "反直觉开场",
+        "knowledgeTypes": ["conceptual"],
+        "bloomLevel": "understand",
+        "elementInteractivity": "medium",
         "concepts": [{"name": "概念名", "note": "为什么重要"}],
         "logicChain": ["因果步骤 1"],
         "examples": ["具体例子 1"],
@@ -274,6 +304,19 @@ def _module_contract() -> dict[str, Any]:
             },
             {"type": "callout", "content": "关键提醒"},
         ],
+        "exercises": [
+            {
+                "id": "ex1",
+                "type": "compare-variants",
+                "bloomLevel": "analyze",
+                "knowledgeType": "conceptual",
+                "scaffoldLevel": "faded-1",
+                "prompt": "具体练习题",
+                "responseType": "generate",
+                "hints": ["递进提示1"],
+            }
+        ],
+        "scaffoldProgression": ["full", "faded-1", "free"],
         "visuals": [{"id": "s01-map", "type": "conceptMap", "required": True}],
         "interactionRequirements": [
             {
@@ -286,6 +329,7 @@ def _module_contract() -> dict[str, Any]:
         "retrievalPrompts": [
             {
                 "type": "fill-gap",
+                "bloomLevel": "analyze",
                 "prompt": "主动回忆问题",
                 "answerShape": "回答应包含的结构",
             }
