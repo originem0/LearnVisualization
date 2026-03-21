@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(grep:*)",
+      "Bash(jq:*)",
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(npx:*)",
+      "Bash(npm run:*)",
+      "Bash(node:*)",
+      "Bash(ls:*)",
+      "Bash(xargs cat:*)",
+      "Bash(wc:*)",
+      "Bash(python:*)",
+      "Bash(rm:*)"
+    ]
+  }
+}
