@@ -277,7 +277,7 @@ export default function GenerateForm({ locale }: { locale: string }) {
       setSubmitError(isZh ? '主题太长，请控制在 80 字符以内' : 'Topic too long, max 80 characters');
       return;
     }
-    if (/^[\s\d\W]+$/.test(t)) {
+    if (!/\p{L}/u.test(t)) {
       setSubmitError(isZh ? '请输入有效的学习主题' : 'Please enter a valid learning topic');
       return;
     }

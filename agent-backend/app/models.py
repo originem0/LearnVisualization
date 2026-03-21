@@ -26,8 +26,8 @@ def validate_topic_text(topic: str) -> str | None:
         return "主题太短，请输入至少 2 个字符"
     if len(topic) > 80:
         return "主题太长，请控制在 80 字符以内"
-    # All punctuation/digits/whitespace
-    if re.fullmatch(r"[\s\d\W]+", topic):
+    # Must contain at least one letter (any script)
+    if not re.search(r"[a-zA-Z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]", topic):
         return "请输入有效的学习主题"
     # Chat-like sentences (ends with 吗/呢/啊/？ and shorter than 15 chars)
     if len(topic) < 15 and re.search(r"[吗呢啊哦嘛？]$", topic):
