@@ -115,7 +115,7 @@ class CourseGenerationPipeline:
         if course_count + generated_count >= MAX_TOTAL_COURSES:
             raise ValueError(f"课程总数已达上限（{MAX_TOTAL_COURSES} 门），请删除旧课程后再生成")
 
-        # --- LLM topic validation (graceful degradation) ---
+        # --- LLM topic normalization (graceful degradation, no rejection) ---
         topic_validation = None
         try:
             sys_prompt, usr_prompt = build_topic_validation_prompt(request_payload["topic"])
@@ -126,17 +126,12 @@ class CourseGenerationPipeline:
                 max_tokens=300,
             )
             topic_validation = val_response["content"]
-            if not topic_validation.get("valid"):
-                reason = topic_validation.get("reason") or "请输入一个有效的学习主题"
-                raise ValueError(reason)
-            # Use canonical topic if available
+            # Use canonical topic if available (normalization only, no rejection)
             canonical = str(topic_validation.get("canonicalTopic") or "").strip()
             if canonical:
                 request_payload["topic"] = canonical
-        except ProviderError:
-            pass  # LLM unavailable — continue with original topic
-        except ValueError:
-            raise  # re-raise validation rejection
+        except (ProviderError, Exception):
+            pass  # LLM unavailable or error — continue with original topic
 
         request_payload = {
             **request_payload,

@@ -19,21 +19,19 @@ PROMPT_VERSION = "v1-course-generation"
 
 
 def build_topic_validation_prompt(topic: str) -> tuple[str, str]:
-    """Build a lightweight prompt to validate and normalize a learning topic."""
+    """Build a lightweight prompt to normalize a learning topic."""
     system_prompt = (
-        "你是学习主题审核员。判断用户输入是否是一个有效的、可教学的知识主题。\n"
-        "有效主题：一个具体的技术、概念、领域或技能，有足够深度设计成 5-15 章的课程。\n"
-        "无效主题：乱码、单词碎片、过于窄（如某个函数的用法）、不是知识点（闲聊、问天气）、有害内容。\n"
-        "宽泛主题（如'计算机'、'编程'）：valid=true 但提供 3-5 个更具体的方向建议。\n"
+        "你是学习主题规范化助手。将用户输入的学习主题规范化为标准名称。\n"
+        "主题可以是任何领域：技术、哲学、历史、音乐、经济学、心理学等都有效。\n"
         "规范化：将同义表达统一为最通用的中文名称，括号内附英文缩写（如有）。\n"
+        "宽泛主题（如'计算机'、'哲学'）：提供 3-5 个更具体的方向建议。\n"
         "只输出 JSON。"
     )
     user_prompt = (
         f"用户输入的主题：{topic}\n\n"
         "返回 JSON：\n"
-        '{"valid": true/false, "canonicalTopic": "规范化名称", '
-        '"narrowSuggestions": ["细化方向1", "细化方向2"] 或 null, '
-        '"reason": "拒绝原因" 或 null}'
+        '{"canonicalTopic": "规范化名称", '
+        '"narrowSuggestions": ["细化方向1", "细化方向2"] 或 null}'
     )
     return system_prompt, user_prompt
 

@@ -32,8 +32,8 @@ export default function LocaleHome({ params }: { params: { locale: Locale } }) {
         <GenerateForm locale={params.locale} />
         <p className="mt-3 text-xs text-[color:var(--color-muted)]/60 leading-relaxed">
           {isZh
-            ? '课程生成约需 10-20 分钟，期间请不要关闭页面。你可以切到其他标签页做别的事情。'
-            : 'Course generation takes ~10-20 min. Keep this tab open — you can switch tabs while waiting.'}
+            ? '课程生成约需 20-40 分钟，期间请不要关闭网页。'
+            : 'Course generation takes ~20-40 min. Please keep this page open.'}
         </p>
       </section>
 

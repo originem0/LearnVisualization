@@ -62,7 +62,7 @@ export default function CourseList({ initialCourses, locale }: CourseListProps) 
         {courses.map((course) => (
           <div key={course.slug} className="flex items-center justify-between py-3 gap-3">
             <Link
-              href={`/${locale}/courses/${course.slug}/${course.firstModuleSlug}/`}
+              href={`/${locale}/courses/${course.slug}/`}
               className="flex-1 text-sm font-medium text-[color:var(--color-text)] transition-colors hover:text-[color:var(--color-accent)]"
             >
               {course.title}
