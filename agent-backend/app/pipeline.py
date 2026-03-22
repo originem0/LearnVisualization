@@ -574,9 +574,9 @@ class CourseGenerationPipeline:
                     raise
                 except Exception as exc:
                     last_error = exc
-                    import time
-                    time.sleep(1.0 * (2 ** attempt))
-            raise last_error  # type: ignore[misc]
+                    import time, random
+                    time.sleep(3.0 * (2 ** attempt) + random.uniform(0, 1))
+            raise type(last_error)(f"模块 {outline['id']}（{outline['title']}）生成失败: {last_error}") if last_error else RuntimeError("unknown error")
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -632,7 +632,8 @@ class CourseGenerationPipeline:
             first_error = next(iter(errors.values()))
             if len(errors) == 1:
                 raise first_error
-            raise type(first_error)(f"{len(errors)} modules failed ({', '.join(failed_ids)}): {first_error}")
+            summary = "; ".join(f"{mid}" for mid in failed_ids)
+            raise type(first_error)(f"{len(errors)} 个模块生成失败（{summary}）: {first_error}")
 
         # Sort modules by id to ensure consistent ordering
         modules.sort(key=lambda m: m["id"])
