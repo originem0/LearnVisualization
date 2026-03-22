@@ -208,7 +208,6 @@ def _rebuild_static_site() -> None:
             print(f"[rebuild] Build error: {exc}", file=sys.stderr)
         finally:
             _build_lock.release()
-            print(f"[rebuild] Build error: {exc}", file=sys.stderr)
 
     threading.Thread(target=_build, daemon=True).start()
 
