@@ -64,18 +64,11 @@ interface CoursePackage {
   // 学习路径（可多条）
   paths: LearningPath[];
 
-  // 间隔复习策略
-  spacingDefaults: {
-    initialDelayModules: number;         // 首次复习间隔（模块数）
-    expansionFactor: number;             // 间隔扩展系数
-    interleavingPolicy: 'none' | 'within-unit' | 'across-units';
-  };
+  // 间隔复习策略（不适用于当前公开展示定位，保留 schema 定义供未来参考）
+  // spacingDefaults: { ... };
 
-  // 掌握度策略
-  masteryPolicy: {
-    defaultThreshold: number;            // 0-1，达标分数
-    decayEnabled: boolean;               // 是否允许技能衰减
-  };
+  // 掌握度策略（不适用于当前公开展示定位）
+  // masteryPolicy: { ... };
 }
 
 interface LearningGoal {
