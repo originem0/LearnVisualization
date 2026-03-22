@@ -58,7 +58,7 @@ export default function KnowledgeMap({ categories, modules, locale, basePath = `
                   return (
                     <div key={mod.id} className="flex items-center">
                       <Link
-                        href={`/${locale}/${slug}/`}
+                        href={`${basePath}/${slug}/`}
                         className={`relative block rounded-lg border px-3 py-2.5 transition-all ${
                           isHovered
                             ? `${styles.border} shadow-md scale-[1.03] ${styles.soft}`
