@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 interface AttentionData {
   tokens: string[];
@@ -61,11 +61,15 @@ export default function AttentionHeatmap() {
   const sentence = SENTENCES[sentenceIdx];
   const { tokens, weights } = sentence.data;
   const selectedWeights = weights[selectedToken] ?? [];
-  const maxWeight = Math.max(...selectedWeights, 0);
-  const rankedTargets = tokens
-    .map((token, index) => ({ token, index, weight: selectedWeights[index] ?? 0 }))
-    .sort((a, b) => b.weight - a.weight);
-  const topTargets = rankedTargets.filter((item) => item.index !== selectedToken).slice(0, 3);
+
+  const { maxWeight, topTargets } = useMemo(() => {
+    const max = Math.max(...selectedWeights, 0);
+    const ranked = tokens
+      .map((token, index) => ({ token, index, weight: selectedWeights[index] ?? 0 }))
+      .sort((a, b) => b.weight - a.weight);
+    const top = ranked.filter((item) => item.index !== selectedToken).slice(0, 3);
+    return { maxWeight: max, topTargets: top };
+  }, [selectedToken, sentenceIdx, selectedWeights, tokens]);
 
   const handleSentenceChange = (idx: number) => {
     setSentenceIdx(idx);
@@ -73,7 +77,10 @@ export default function AttentionHeatmap() {
     setShowMatrix(false);
   };
 
-  const focusSummary = describeAttentionFocus(sentenceIdx, selectedToken, tokens[selectedToken], topTargets);
+  const focusSummary = useMemo(
+    () => describeAttentionFocus(sentenceIdx, selectedToken, tokens[selectedToken], topTargets),
+    [sentenceIdx, selectedToken, tokens, topTargets],
+  );
 
   return (
     <div className="my-8 overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-panel)]">

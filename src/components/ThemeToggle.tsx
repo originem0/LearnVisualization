@@ -18,11 +18,10 @@ export default function ThemeToggle({ locale }: { locale: Locale }) {
     const root = document.documentElement;
     if (nextDark) {
       root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
     } else {
       root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
     }
+    try { localStorage.setItem('theme', nextDark ? 'dark' : 'light'); } catch { /* quota/private mode */ }
   };
 
   return (

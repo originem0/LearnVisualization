@@ -202,3 +202,59 @@ test('scaffold fixture package is blocked from promotion', (t) => {
   assert.ok(result.issuesByCategory.scaffold.errors.length > 0);
   assert.ok(result.issuesByCategory.review.errors.length > 0);
 });
+
+test('missing non-critical content fields produce warnings not errors', (t) => {
+  // Create a package with minimal module — missing subtitle, focusQuestion,
+  // keyInsight, concepts, logicChain. Only title and narrative are present.
+  const packageDir = mkdtempSync(join(tmpdir(), 'engine-lenient-'));
+  t.after(() => rmSync(packageDir, { recursive: true, force: true }));
+
+  mkdirSync(join(packageDir, 'modules'), { recursive: true });
+  mkdirSync(join(packageDir, 'visuals'), { recursive: true });
+  mkdirSync(join(packageDir, 'interactions'), { recursive: true });
+  mkdirSync(join(packageDir, 'review'), { recursive: true });
+
+  writeJson(join(packageDir, 'course.json'), {
+    id: 'lenient-test', slug: 'lenient-test', title: 'Lenient Test',
+    subtitle: 'Test', goal: 'Test', projectType: 'mixed',
+    topic: 'test', language: 'zh', status: 'draft',
+    categories: [{ id: 'core', name: 'Core', color: 'blue' }],
+    audience: { primaryAudience: 'testers' },
+    learningGoals: ['Verify leniency'],
+    moduleGraph: { order: ['s01'], edges: [] },
+    modules: ['s01'],
+  });
+
+  // Module with only title + narrative (missing subtitle, focusQuestion, etc.)
+  writeJson(join(packageDir, 'modules', 's01.json'), {
+    id: 's01', number: 1, title: 'Minimal Module',
+    // subtitle: missing
+    // focusQuestion: missing
+    // keyInsight: missing
+    // concepts: missing
+    // logicChain: missing
+    category: 'core', moduleKind: 'concept-clarification',
+    primaryCognitiveAction: 'distinguish',
+    narrative: [
+      { type: 'text', content: 'A valid paragraph.' },
+      { type: 'heading', content: 'Section' },
+      { type: 'text', content: 'Another paragraph.' },
+    ],
+    bridgeTo: null, nextModuleId: null,
+  });
+
+  writeJson(join(packageDir, 'visuals', 'concept-maps.json'), {
+    s01: { title: 'Map', nodes: [{ id: 'a', label: ['A'], x: 0, y: 0, w: 80, h: 40 }], edges: [], svgW: 100, svgH: 100, ariaLabel: 'Map' },
+  });
+  writeJson(join(packageDir, 'interactions', 'registry.json'), {});
+  writeJson(join(packageDir, 'review', 'approval.json'), {
+    approved: true, reviewedBy: 'test', reviewedAt: '2026-01-01T00:00:00Z', notes: '',
+  });
+
+  const result = validateCoursePackage(resolve(packageDir));
+
+  // Should pass — missing non-critical fields are warnings, not errors
+  assert.equal(result.ok, true, `Expected ok=true but got errors: ${JSON.stringify(result.errors)}`);
+  // Should have warnings for the missing fields
+  assert.ok(result.warnings.length > 0, 'Should have warnings for missing fields');
+});

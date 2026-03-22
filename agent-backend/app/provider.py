@@ -44,6 +44,26 @@ class ProviderConfig:
     max_retries: int = 2
     fallback_model: str | None = None
 
+    # Path to runtime config file (overrides env vars, survives restarts)
+    _RUNTIME_CONFIG_PATH = Path(__file__).resolve().parent.parent / "runtime-config.json"
+
+    @classmethod
+    def _load_runtime_overrides(cls) -> dict[str, str]:
+        """Load runtime-config.json if it exists. Returns a dict of overrides."""
+        try:
+            if cls._RUNTIME_CONFIG_PATH.exists():
+                return json.loads(cls._RUNTIME_CONFIG_PATH.read_text("utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+        return {}
+
+    @classmethod
+    def save_runtime_config(cls, overrides: dict[str, str]) -> None:
+        """Write runtime overrides to runtime-config.json atomically."""
+        tmp = cls._RUNTIME_CONFIG_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(overrides, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(cls._RUNTIME_CONFIG_PATH)
+
     @classmethod
     def from_env(cls) -> "ProviderConfig":
         base_url = (  # single default profile for V1
@@ -56,6 +76,18 @@ class ProviderConfig:
         timeout_seconds = int(os.environ.get("AGENT_LLM_TIMEOUT_SECONDS") or "120")
         max_retries = int(os.environ.get("AGENT_LLM_MAX_RETRIES") or "2")
         fallback_model = os.environ.get("AGENT_LLM_FALLBACK_MODEL") or None
+
+        # runtime-config.json overrides env vars
+        rt = cls._load_runtime_overrides()
+        if rt.get("base_url"):
+            base_url = rt["base_url"]
+        if rt.get("model"):
+            model = rt["model"]
+        if rt.get("api_key"):
+            api_key = rt["api_key"]
+        if rt.get("fallback_model"):
+            fallback_model = rt["fallback_model"]
+
         return cls(
             base_url=base_url.rstrip("/"),
             model=model,

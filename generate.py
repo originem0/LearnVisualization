@@ -121,7 +121,7 @@ narrative 数组支持的 block 类型（只用这些）：
 
 字段约束：
 - moduleKind: concept-clarification|mechanism-walkthrough|system-overview|case-study|meta-reflection|integration-review
-- primaryCognitiveAction: distinguish|trace|compare|simulate|rebuild|reflect
+- primaryCognitiveAction: distinguish|trace|compare|simulate|rebuild|reflect|analyze
 - interactionRequirements.capability: compare|step-through|simulate|trace|classify|rebuild|retrieve|parameter-play
 - interactionRequirements.priority: core|secondary
 - retrievalPrompts.type: fill-gap|rebuild-map|compare-variants|predict-next-step

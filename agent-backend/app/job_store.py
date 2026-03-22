@@ -228,6 +228,18 @@ class JobStore:
             try:
                 fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             except FileExistsError:
+                # Check for stale lock (process that created it is gone)
+                try:
+                    pid_str = lock_path.read_text().strip()
+                    if pid_str.isdigit():
+                        try:
+                            os.kill(int(pid_str), 0)
+                        except OSError:
+                            # Process is dead — remove stale lock
+                            lock_path.unlink(missing_ok=True)
+                            continue
+                except (OSError, ValueError):
+                    pass
                 if time.time() - start > timeout_seconds:
                     raise TimeoutError(f"timed out acquiring job lock for {job_id}")
                 time.sleep(0.05)

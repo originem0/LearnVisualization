@@ -90,34 +90,17 @@ Agent 生成单个模块时必须：
 
 ---
 
-## 四、质量检查规则
+## 四、质量控制策略
 
-quality.py 执行的自动检查（Agent 和人工内容都要过）：
-
-### 4.1 文本特异性检查
-- 检测模板化语言（"结构化理解"、"关键问题"等）
-- 误解、开场、keyInsight 不能包含这些模式
-- 严重度：error（阻止导出）
-
-### 4.2 结构完整性检查
-- 所有必选字段存在且非空
-- narrative 至少 6 块，包含 steps + callout
-- examples 至少 2 个，每个 ≥ 20 字符
-- logicChain 4-8 步
-
-### 4.3 认知层级检查（v3 新增）
-- 全课程检索练习的 bloomLevel 分布
-- remember 层占比 ≤ 30%
-- 至少有 1 个 analyze 以上的检索
-
-### 4.4 知识类型一致性检查（v3 新增）
-- 模块声明的 knowledgeTypes 与实际内容一致
-- 程序性模块必须有 steps 或 trace 块
-- 概念性模块必须有 comparison 或概念侧边栏内容
-
-### 4.5 Worked Example 渐退检查（v3 新增）
-- 如果模块有多个练习，脚手架级别不能全是 full
-- 课程后半段的模块应有 faded 或 free 级别练习
+> **架构决策（2026-03-22）**：`run_quality_checks` 已移除。内容质量由 prompt 层控制，不由校验层阻断。
+>
+> 原因：质量检查（模板化语言检测、examples 长度、steps 块要求等）在实际运行中反复误杀合法内容（哲学课程无 steps、人文主题 examples 短于 20 字），且检查结果无消费者——用户看不到 warning，也无法手动修复。唯一的效果是阻断导出。
+>
+> 当前策略：
+> - **prompt 层**：在系统提示中注入学习科学理论（Merrill、Bloom、Sweller、Bjork、Mayer、Novak），让 LLM 理解 WHY 而非只遵守 WHAT，对任意主题都能做出正确的教学设计判断
+> - **normalize 层**：结构完整性检查（必需字段存在性），缺失字段给 fallback 而非 raise
+> - **engine 层**：仅 title 缺失和 narrative 为空是 error，其余降级为 warning
+> - **前端层**：未知叙事块类型通过 fallback 渲染链映射到已有视觉模式，不丢失内容
 
 ---
 

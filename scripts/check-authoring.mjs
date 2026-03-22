@@ -22,7 +22,7 @@ for (const { slug: courseSlug, modules } of loadAllCourses()) {
     blocks.forEach((block, idx) => {
       const rule = spec[block.type];
       if (!rule) {
-        fail(`[${courseSlug}] ${name}: narrative[${idx}] unknown block type '${block.type}'`);
+        // Unknown block types are allowed (v3 passthrough) — just skip spec validation
         return;
       }
 

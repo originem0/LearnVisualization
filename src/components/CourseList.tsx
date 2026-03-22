@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { Locale } from '@/lib/i18n';
 
@@ -23,6 +23,18 @@ interface CourseListProps {
 export default function CourseList({ initialCourses, locale }: CourseListProps) {
   const [courses, setCourses] = useState(initialCourses);
   const isZh = locale === 'zh';
+
+  // Hydrate from live API to reflect deletions/additions since last build
+  useEffect(() => {
+    fetch(`${AGENT_BACKEND_URL}/courses`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.courses || data.courses.length === 0) return;
+        const liveSlugs = new Set(data.courses.map((c: CourseEntry) => c.slug));
+        setCourses((prev) => prev.filter((c) => liveSlugs.has(c.slug)));
+      })
+      .catch(() => {});
+  }, []);
 
   if (courses.length === 0) return null;
 

@@ -560,23 +560,24 @@ export function validateCoursePackage(input, options = {}) {
   }
 
   for (const module of compiled.modules) {
+    // Only truly structural checks remain as errors
     if (!module.title) {
       issues.push(createIssue('content', 'error', 'missing title', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!module.subtitle) {
-      issues.push(createIssue('content', 'error', 'missing subtitle', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing subtitle', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!module.focusQuestion) {
-      issues.push(createIssue('content', 'error', 'missing focusQuestion', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing focusQuestion', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!module.keyInsight) {
-      issues.push(createIssue('content', 'error', 'missing keyInsight', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing keyInsight', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!module.moduleKind) {
-      issues.push(createIssue('content', 'error', 'missing moduleKind', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing moduleKind', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!module.primaryCognitiveAction) {
-      issues.push(createIssue('content', 'error', 'missing primaryCognitiveAction', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing primaryCognitiveAction', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!module.misconception) {
       issues.push(createIssue('content', 'warning', 'missing misconception', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
@@ -588,20 +589,20 @@ export function validateCoursePackage(input, options = {}) {
       issues.push(createIssue('content', 'error', 'missing narrative (empty or absent)', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     } else if (module.narrative.length < 3) {
       issues.push(
-        createIssue('content', 'error', `narrative too short (${module.narrative.length} blocks, need >=3)`, {
+        createIssue('content', 'warning', `narrative too short (${module.narrative.length} blocks, need >=3)`, {
           moduleId: module.id,
           path: resolve(source.modulesDir, `${module.id}.json`),
         }),
       );
     }
     if (module.number < totalModules && !module.bridgeTo) {
-      issues.push(createIssue('content', 'error', 'missing bridgeTo (not last module)', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing bridgeTo (not last module)', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!Array.isArray(module.concepts) || module.concepts.length === 0) {
-      issues.push(createIssue('content', 'error', 'missing concepts', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing concepts', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
     if (!Array.isArray(module.logicChain) || module.logicChain.length === 0) {
-      issues.push(createIssue('content', 'error', 'missing logicChain', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
+      issues.push(createIssue('content', 'warning', 'missing logicChain', { moduleId: module.id, path: resolve(source.modulesDir, `${module.id}.json`) }));
     }
   }
 

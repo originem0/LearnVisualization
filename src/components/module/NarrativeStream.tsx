@@ -1,9 +1,11 @@
 import type { NarrativeBlock, ConceptItem, CategoryColor } from '@/lib/types';
 import type { Locale } from '@/lib/i18n';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { NarrativeBlockRenderer } from '@/components/NarrativeRenderer';
 import ConceptSidebar from './ConceptSidebar';
 import type { NarrativeHeadingLink } from './narrative-headings';
+
+const SEPARATOR_TYPES = new Set(['callout', 'steps', 'diagram', 'comparison', 'code']);
 
 interface NarrativeStreamProps {
   narrative: NarrativeBlock[];
@@ -37,22 +39,21 @@ export default function NarrativeStream({
 }: NarrativeStreamProps) {
   if (narrative.length === 0) return null;
 
-  const sectionCount = Math.max(headings.length, 1);
-  const conceptsPerSection = Math.ceil(concepts.length / sectionCount);
-
-  const conceptGroups: ConceptItem[][] = [];
-  for (let s = 0; s < sectionCount; s++) {
-    conceptGroups.push(concepts.slice(s * conceptsPerSection, (s + 1) * conceptsPerSection));
-  }
+  const conceptGroups = useMemo(() => {
+    const sectionCount = Math.max(headings.length, 1);
+    const perSection = Math.ceil(concepts.length / sectionCount);
+    const groups: ConceptItem[][] = [];
+    for (let s = 0; s < sectionCount; s++) {
+      groups.push(concepts.slice(s * perSection, (s + 1) * perSection));
+    }
+    return groups;
+  }, [concepts, headings]);
 
   const secondaryTargetIndex = getSecondaryTargetIndex(headings, secondaryInteractionAfterHeading);
   let headingCount = 0;
   let secondaryInserted = false;
   let skipNext = false;
   let stepsBlockIndex = 0;
-
-  // Block types that represent a "shift in content mode" — get a separator before them
-  const separatorTypes = new Set(['callout', 'steps', 'diagram', 'comparison', 'code']);
 
   return (
     <article className="mx-auto w-full max-w-[54rem] pb-8 prose-custom">
@@ -61,7 +62,7 @@ export default function NarrativeStream({
 
         // Insert subtle separator before non-text/heading blocks (when previous block isn't a heading)
         const prevBlock = i > 0 ? narrative[i - 1] : null;
-        if (separatorTypes.has(block.type) && prevBlock && prevBlock.type !== 'heading') {
+        if (SEPARATOR_TYPES.has(block.type) && prevBlock && prevBlock.type !== 'heading') {
           elements.push(
             <hr key={`sep-${i}`} className="border-t border-[color:var(--color-border)] my-1 opacity-30" />
           );

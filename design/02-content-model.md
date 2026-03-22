@@ -328,5 +328,8 @@ v3 schema 是 v2 的超集。所有 v2 字段保持兼容：
 - `retrievalPrompts` 保留，`exercises` 是新增字段
 - `knowledgeTypes`、`bloomLevel`、`elementInteractivity` 是新增必选字段（v2 课程迁移时需补充）
 - `conceptGraph`、`spacingDefaults`、`masteryPolicy` 是新增可选字段
+- `exercises` 是新增字段，替代纯 `retrievalPrompts`
 
 v2 → v3 迁移策略：引擎在加载 v2 课程包时，对缺失的 v3 字段使用推断默认值（如 `knowledgeTypes` 默认为 `['conceptual']`，`bloomLevel` 默认为 `'understand'`）。
+
+> **当前落地状态（2026-03-22）**：v3 字段已通过 schema 透明化方案落地。normalize 层从白名单模式改为透传+修正模式——LLM 输出的 knowledgeTypes、bloomLevel、elementInteractivity、exercises 等 v3 字段会自动流入最终 JSON，无需为每个新字段编写提取代码。narrative 的 v3 块类型（reflection、analogy、expert-thought、trace、annotated-example、generation）在后端保留原始类型和字段，前端通过 fallback 渲染链映射到已有视觉模式。concepts 新增 relatedTo 字段支持 Novak 概念图命题式连接词。quality checks 已移除（内容质量由 prompt 控制，不由校验阻断）。engine 校验仅保留 title 和 narrative 存在性为 error，其余降级为 warning。

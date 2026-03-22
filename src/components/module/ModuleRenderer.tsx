@@ -18,6 +18,7 @@ import RuntimePlaceholderCard from './RuntimePlaceholderCard';
 import ModuleNav from '@/components/ModuleNav';
 import ConceptMapRenderer from '@/components/ConceptMapRenderer';
 import InteractionRenderer from '@/components/InteractionRenderer';
+import InteractionErrorBoundary from '@/components/InteractionErrorBoundary';
 import { resolveModuleInteractions, type ResolvedInteraction } from '@/lib/module-registry';
 import { getNarrativeHeadings } from './narrative-headings';
 import { layout } from '@/lib/design-tokens';
@@ -200,7 +201,9 @@ function renderInteractionSlot(interaction: ResolvedInteraction | null, moduleDa
     const Component = interaction.Component;
     return (
       <div className="mx-auto w-full max-w-[54rem] pb-8">
-        <Component />
+        <InteractionErrorBoundary>
+          <Component />
+        </InteractionErrorBoundary>
       </div>
     );
   }
@@ -214,7 +217,9 @@ function renderInteractionSlot(interaction: ResolvedInteraction | null, moduleDa
     if (matchingReq?.interactionData) {
       return (
         <div className="mx-auto w-full max-w-[54rem] pb-8">
-          <InteractionRenderer data={matchingReq.interactionData as any} />
+          <InteractionErrorBoundary>
+            <InteractionRenderer data={matchingReq.interactionData as any} />
+          </InteractionErrorBoundary>
         </div>
       );
     }

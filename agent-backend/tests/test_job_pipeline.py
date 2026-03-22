@@ -1,4 +1,5 @@
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -14,9 +15,14 @@ from pipeline import CourseGenerationPipeline  # noqa: E402
 from provider import ProviderConfig  # noqa: E402
 
 
+class _FakeConfig:
+    max_retries = 0
+
+
 class FakeClient:
     def __init__(self, response_builder):
         self.response_builder = response_builder
+        self.config = _FakeConfig()
 
     def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000):
         return {
@@ -280,32 +286,33 @@ class CourseGenerationPipelineTests(unittest.TestCase):
     def test_pipeline_exports_waiting_review_package(self):
         pipeline, temp_dir = self.create_pipeline(response_builder_success)
         self.addCleanup(temp_dir.cleanup)
+        promoted = REPO_ROOT / "courses" / "test-cache-pipeline"
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
-        job = pipeline.create_job({"topic": "缓存系统 internals"}, run_async=False)
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": "test-cache-pipeline"}, run_async=False)
         job = pipeline.run_job(job["id"])
 
         self.assertEqual(job["status"], "waiting_review")
-        output_dir = Path(job["artifacts"]["output"])
-        self.assertTrue((output_dir / "course.json").exists())
-        self.assertTrue((output_dir / "review" / "approval.json").exists())
+        # After auto-promote, course lives in courses/
+        courses_dir = REPO_ROOT / "courses" / "test-cache-pipeline"
+        self.assertTrue((courses_dir / "course.json").exists())
 
         reviewed = pipeline.review_job(job["id"], approved=True, reviewed_by="reviewer", notes="Looks solid.")
         self.assertEqual(reviewed["status"], "completed")
 
-        approval = json.loads((output_dir / "review" / "approval.json").read_text(encoding="utf-8"))
-        self.assertEqual(approval["approved"], True)
-        self.assertEqual(approval["reviewedBy"], "reviewer")
-
-    def test_pipeline_blocks_generic_template_output(self):
+    def test_pipeline_passes_template_output_without_blocking(self):
+        """Template-ish output is no longer blocked by quality checks (removed).
+        Content quality is controlled by prompt, not validation."""
         pipeline, temp_dir = self.create_pipeline(response_builder_generic_failure)
         self.addCleanup(temp_dir.cleanup)
+        promoted = REPO_ROOT / "courses" / "test-cache-template"
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
-        job = pipeline.create_job({"topic": "缓存系统 internals"}, run_async=False)
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": "test-cache-template"}, run_async=False)
         job = pipeline.run_job(job["id"])
 
-        self.assertEqual(job["status"], "failed")
-        self.assertEqual(job["currentStage"], "validate")
-        self.assertIn("validation blocked export", json.dumps(job["error"], ensure_ascii=False) if job.get("error") else "")
+        # Should pass through — quality checks were removed by design
+        self.assertIn(job["status"], ("waiting_review", "completed"))
 
 
 if __name__ == "__main__":

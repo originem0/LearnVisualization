@@ -259,7 +259,7 @@ export default function GenerateForm({ locale }: { locale: string }) {
       if (mountedRef.current) setJobs(updated);
     };
 
-    pollRef.current = setInterval(poll, 3000);
+    pollRef.current = setInterval(poll, 5000);
     return stopPolling;
   }, [jobs, fetchJob, stopPolling]);
 
@@ -341,8 +341,8 @@ export default function GenerateForm({ locale }: { locale: string }) {
       if (fresh) {
         setJobs((prev) => prev.map((j) => (j.id === jobId ? fresh : j)));
       }
-    } catch {
-      // will update on next poll
+    } catch (err) {
+      console.error('[handleCancel]', err);
     }
   }
 
@@ -360,8 +360,9 @@ export default function GenerateForm({ locale }: { locale: string }) {
       }
       removeJobId(jobId);
       setJobs((prev) => prev.filter((j) => j.id !== jobId));
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('[handleDelete]', err);
+      alert(isZh ? '删除失败，请稍后重试' : 'Delete failed, please try again');
     }
   }
 

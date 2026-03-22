@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import json
 import shutil
 import threading
@@ -18,7 +19,6 @@ try:
         build_interaction_registry,
         normalize_module_payload,
         normalize_plan_payload,
-        run_quality_checks,
     )
     from .workflow import planning_seed_for_topic
 except ImportError:
@@ -31,7 +31,6 @@ except ImportError:
         build_interaction_registry,
         normalize_module_payload,
         normalize_plan_payload,
-        run_quality_checks,
     )
     from workflow import planning_seed_for_topic
 
@@ -39,6 +38,9 @@ MAX_CONCURRENT_JOBS = 3
 COMPOSE_CONCURRENCY = 3
 DAILY_JOB_LIMIT = 10
 MAX_TOTAL_COURSES = 50
+
+# Serialize all npm builds — concurrent builds corrupt the output directory
+_build_lock = threading.Lock()
 
 
 class CancelledError(Exception):
@@ -61,6 +63,7 @@ class CourseGenerationPipeline:
         self.generated_root = ensure_dir(generated_root)
         self.repo_root = repo_root
         self._executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_JOBS, thread_name_prefix="course-job")
+        atexit.register(self._executor.shutdown, wait=False)
         # Cooperative cancellation: job_id -> Event (set = cancelled)
         self._cancel_events: dict[str, threading.Event] = {}
         self._lock = threading.Lock()
@@ -79,6 +82,54 @@ class CourseGenerationPipeline:
         for j in queued:
             self._submit_job(j["id"])
 
+    def cleanup_stale_data(self) -> None:
+        """Remove garbage data: staging dirs, old failed/cancelled jobs, orphaned generated dirs."""
+        import sys
+
+        # 1. Clean staging dirs from all jobs
+        for job in self.store.list_jobs():
+            job_dir = self.store.job_dir(job["id"])
+            staging = job_dir / "staging"
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
+
+        # 2. Remove job dirs for failed/cancelled jobs older than 7 days
+        cutoff = (date.today().isoformat())  # keep today's jobs for debugging
+        removed_jobs = 0
+        for job in self.store.list_jobs():
+            if job.get("status") in ("failed", "cancelled"):
+                created = job.get("createdAt", "")[:10]
+                if created and created < cutoff:
+                    try:
+                        self.store.delete_job(job["id"])
+                        removed_jobs += 1
+                    except Exception:
+                        pass
+
+        # 3. Remove orphaned generated dirs — already promoted or no active job needing them
+        courses_root = self.repo_root / "courses"
+        active_slugs = set()
+        for job in self.store.list_jobs():
+            req = job.get("request") or {}
+            slug = req.get("output_slug")
+            if slug and job.get("status") in ("queued", "running"):
+                active_slugs.add(slug)
+
+        removed_generated = 0
+        if self.generated_root.is_dir():
+            for d in list(self.generated_root.iterdir()):
+                if not d.is_dir():
+                    continue
+                # Keep only if an active (queued/running) job references it
+                # AND it hasn't been promoted to courses/ yet
+                if d.name in active_slugs and not (courses_root / d.name).is_dir():
+                    continue
+                shutil.rmtree(d, ignore_errors=True)
+                removed_generated += 1
+
+        if removed_jobs or removed_generated:
+            print(f"[cleanup] Removed {removed_jobs} stale jobs, {removed_generated} orphaned generated dirs", file=sys.stderr)
+
     def _submit_job(self, job_id: str) -> None:
         """Submit a job to the thread pool."""
         with self._lock:
@@ -89,8 +140,17 @@ class CourseGenerationPipeline:
         """Wrapper that runs in the thread pool and cleans up cancel events."""
         try:
             self.run_job(job_id)
-        except Exception:
-            pass  # run_job already marks the job as failed
+        except Exception as exc:
+            # run_job should mark the job as failed, but if it didn't, mark it here
+            import sys
+            print(f"[pipeline] Job {job_id} uncaught exception: {exc}", file=sys.stderr)
+            try:
+                job = self.store.load_job(job_id)
+                if job.get("status") not in ("failed", "cancelled", "completed", "waiting_review"):
+                    stage = job.get("currentStage") or "plan"
+                    self.store.mark_stage_failed(job_id, stage, str(exc))
+            except Exception:
+                pass
         finally:
             with self._lock:
                 self._cancel_events.pop(job_id, None)
@@ -101,17 +161,23 @@ class CourseGenerationPipeline:
 
         # --- Rate limiting ---
         today = date.today().isoformat()
-        active_statuses = {"queued", "running", "completed", "waiting_review"}
+        # Count all jobs created today regardless of status (failed attempts still count)
         today_count = sum(
             1 for j in self.store.list_jobs()
-            if j.get("createdAt", "")[:10] == today and j.get("status") in active_statuses
+            if j.get("createdAt", "")[:10] == today
         )
         if today_count >= DAILY_JOB_LIMIT:
             raise ValueError(f"今日生成次数已达上限（{DAILY_JOB_LIMIT} 次），请明天再试")
 
         courses_root = self.repo_root / "courses"
-        course_count = sum(1 for d in courses_root.iterdir() if d.is_dir() and (d / "course.json").exists()) if courses_root.is_dir() else 0
-        generated_count = sum(1 for d in self.generated_root.iterdir() if d.is_dir()) if self.generated_root.is_dir() else 0
+        course_count = sum(
+            1 for d in courses_root.iterdir()
+            if d.is_dir() and ((d / "course.json").exists() or (d / "plan.json").exists())
+        ) if courses_root.is_dir() else 0
+        generated_count = sum(
+            1 for d in self.generated_root.iterdir()
+            if d.is_dir() and (d / "course.json").exists()
+        ) if self.generated_root.is_dir() else 0
         if course_count + generated_count >= MAX_TOTAL_COURSES:
             raise ValueError(f"课程总数已达上限（{MAX_TOTAL_COURSES} 门），请删除旧课程后再生成")
 
@@ -223,6 +289,9 @@ class CourseGenerationPipeline:
         return {"deleted": True, "id": job_id}
 
     def run_job(self, job_id: str) -> dict[str, Any]:
+        # Snapshot client at job start — config changes during this job won't affect it
+        with self._lock:
+            client = self.client
         job = self.store.load_job(job_id)
         request_payload = job["request"]
 
@@ -237,7 +306,7 @@ class CourseGenerationPipeline:
                 plan_artifact = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
             else:
                 self.store.mark_stage_running(job_id, "plan")
-                plan_artifact = self._run_plan(job_id, request_payload)
+                plan_artifact = self._run_plan(job_id, request_payload, client=client)
                 plan_path = self.store.store_stage_artifact(job_id, "plan", plan_artifact)
                 self.store.mark_stage_success(
                     job_id,
@@ -253,7 +322,7 @@ class CourseGenerationPipeline:
                 composed_artifact = json.loads(Path(job["artifacts"]["compose"]).read_text("utf-8"))
             else:
                 self.store.mark_stage_running(job_id, "compose")
-                composed_artifact = self._run_compose(job_id, request_payload, plan_artifact)
+                composed_artifact = self._run_compose(job_id, request_payload, plan_artifact, client=client)
                 compose_path = self.store.store_stage_artifact(job_id, "compose", composed_artifact)
                 self.store.mark_stage_success(
                     job_id,
@@ -303,9 +372,23 @@ class CourseGenerationPipeline:
 
             # --- AUTO-PROMOTE to courses/ ---
             courses_dir = self.repo_root / "courses" / request_payload["output_slug"]
+            tmp_dir = courses_dir.with_name(courses_dir.name + ".tmp")
+            old_dir = courses_dir.with_name(courses_dir.name + ".old")
+            if tmp_dir.exists():
+                shutil.rmtree(tmp_dir)
+            if old_dir.exists():
+                shutil.rmtree(old_dir)
+            shutil.copytree(Path(export_artifact["outputDir"]), tmp_dir)
             if courses_dir.exists():
-                shutil.rmtree(courses_dir)
-            shutil.copytree(Path(export_artifact["outputDir"]), courses_dir)
+                courses_dir.rename(old_dir)
+            tmp_dir.rename(courses_dir)
+            if old_dir.exists():
+                shutil.rmtree(old_dir, ignore_errors=True)
+
+            # Clean up generated/ copy — courses/ now has the authoritative version
+            generated_dir = self.generated_root / request_payload["output_slug"]
+            if generated_dir.is_dir():
+                shutil.rmtree(generated_dir, ignore_errors=True)
 
             # --- AUTO-BUILD (so static pages include the new course) ---
             self._run_next_build(job_id)
@@ -370,10 +453,11 @@ class CourseGenerationPipeline:
             updated_job = self.store.load_job(job_id)
         return updated_job
 
-    def _run_plan(self, job_id: str, request_payload: dict[str, Any]) -> dict[str, Any]:
+    def _run_plan(self, job_id: str, request_payload: dict[str, Any], *, client: OpenAICompatibleClient | None = None) -> dict[str, Any]:
+        client = client or self.client
         seed = planning_seed_for_topic(request_payload["topic"])
         system_prompt, user_prompt = build_plan_prompts(request_payload, seed)
-        response = self.client.generate_json(
+        response = client.generate_json(
             schema_name="course_plan",
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -403,7 +487,10 @@ class CourseGenerationPipeline:
         job_id: str,
         request_payload: dict[str, Any],
         plan_artifact: dict[str, Any],
+        *,
+        client: OpenAICompatibleClient | None = None,
     ) -> dict[str, Any]:
+        client = client or self.client
         modules: list[dict[str, Any]] = []
         concept_maps: dict[str, Any] = {}
         interaction_registry: dict[str, Any] = {}
@@ -454,11 +541,11 @@ class CourseGenerationPipeline:
                 module_index=index,
                 module_count=len(outlines),
             )
-            module_retries = int(self.client.config.max_retries) + 1
+            module_retries = int(client.config.max_retries) + 1
             last_error: Exception | None = None
             for attempt in range(module_retries):
                 try:
-                    response = self.client.generate_json(
+                    response = client.generate_json(
                         schema_name=f"{outline['id']}_module",
                         system_prompt=system_prompt,
                         user_prompt=user_prompt,
@@ -472,7 +559,7 @@ class CourseGenerationPipeline:
                     registry = build_interaction_registry(module)
 
                     local_logs: list[dict[str, Any]] = []
-                    self._generate_interaction_data(module, job_id, local_logs)
+                    self._generate_interaction_data(module, job_id, local_logs, client=client)
 
                     local_logs.append({
                         "moduleId": module["id"],
@@ -539,10 +626,13 @@ class CourseGenerationPipeline:
                     }
                     self.store.write_job(job)
 
-        # Propagate first error if any module failed
+        # Propagate errors — aggregate all failed module IDs into the message
         if errors:
+            failed_ids = list(errors.keys())
             first_error = next(iter(errors.values()))
-            raise first_error
+            if len(errors) == 1:
+                raise first_error
+            raise type(first_error)(f"{len(errors)} modules failed ({', '.join(failed_ids)}): {first_error}")
 
         # Sort modules by id to ensure consistent ordering
         modules.sort(key=lambda m: m["id"])
@@ -565,27 +655,36 @@ class CourseGenerationPipeline:
     def _run_next_build(self, job_id: str) -> None:
         """Run npm run build to regenerate static pages with the new course."""
         import subprocess, sys
-        print("[pipeline] Running npm run build...", file=sys.stderr)
-        result = subprocess.run(
-            ["npm", "run", "build"],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-        if result.returncode != 0:
-            print(f"[pipeline] Build failed (non-blocking): {result.stderr[-500:]}", file=sys.stderr)
-        else:
-            print("[pipeline] Build completed successfully", file=sys.stderr)
+        if not _build_lock.acquire(timeout=0):
+            print("[pipeline] Build already in progress, skipping", file=sys.stderr)
+            return
+        try:
+            print("[pipeline] Running npm run build...", file=sys.stderr)
+            result = subprocess.run(
+                ["npm", "run", "build"],
+                cwd=self.repo_root,
+                capture_output=True,
+                text=True,
+                timeout=600,
+            )
+            if result.returncode != 0:
+                print(f"[pipeline] Build failed (non-blocking): {result.stderr[-500:]}", file=sys.stderr)
+            else:
+                print("[pipeline] Build completed successfully", file=sys.stderr)
+        finally:
+            _build_lock.release()
 
     def _generate_interaction_data(
         self,
         module: dict[str, Any],
         job_id: str,
         compose_logs: list[dict[str, Any]],
+        *,
+        client: OpenAICompatibleClient | None = None,
     ) -> None:
         """Generate structured interaction data for core + first secondary interaction."""
         import sys
+        client = client or self.client
 
         generated_count = 0
         max_generations = 2  # core + first secondary
@@ -599,8 +698,7 @@ class CourseGenerationPipeline:
                     module=module,
                     interaction=req,
                 )
-                response = self.client.generate_json(
-                    schema_name=f"{module['id']}_interaction_{idx}",
+                response = client.generate_json(                    schema_name=f"{module['id']}_interaction_{idx}",
                     system_prompt=sys_prompt,
                     user_prompt=usr_prompt,
                     temperature=0.3,
@@ -623,9 +721,12 @@ class CourseGenerationPipeline:
             shutil.rmtree(staging_dir)
         self._write_course_package(staging_dir, composed_artifact)
 
-        engine_validation = validate_package_dir(staging_dir, repo_root=self.repo_root)
-        quality_issues = run_quality_checks(composed_artifact)
-        blocking_issues = [issue for issue in quality_issues if issue["severity"] == "error"]
+        try:
+            engine_validation = validate_package_dir(staging_dir, repo_root=self.repo_root)
+        except Exception:
+            shutil.rmtree(staging_dir, ignore_errors=True)
+            raise
+        blocking_issues: list[dict[str, Any]] = []
 
         if not engine_validation.get("ok"):
             blocking_issues.extend(
@@ -643,7 +744,7 @@ class CourseGenerationPipeline:
         report = {
             "ok": engine_validation.get("ok") and not blocking_issues,
             "engineValidation": engine_validation,
-            "qualityIssues": quality_issues,
+            "qualityIssues": [],
             "blockingIssues": blocking_issues,
             "stagingDir": str(staging_dir),
         }

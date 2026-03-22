@@ -24,10 +24,12 @@ export interface StepItem {
 }
 
 export interface NarrativeBlock {
-  type: 'heading' | 'text' | 'code' | 'diagram' | 'comparison' | 'callout' | 'steps';
+  type: string;
   content: string;
   label?: string;
   steps?: StepItem[];
+  // v3 passthrough fields
+  [key: string]: unknown;
 }
 
 export interface DialogTurn {

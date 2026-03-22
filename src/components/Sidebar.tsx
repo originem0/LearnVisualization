@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Category } from '@/lib/types';
@@ -18,11 +19,19 @@ interface SidebarProps {
 export default function Sidebar({ categories, modules, locale, basePath = `/${locale}` }: SidebarProps) {
   const pathname = usePathname();
 
+  const groupedByCategory = useMemo(() => {
+    const map = new Map<string, CourseModule[]>();
+    for (const cat of categories) {
+      map.set(cat.id, modules.filter((m) => m.category === cat.id));
+    }
+    return map;
+  }, [categories, modules]);
+
   return (
     <aside className="sticky top-24 hidden h-[calc(100vh-6rem)] w-48 flex-shrink-0 overflow-y-auto pr-1 xl:block 2xl:w-52">
       <div className="space-y-4">
         {categories.map((category) => {
-          const grouped = modules.filter((module) => module.category === category.id);
+          const grouped = groupedByCategory.get(category.id) ?? [];
           const styles = categoryStyles[category.color];
           const hasActiveChild = grouped.some(
             (m) => pathname === `${basePath}/${getModuleSlug(m.id)}` || pathname === `${basePath}/${getModuleSlug(m.id)}/`

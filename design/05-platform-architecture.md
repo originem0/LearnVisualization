@@ -57,15 +57,17 @@
 - **是什么**：Next.js 静态导出，构建时调用引擎获取数据
 - **渲染契约**：遵循 `03-rendering-contract.md`
 - **组件白名单**：`module-registry.ts` 控制允许加载的交互组件
-- **客户端状态**：localStorage 存储掌握度和练习历史
+- **客户端状态**：localStorage 存储掌握度和练习历史 **[未实现 — 设计目标，待推进]**
 - **不做**：数据校验（引擎已做）、内容生成（Agent 的事）
 
 ### Agent 后端
 - **是什么**：Python HTTP 服务，零外部依赖（标准库 + urllib）
-- **管线**：plan → compose → validate → export → review
-- **LLM 接入**：OpenAI 兼容 API（base_url + api_key）
-- **约束来源**：`04-agent-contract.md` 编码进 prompt 和 quality check
-- **不做**：前端渲染、静态构建
+- **管线**：plan → compose → validate → export → auto-promote → auto-build
+- **LLM 接入**：OpenAI 兼容 API（base_url + api_key），支持运行时热切换（runtime-config.json + 设置面板）
+- **约束来源**：学习科学理论编码进 prompt（Merrill、Bloom、Sweller、Bjork、Mayer、Novak），不依赖 quality check 阻断
+- **垃圾清理**：启动时自动清理 staging 残留、过期 failed/cancelled job、已 promote 的 generated 副本
+- **并发控制**：npm build 全局锁防止并发写坏 out/；compose 阶段线程池并发生成模块
+- **不做**：前端渲染、静态构建（但触发构建）
 
 ---
 
@@ -74,9 +76,9 @@
 ### 生成流（Agent → 课程）
 ```
 POST /jobs/course-generation {topic: "..."}
-  → plan 阶段: LLM 生成课程计划 → normalize → 保存 artifact
-  → compose 阶段: 逐模块 LLM 生成 → normalize → checkpoint
-  → validate 阶段: 引擎校验 + 质量检查 → 阻塞性问题则失败
+  → plan 阶段: LLM 生成课程计划 → normalize（透传+修正） → 保存 artifact
+  → compose 阶段: 逐模块 LLM 生成 → normalize → checkpoint（支持断点续传）
+  → validate 阶段: 引擎校验（仅结构性 error 阻断）
   → export 阶段: 写入 generated/{slug}/
   → 等待人工审核
   → POST /jobs/{id}/review {approved: true}
@@ -93,7 +95,7 @@ npm run build     — Next.js 静态构建
   → 输出 out/ 静态文件
 ```
 
-### 学习流（用户 → 客户端）
+### 学习流（用户 → 客户端）[未实现]
 ```
 用户访问 /zh/courses/{slug}/{moduleId}
   → 加载静态 HTML + JS bundle
@@ -110,11 +112,14 @@ npm run build     — Next.js 静态构建
 | 场景 | 处理方式 |
 |------|---------|
 | LLM 返回非法 JSON | provider.py 抛出 ProviderError，compose 阶段标记失败，可重试 |
-| LLM 输出不符合 schema | quality.py normalize 阶段修正（类型别名映射）或拒绝 |
-| 单模块生成失败 | 模块级 checkpoint 保存已完成模块，重试只重做失败模块 |
-| 引擎校验失败 | validate 阶段报告具体错误，阻止 export |
-| 质量检查发现阻塞问题 | 阻止 export，返回问题列表供 Agent/人工修复 |
-| 构建时课程包损坏 | prebuild check 失败，构建中止 |
+| LLM 输出缺少非核心字段 | normalize 层填充 fallback 默认值，不拒绝 |
+| LLM 输出包含未知字段/类型 | normalize 层透传保留，前端 fallback 渲染 |
+| 单模块生成失败 | 模块级 checkpoint 保存已完成模块，错误信息聚合所有失败模块 ID |
+| 引擎校验失败 | 仅 title 缺失和 narrative 为空阻止 export，其余降级为 warning |
+| 并发 npm build | 全局 _build_lock 串行化，后到的 build 跳过 |
+| 进程崩溃留下锁文件 | job_store 文件锁检测残留 PID，进程已死则清除 |
+| staging 目录泄漏 | validate 异常时清理；启动时 cleanup_stale_data 全量扫描 |
+| 构建时课程包损坏 | prebuild check 仅对已知块类型校验，未知类型跳过 |
 | 客户端 localStorage 损坏 | 降级为默认掌握度，不影响内容可读性 |
 
 ---
@@ -132,14 +137,15 @@ npm run build     — Next.js 静态构建
 ## 六、未来演进方向
 
 ### 短期（不改架构）
-- Agent 后端换用 FastAPI（消除手写路由和错误处理的脆弱性）
-- 文件锁换 SQLite（消除死锁风险）
-- 添加 Zod 运行时类型校验到 TypeScript/Python 边界
+- ~~Agent 后端换用 FastAPI~~ 当前手写路由 + 全局异常捕获已基本够用
+- ~~文件锁换 SQLite~~ 已实现 PID 检测的死锁防护
+- v3 叙事块专用渲染组件（reflection 黄色卡片、analogy 双栏映射等，当前用 fallback）
+- 基于 knowledgeTypes 的差异化布局（当前所有模块同一套布局）
 
 ### 中期（小改架构）
 - 客户端掌握度系统上线（localStorage + 条件渲染）
 - 概念图从装饰升级为可交互导航
-- 交互组件根据 moduleKind 自动匹配（替代手动 componentHint）
+- 练习系统前端渲染（exercises 数据已通过 pipeline 透传，需前端组件）
 
 ### 长期（重构架构）
 - 从纯静态导出升级为 ISR（增量静态再生成），支持动态课程

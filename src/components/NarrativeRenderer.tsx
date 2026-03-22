@@ -176,6 +176,16 @@ export function NarrativeBlockRenderer({ block }: { block: NarrativeBlock }) {
     case 'steps':
       return block.steps ? <NarrativeSteps label={block.label} steps={block.steps} /> : null;
     default:
-      return null;
+      // v3 types: map to existing visual patterns so content is never lost
+      if (block.type === 'reflection' || block.type === 'expert-thought')
+        return <NarrativeCallout content={block.content} />;
+      if (block.type === 'analogy')
+        return <NarrativeComparison content={block.content} label={block.label || '类比'} />;
+      if (block.type === 'trace' || block.type === 'annotated-example')
+        return <NarrativeCode content={block.content} label={block.label || block.type} />;
+      if (block.type === 'generation')
+        return <NarrativeCallout content={block.content} />;
+      // Ultimate fallback: render as text
+      return block.content ? <NarrativeText content={block.content} /> : null;
   }
 }
