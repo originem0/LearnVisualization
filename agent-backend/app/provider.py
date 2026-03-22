@@ -242,9 +242,10 @@ class OpenAICompatibleClient:
                         time.sleep(5.0 * (2 ** attempt) + random.uniform(0, 2))
                     continue
 
-                # Other retryable server errors
+                # Other retryable server errors (503 = overloaded, needs longer backoff)
                 if code in {500, 502, 503, 504} and attempt < self.config.max_retries:
-                    time.sleep(3.0 * (2 ** attempt) + random.uniform(0, 1))
+                    base = 10.0 if code == 503 else 3.0
+                    time.sleep(base * (2 ** attempt) + random.uniform(0, 2))
                     continue
 
                 human_msg = self._HTTP_ERRORS.get(code, f"HTTP {code}")

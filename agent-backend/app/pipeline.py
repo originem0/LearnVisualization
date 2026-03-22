@@ -35,7 +35,7 @@ except ImportError:
     from workflow import planning_seed_for_topic
 
 MAX_CONCURRENT_JOBS = 3
-COMPOSE_CONCURRENCY = 3
+COMPOSE_CONCURRENCY = 1
 DAILY_JOB_LIMIT = 10
 MAX_TOTAL_COURSES = 50
 
@@ -569,6 +569,9 @@ class CourseGenerationPipeline:
                         "usage": response["usage"],
                         "attempt": attempt + 1,
                     })
+                    # Pace requests to avoid overwhelming the provider
+                    import time as _time
+                    _time.sleep(2)
                     return (index, module, cmap, registry, local_logs)
                 except CancelledError:
                     raise
