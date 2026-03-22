@@ -1,4 +1,4 @@
-import type { Category, ConceptItem, DialogTurn, NarrativeBlock, PitfallItem } from '@/lib/types';
+import type { Category, ConceptItem, DialogTurn, Exercise, NarrativeBlock, PitfallItem } from '@/lib/types';
 
 export type CourseStatus = 'draft' | 'review' | 'published';
 export type CourseLanguage = 'zh';
@@ -121,6 +121,7 @@ export interface CourseModule {
   secondaryInteractionAfterHeading?: string;
 
   retrievalPrompts?: RetrievalPrompt[];
+  exercises?: Exercise[];
   introDialog?: DialogTurn[];
   bridgeTo?: string | null;
   nextModuleId?: string;

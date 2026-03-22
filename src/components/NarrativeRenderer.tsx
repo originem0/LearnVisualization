@@ -1,4 +1,33 @@
 import type { NarrativeBlock, StepItem } from '@/lib/types';
+import type { ReactNode } from 'react';
+
+/* ── Inline markdown parser ── */
+
+function parseInlineMarkdown(text: string): ReactNode[] {
+  // Pattern: **bold**, *italic*, `code`
+  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[2]) {
+      parts.push(<strong key={match.index} className="font-semibold">{match[2]}</strong>);
+    } else if (match[3]) {
+      parts.push(<em key={match.index}>{match[3]}</em>);
+    } else if (match[4]) {
+      parts.push(<code key={match.index} className="rounded bg-[#F3F4F6] px-1 py-0.5 text-[0.9em] font-mono dark:bg-[#073642]">{match[4]}</code>);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length > 0 ? parts : [text];
+}
 
 /* ── Narrative block renderers ── */
 
@@ -16,7 +45,7 @@ export function NarrativeText({ content }: { content: string }) {
     <div className="space-y-4">
       {paragraphs.map((p, i) => (
         <p key={i} className="text-base leading-[1.78] text-[color:var(--color-text)]">
-          {p}
+          {parseInlineMarkdown(p)}
         </p>
       ))}
     </div>

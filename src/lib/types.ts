@@ -32,6 +32,20 @@ export interface NarrativeBlock {
   [key: string]: unknown;
 }
 
+export interface Exercise {
+  id: string;
+  type: string;
+  bloomLevel?: string;
+  scaffoldLevel?: 'full' | 'faded-1' | 'faded-2' | 'free';
+  prompt: string;
+  responseType?: string;
+  hints?: string[];
+  answer?: string;
+  options?: string[];
+  pieces?: string[];
+  correctOrder?: string[];
+}
+
 export interface DialogTurn {
   role: 'learner' | 'guide';
   text: string;

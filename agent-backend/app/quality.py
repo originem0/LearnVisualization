@@ -30,6 +30,22 @@ ALLOWED_INTERACTION_CAPABILITIES = {
     "parameter-play",
 }
 ALLOWED_RETRIEVAL_PROMPTS = {"predict-next-step", "fill-gap", "rebuild-map", "compare-variants"}
+ALLOWED_EXERCISE_TYPES = {
+    "fill-blank", "rebuild-map", "compare-variants", "predict-next-step",
+    "classify", "explain", "free-response", "self-explanation", "trace-execution",
+}
+ALLOWED_SCAFFOLD_LEVELS = {"full", "faded-1", "faded-2", "free"}
+ALLOWED_RESPONSE_TYPES = {"select", "generate", "arrange", "code", "explain"}
+ALLOWED_BLOOM_LEVELS = {"remember", "understand", "apply", "analyze", "evaluate", "create"}
+GENERIC_PATTERNS = [
+    "结构化理解",
+    "资料堆砌",
+    "最关键的问题",
+    "关键结构讲到可复述",
+    "需要先建立最小概念边界",
+    "围绕这个机制",
+    "举一个例子",
+]
 
 
 def load_narrative_spec() -> dict[str, Any]:
@@ -306,6 +322,8 @@ def normalize_module_payload(
             }
         )
 
+    exercises = _normalize_exercises(payload.get("exercises"), module_outline["id"])
+
     # Start from LLM payload (passthrough), then overlay authoritative values
     normalized = {**payload}
     normalized.update({
@@ -324,6 +342,7 @@ def normalize_module_payload(
         "counterexamples": _to_clean_str_list(payload.get("counterexamples")),
         "pitfalls": _normalize_pitfalls(payload.get("pitfalls")),
         "narrative": narrative,
+        "exercises": exercises,
         "visuals": visuals,
         "interactionRequirements": interaction_requirements,
         "retrievalPrompts": retrieval_prompts,
@@ -630,6 +649,115 @@ def build_interaction_registry(module: dict[str, Any]) -> dict[str, Any]:
     return registry
 
 
+def run_quality_checks(package: dict[str, Any]) -> list[dict[str, Any]]:
+    issues: list[dict[str, Any]] = []
+    whitelist = load_frontend_component_whitelist()
+    modules = package.get("modules") or []
+    interactions = package.get("interaction_registry") or {}
+    concept_maps = package.get("concept_maps") or {}
+
+    for module in modules:
+        module_id = module["id"]
+        _check_text_specificity(issues, module_id, "misconception", module.get("misconception"))
+        _check_text_specificity(issues, module_id, "keyInsight", module.get("keyInsight"))
+        _check_text_specificity(issues, module_id, "opening", module.get("opening"))
+
+        focus_question = str(module.get("focusQuestion") or "")
+        if "?" not in focus_question and "？" not in focus_question:
+            issues.append(_issue("warning", module_id, "focus-question-shape", "focusQuestion should read like a real question"))
+        if "是什么" in focus_question:
+            issues.append(
+                _issue(
+                    "warning",
+                    module_id,
+                    "focus-question-generic",
+                    "focusQuestion still looks definition-first; sharpen the conflict, not just the term.",
+                )
+            )
+
+        # steps block check: severity depends on moduleKind
+        has_steps = any(block.get("type") == "steps" for block in module.get("narrative") or [])
+        if not has_steps:
+            module_kind = module.get("moduleKind", "")
+            if module_kind in {"mechanism-walkthrough", "system-overview", "integration-review"}:
+                issues.append(_issue("error", module_id, "worked-example-missing", "module narrative is missing a steps block"))
+            else:
+                issues.append(_issue("warning", module_id, "worked-example-missing", "module narrative has no steps block (optional for this moduleKind)"))
+
+        # exercises check
+        exercises = module.get("exercises") or []
+        if not exercises:
+            issues.append(_issue("warning", module_id, "exercises-empty", "module has no exercises"))
+
+        normalized_blocks = [re.sub(r"\s+", " ", str(block.get("content") or "")).strip() for block in module.get("narrative") or []]
+        normalized_blocks = [item for item in normalized_blocks if item]
+        if len(normalized_blocks) >= 3 and len(set(normalized_blocks)) / len(normalized_blocks) < 0.75:
+            issues.append(_issue("warning", module_id, "narrative-duplication", "narrative blocks look repetitive"))
+
+        examples = [item for item in module.get("examples") or [] if isinstance(item, str)]
+        if not examples or any(len(item.strip()) < 12 for item in examples):
+            issues.append(_issue("error", module_id, "examples-thin", "examples are too thin or too generic"))
+
+        if any("..." in item for item in examples):
+            issues.append(_issue("warning", module_id, "examples-placeholder", "examples still contain placeholder ellipsis"))
+
+        registry_entry = interactions.get(module_id) or {}
+        for interaction in registry_entry.values():
+            if not isinstance(interaction, dict):
+                continue
+            component_hint = interaction.get("componentHint")
+            if component_hint and component_hint not in whitelist:
+                issues.append(
+                    _issue(
+                        "warning",
+                        module_id,
+                        "interaction-component-unregistered",
+                        f"componentHint '{component_hint}' is not registered in the frontend whitelist",
+                    )
+                )
+
+        # Interaction data validation: simulate type needs enough scenarios/presets
+        interaction_data = package.get("interaction_data") or {}
+        module_interactions = interaction_data.get(module_id) or {}
+        for slot_key, slot_data in module_interactions.items():
+            if not isinstance(slot_data, dict):
+                continue
+            if slot_data.get("type") == "simulate":
+                scenarios_count = len(slot_data.get("scenarios") or [])
+                presets_count = len(slot_data.get("presets") or [])
+                if scenarios_count + presets_count < 3:
+                    issues.append(
+                        _issue(
+                            "warning",
+                            module_id,
+                            "simulate-scenarios-thin",
+                            f"simulate interaction '{slot_key}' has only {scenarios_count} scenarios + {presets_count} presets (need at least 3 total)",
+                        )
+                    )
+
+        schema = concept_maps.get(module_id) or concept_maps.get(str(module.get("number")))
+        if not isinstance(schema, dict) or len(schema.get("nodes") or []) < 3 or len(schema.get("edges") or []) < 2:
+            issues.append(_issue("warning", module_id, "concept-map-thin", "concept map is renderable but still too thin"))
+        elif isinstance(schema, dict):
+            for edge in schema.get("edges") or []:
+                edge_label = edge.get("label") or ""
+                if len(edge_label) > 10:
+                    issues.append(_issue("warning", module_id, "concept-map-edge-verbose", f"concept map edge label too long ({len(edge_label)} chars): '{edge_label}'"))
+
+    return issues
+
+
+def _check_text_specificity(issues: list[dict[str, Any]], module_id: str, field: str, value: Any) -> None:
+    text = str(value or "").strip()
+    if not text:
+        issues.append(_issue("error", module_id, f"{field}-missing", f"{field} is empty"))
+        return
+    for pattern in GENERIC_PATTERNS:
+        if pattern in text:
+            issues.append(_issue("error", module_id, f"{field}-generic", f"{field} still contains templated language: '{pattern}'"))
+            return
+
+
 def _normalize_pitfalls(value: Any) -> list[dict[str, str]]:
     pitfalls: list[dict[str, str]] = []
     for item in value or []:
@@ -640,6 +768,51 @@ def _normalize_pitfalls(value: Any) -> list[dict[str, str]]:
         if point and root_cause:
             pitfalls.append({"point": point, "rootCause": root_cause})
     return pitfalls
+
+
+def _normalize_exercises(value: Any, module_id: str) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    exercises: list[dict[str, Any]] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            continue
+        exercise_id = str(item.get("id") or f"ex{index + 1}").strip() or f"ex{index + 1}"
+        exercise_type = str(item.get("type") or "").strip()
+        if exercise_type not in ALLOWED_EXERCISE_TYPES:
+            type_lower = exercise_type.lower().replace("_", "-")
+            if type_lower in ALLOWED_EXERCISE_TYPES:
+                exercise_type = type_lower
+            else:
+                exercise_type = "free-response"  # safe default
+        bloom_level = str(item.get("bloomLevel") or "understand").strip()
+        if bloom_level not in ALLOWED_BLOOM_LEVELS:
+            bloom_level = "understand"
+        scaffold_level = str(item.get("scaffoldLevel") or "full").strip()
+        if scaffold_level not in ALLOWED_SCAFFOLD_LEVELS:
+            scaffold_level = "full"
+        prompt_text = str(item.get("prompt") or "").strip()
+        if not prompt_text:
+            continue  # exercise without a prompt is useless
+        response_type = str(item.get("responseType") or "generate").strip()
+        if response_type not in ALLOWED_RESPONSE_TYPES:
+            response_type = "generate"
+        exercise: dict[str, Any] = {
+            "id": exercise_id,
+            "type": exercise_type,
+            "bloomLevel": bloom_level,
+            "scaffoldLevel": scaffold_level,
+            "prompt": prompt_text,
+            "responseType": response_type,
+        }
+        hints = item.get("hints")
+        if isinstance(hints, list):
+            exercise["hints"] = [str(h).strip() for h in hints if str(h).strip()]
+        answer = _normalize_optional_string(item.get("answer"))
+        if answer is not None:
+            exercise["answer"] = answer
+        exercises.append(exercise)
+    return exercises
 
 
 def _normalize_optional_string(value: Any) -> str | None:

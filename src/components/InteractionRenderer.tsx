@@ -25,43 +25,92 @@ interface InteractionRendererProps {
 function CompareRenderer({ data }: { data: InteractionData }) {
   const items = (data.items || []) as Array<{ id: string; label: string; detail: string; pros?: string[]; cons?: string[] }>;
   const dimensions = (data.dimensions || []) as Array<{ name: string; description: string }>;
+  const [prediction, setPrediction] = useState<string | null>(null);
+  const [committed, setCommitted] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
 
   return (
     <div>
       <p className="text-sm text-[color:var(--color-muted)] mb-4">{data.description}</p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setSelected(selected === item.id ? null : item.id)}
-            className={`rounded-lg border p-4 text-left transition ${
-              selected === item.id
-                ? 'border-blue-400 bg-blue-50/50'
-                : 'border-[color:var(--color-border)] hover:border-[color:var(--color-accent)]'
-            }`}
-          >
-            <div className="text-sm font-semibold text-[color:var(--color-text)]">{item.label}</div>
-            <p className="mt-1 text-xs text-[color:var(--color-muted)] leading-relaxed">{item.detail}</p>
-            {selected === item.id && (
-              <div className="mt-3 space-y-2">
-                {item.pros && item.pros.length > 0 && (
-                  <div>{item.pros.map((p, i) => <span key={i} className="mr-1.5 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700">+ {p}</span>)}</div>
+
+      {/* Phase 1: Prediction — choose before seeing details */}
+      {!committed && (
+        <div>
+          <p className="text-xs font-medium text-[color:var(--color-accent)] mb-3">先做一个判断：你认为哪个更好？</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {items.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setPrediction(item.id)}
+                className={`rounded-lg border p-4 text-left transition ${
+                  prediction === item.id
+                    ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/5'
+                    : 'border-[color:var(--color-border)] hover:border-[color:var(--color-accent)]'
+                }`}
+              >
+                <div className="text-sm font-semibold text-[color:var(--color-text)]">{item.label}</div>
+                <p className="mt-1 text-xs text-[color:var(--color-muted)] leading-relaxed">{item.detail}</p>
+              </button>
+            ))}
+          </div>
+          {prediction && (
+            <button
+              onClick={() => setCommitted(true)}
+              className="mt-3 rounded-lg bg-[color:var(--color-accent)] px-4 py-1.5 text-xs font-medium text-white transition hover:opacity-90"
+            >
+              确认选择，看详细对比
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Phase 2: Reveal — full comparison after commitment */}
+      {committed && (
+        <div>
+          <div className="mb-3 rounded-lg bg-blue-50/50 px-3 py-2 dark:bg-blue-900/10">
+            <p className="text-xs text-[color:var(--color-muted)]">
+              你选择了 <span className="font-semibold text-[color:var(--color-text)]">{items.find(i => i.id === prediction)?.label}</span>，现在看看完整对比：
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {items.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setSelected(selected === item.id ? null : item.id)}
+                className={`rounded-lg border p-4 text-left transition ${
+                  selected === item.id
+                    ? 'border-blue-400 bg-blue-50/50'
+                    : prediction === item.id
+                      ? 'border-[color:var(--color-accent)]/50'
+                      : 'border-[color:var(--color-border)] hover:border-[color:var(--color-accent)]'
+                }`}
+              >
+                <div className="text-sm font-semibold text-[color:var(--color-text)]">
+                  {item.label}
+                  {prediction === item.id && <span className="ml-2 text-[10px] text-[color:var(--color-accent)]">← 你的选择</span>}
+                </div>
+                <p className="mt-1 text-xs text-[color:var(--color-muted)] leading-relaxed">{item.detail}</p>
+                {selected === item.id && (
+                  <div className="mt-3 space-y-2">
+                    {item.pros && item.pros.length > 0 && (
+                      <div>{item.pros.map((p, i) => <span key={i} className="mr-1.5 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700">+ {p}</span>)}</div>
+                    )}
+                    {item.cons && item.cons.length > 0 && (
+                      <div>{item.cons.map((c, i) => <span key={i} className="mr-1.5 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700">- {c}</span>)}</div>
+                    )}
+                  </div>
                 )}
-                {item.cons && item.cons.length > 0 && (
-                  <div>{item.cons.map((c, i) => <span key={i} className="mr-1.5 inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-700">- {c}</span>)}</div>
-                )}
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
-      {dimensions.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <div className="text-xs font-medium text-[color:var(--color-muted)]">比较维度</div>
-          {dimensions.map((d, i) => (
-            <div key={i} className="text-xs text-[color:var(--color-text)]"><span className="font-medium">{d.name}：</span>{d.description}</div>
-          ))}
+              </button>
+            ))}
+          </div>
+          {dimensions.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <div className="text-xs font-medium text-[color:var(--color-muted)]">比较维度</div>
+              {dimensions.map((d, i) => (
+                <div key={i} className="text-xs text-[color:var(--color-text)]"><span className="font-medium">{d.name}：</span>{d.description}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -73,9 +122,23 @@ function CompareRenderer({ data }: { data: InteractionData }) {
 function TraceRenderer({ data }: { data: InteractionData }) {
   const steps = (data.steps || []) as Array<{ id: string; label: string; detail: string; state: string; highlight: string }>;
   const [current, setCurrent] = useState(0);
+  const [stateRevealed, setStateRevealed] = useState(false);
   const step = steps[current];
 
   if (!step) return null;
+
+  const goNext = () => {
+    if (current < steps.length - 1) {
+      setCurrent(current + 1);
+      setStateRevealed(false);
+    }
+  };
+  const goPrev = () => {
+    if (current > 0) {
+      setCurrent(current - 1);
+      setStateRevealed(true); // already-seen steps show state directly
+    }
+  };
 
   return (
     <div>
@@ -85,7 +148,7 @@ function TraceRenderer({ data }: { data: InteractionData }) {
         {steps.map((_, i) => (
           <button
             key={i}
-            onClick={() => setCurrent(i)}
+            onClick={() => { setCurrent(i); setStateRevealed(i < current); }}
             className={`h-1.5 flex-1 rounded-full transition ${i <= current ? 'bg-[color:var(--color-accent)]' : 'bg-[color:var(--color-border)]'}`}
           />
         ))}
@@ -97,19 +160,29 @@ function TraceRenderer({ data }: { data: InteractionData }) {
           <span className="text-sm font-semibold text-[color:var(--color-text)]">{step.label}</span>
         </div>
         <p className="text-sm text-[color:var(--color-text)] leading-relaxed">{step.detail}</p>
-        {step.state && (
+
+        {/* Prediction gate: show state only after user clicks */}
+        {step.state && !stateRevealed && (
+          <button
+            onClick={() => setStateRevealed(true)}
+            className="mt-3 w-full rounded-lg border border-dashed border-[color:var(--color-accent)]/40 py-2 text-xs font-medium text-[color:var(--color-accent)] transition hover:bg-[color:var(--color-accent)]/5"
+          >
+            你预测结果是什么？想好了点击查看
+          </button>
+        )}
+        {step.state && stateRevealed && (
           <div className="mt-3 rounded-lg bg-[#F3F4F6] px-3 py-2 dark:bg-[#073642]">
             <pre className="text-xs text-[color:var(--color-text)] whitespace-pre-wrap font-mono">{step.state}</pre>
           </div>
         )}
-        {step.highlight && (
+        {step.highlight && stateRevealed && (
           <div className="mt-2 text-xs font-medium text-[color:var(--color-accent)]">{step.highlight}</div>
         )}
       </div>
       {/* Navigation */}
       <div className="mt-3 flex justify-between">
         <button
-          onClick={() => setCurrent(Math.max(0, current - 1))}
+          onClick={goPrev}
           disabled={current === 0}
           className="rounded px-3 py-1.5 text-xs font-medium text-[color:var(--color-muted)] transition hover:text-[color:var(--color-text)] disabled:opacity-30"
         >
@@ -117,9 +190,10 @@ function TraceRenderer({ data }: { data: InteractionData }) {
         </button>
         <span className="text-xs text-[color:var(--color-muted)] self-center">{current + 1} / {steps.length}</span>
         <button
-          onClick={() => setCurrent(Math.min(steps.length - 1, current + 1))}
-          disabled={current === steps.length - 1}
+          onClick={goNext}
+          disabled={current === steps.length - 1 || !stateRevealed}
           className="rounded px-3 py-1.5 text-xs font-medium text-[color:var(--color-accent)] transition hover:opacity-80 disabled:opacity-30"
+          title={!stateRevealed ? '先查看当前步骤的结果' : ''}
         >
           下一步
         </button>
@@ -133,6 +207,7 @@ function TraceRenderer({ data }: { data: InteractionData }) {
 function SimulateRenderer({ data }: { data: InteractionData }) {
   const parameters = (data.parameters || []) as Array<{ id: string; label: string; min: number; max: number; default: number; step: number; unit?: string }>;
   const presets = (data.presets || []) as Array<{ label: string; values: Record<string, number>; note: string }>;
+  const scenarios = (data.scenarios || []) as Array<{ conditions: Record<string, [number, number]>; description: string; insight?: string }>;
   const computeDesc = (data.computeDescription || '') as string;
 
   const [values, setValues] = useState<Record<string, number>>(() => {
@@ -143,6 +218,17 @@ function SimulateRenderer({ data }: { data: InteractionData }) {
 
   const setValue = (id: string, v: number) => setValues((prev) => ({ ...prev, [id]: v }));
   const applyPreset = (preset: { values: Record<string, number> }) => setValues({ ...values, ...preset.values });
+
+  // Find matching scenario based on current parameter values
+  const matchedScenario = scenarios.find((s) => {
+    return Object.entries(s.conditions).every(([paramId, [min, max]]) => {
+      const v = values[paramId];
+      return v !== undefined && v >= min && v <= max;
+    });
+  });
+
+  const displayDesc = matchedScenario?.description || computeDesc;
+  const displayInsight = matchedScenario?.insight;
 
   return (
     <div>
@@ -182,9 +268,12 @@ function SimulateRenderer({ data }: { data: InteractionData }) {
           ))}
         </div>
       )}
-      {computeDesc && (
+      {displayDesc && (
         <div className="mt-4 rounded-lg bg-[#F3F4F6] px-3 py-2 dark:bg-[#073642]">
-          <p className="text-xs text-[color:var(--color-text)] leading-relaxed">{computeDesc}</p>
+          <p className="text-xs text-[color:var(--color-text)] leading-relaxed">{displayDesc}</p>
+          {displayInsight && (
+            <p className="mt-1 text-xs font-medium text-[color:var(--color-accent)]">{displayInsight}</p>
+          )}
         </div>
       )}
     </div>

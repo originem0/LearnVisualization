@@ -171,6 +171,11 @@ def build_plan_prompts(request_payload: dict[str, Any], planning_seed: dict[str,
         "- moduleOutlines 必须按学习顺序排列，id 必须是 s01, s02 ...\n"
         "- 所有字符串必须具体，不能写空套话。\n"
         "- 每个 moduleOutline 必须标注 knowledgeTypes（至少一个）、bloomLevel、elementInteractivity。\n"
+        "- 不允许连续 3 个相同 moduleKind。\n"
+        "- 课程前 1/3 模块可以是 remember/understand，中间 1/3 必须达到 apply/analyze，后 1/3 应有 evaluate/create。\n"
+        "- focusQuestion 不能是定义式（不能用'X 是什么'句式），必须指向认知冲突或设计决策。\n"
+        "- focusQuestion 不能只问'为什么选了 A 而不是 B'——这只是选型对比。"
+        "好的 focusQuestion 应该挑战读者的前提假设：'为什么\"记录文件变化\"这个直觉如此合理，却恰恰让版本控制变得不可能？'\n"
     )
     user_prompt = (
         "为下面的主题设计一门 zh 课程的课程计划。\n\n"
@@ -187,6 +192,22 @@ def build_plan_prompts(request_payload: dict[str, Any], planning_seed: dict[str,
         f"{json.dumps(_plan_contract(), ensure_ascii=False, indent=2)}"
     )
     return system_prompt, user_prompt
+
+
+_KIND_CONSTRAINTS = {
+    "concept-clarification": "不强制 steps 块。概念澄清的核心是对比和否定，可以用 comparison + text 推进。",
+    "mechanism-walkthrough": "必须包含 steps 块。步骤追踪是机制理解的核心。",
+    "case-study": "以具体案例开场。必须包含 callout 揭示案例中的决策权衡。不强制 steps。",
+    "meta-reflection": "focusQuestion 指向元层级。不强制 steps。包含反思类 callout。",
+}
+
+
+def _kind_narrative_constraint(module_kind: str) -> str:
+    constraint = _KIND_CONSTRAINTS.get(module_kind)
+    if constraint:
+        return f"- moduleKind={module_kind} 的 narrative 约束：{constraint}\n"
+    # Default for kinds not in _KIND_CONSTRAINTS (system-overview, integration-review, etc.)
+    return "- 必须包含至少 1 个 steps 和 1 个 callout。\n"
 
 
 def build_module_prompts(
@@ -245,12 +266,31 @@ def build_module_prompts(
         "- 只输出 JSON。\n"
         "- moduleKind 必须与 outline 保持一致。\n"
         "- primaryCognitiveAction 必须与 outline 保持一致。\n"
-        "- narrative 至少 6 个 block，包含 heading、callout，程序性知识模块必须有 steps 块。\n"
-        "- concepts[].name 必须是名词短语（8 字以内）。\n"
-        "- examples 必须具体到主题内实体/过程/案例。\n"
-        "- bridgeTo 必须自然导向下一章；最后一章设为 null。\n"
-        "- componentHint 设为 null。\n\n"
-        "差的焦点问题: '什么是 X？' — 定义式 | '深入理解 X' — 不是问题\n"
+        "- visuals[].type 只能使用: " + ", ".join(ALLOWED_VISUAL_TYPES) + "\n"
+        "- interactionRequirements[].capability 只能使用: " + ", ".join(ALLOWED_INTERACTION_CAPABILITIES) + "\n"
+        "- retrievalPrompts[].type 只能使用: " + ", ".join(ALLOWED_RETRIEVAL_PROMPTS) + "\n"
+        "- narrative 至少 6 个 block，必须包含至少 1 个 heading。\n"
+        + _kind_narrative_constraint(module_outline.get("moduleKind", "")) +
+        "- examples 必须具体到主题内实体、过程或案例，不能写空泛描述。\n"
+        "- concepts[].name 必须是名词短语（8 字以内），不是完整句子。\n"
+        "- bridgeTo 必须自然导向下一章；如果是最后一章，bridgeTo 设为 null。\n"
+        "- componentHint 设为 null（前端交互由数据驱动渲染器处理，不使用预置组件）。\n"
+        "\nv3 必选字段：\n"
+        "- knowledgeTypes: 标注本模块教的知识类型（factual/conceptual/procedural/strategic/metacognitive/situational），至少一个。\n"
+        "- bloomLevel: 本模块的认知层级（remember/understand/apply/analyze/evaluate/create）。\n"
+        "- elementInteractivity: 概念间交互复杂度（low/medium/high），决定脚手架强度。\n"
+        "- exercises: 至少 1 个练习。程序性模块至少 2 个且 scaffoldLevel 不同。每个 exercise 必须标注 bloomLevel。\n"
+        "  exercise.type 可选: fill-blank/rebuild-map/compare-variants/predict-next-step/classify/explain/free-response/self-explanation/trace-execution。\n"
+        "  exercise.scaffoldLevel 可选: full/faded-1/faded-2/free。\n"
+        "  exercise.responseType 可选: select/generate/arrange/code/explain。\n"
+        "- scaffoldProgression: 渐退序列，如 ['full', 'faded-1', 'free']。\n"
+        "- retrievalPrompts 的每一项必须标注 bloomLevel。remember 层最多占 30%。\n"
+        "- misconception 必须是具体的错误直觉，不能是空泛描述。\n"
+        "- misconception 不只是说'X 是错的'。要说明为什么 X 看起来如此合理——正是它的合理性构成了理解的障碍。"
+        "让读者觉得'原来我被困住了，但被困住不是因为蠢，而是因为这个框架太好用了'。\n"
+        "- interactionRequirements 建议 1-2 项（1 个 core + 0-1 个 secondary）。factual 知识模块可以不设 core 交互。\n"
+        "\n负面样本（不要这样做）：\n"
+        "差的焦点问题: 'Transformer 的全称是什么？' — 定义式 | '深入理解注意力机制' — 不是问题\n"
         "好的焦点问题: '为什么 Attention 不用 CNN 的局部窗口，而要看全部位置？' — 指向设计决策\n"
         "差的误解: '很多人对 X 理解不深' — 空泛\n"
         "好的误解: '认为注意力就是给每个词打分，分高的就重要' — 具体的错误心智模型\n"
@@ -335,7 +375,7 @@ def _module_contract() -> dict[str, Any]:
         "misconception": "必须先击穿的旧直觉",
         "quote": "本章金句",
         "keyInsight": "本章关键洞见",
-        "opening": "反直觉开场",
+        "opening": "第一段必须是有触感的具体场景（人物/动作/感官细节），不是'想象你...'式的思想实验。要有非对称性——场景中有一个'不对劲'的细节。",
         "knowledgeTypes": ["conceptual"],
         "bloomLevel": "understand",
         "elementInteractivity": "medium",
@@ -397,7 +437,8 @@ def _module_contract() -> dict[str, Any]:
 
 
 def _compact_course_plan(course_plan: dict[str, Any]) -> dict[str, Any]:
-    return {
+    philosophy = course_plan.get("philosophy") or {}
+    compact: dict[str, Any] = {
         "title": course_plan.get("title"),
         "goal": course_plan.get("goal"),
         "categories": course_plan.get("categories"),
@@ -415,6 +456,14 @@ def _compact_course_plan(course_plan: dict[str, Any]) -> dict[str, Any]:
             for item in course_plan.get("moduleOutlines", [])
         ],
     }
+    # Pass philosophy signals so modules can align with overall course identity
+    shift = str(philosophy.get("shiftStatement") or "").strip()
+    principles = philosophy.get("corePrinciples")
+    if shift:
+        compact["shiftStatement"] = shift
+    if isinstance(principles, list) and principles:
+        compact["corePrinciples"] = [str(p).strip() for p in principles if str(p).strip()]
+    return compact
 
 
 def _extract_section(content: str, start_heading: str, end_heading: str) -> str:
@@ -476,6 +525,9 @@ def build_interaction_data_prompt(
             "presets": [
                 {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
             ],
+            "scenarios": [
+                {"conditions": {"param1": [0, 25]}, "description": "当参数在此范围时的表现", "insight": "该区间的关键洞察"},
+            ],
             "insight": "调参后应得出的关键认知",
         },
         "parameter-play": {
@@ -488,6 +540,9 @@ def build_interaction_data_prompt(
             "computeDescription": "参数如何影响结果的文字描述",
             "presets": [
                 {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
+            ],
+            "scenarios": [
+                {"conditions": {"param1": [0, 25]}, "description": "当参数在此范围时的表现", "insight": "该区间的关键洞察"},
             ],
             "insight": "调参后应得出的关键认知",
         },
@@ -549,6 +604,16 @@ def build_interaction_data_prompt(
         "- steps/items 的 detail: 每项 1-2 句话，不超过 60 字\n"
         "- 不要写长段落，交互组件是让用户动手操作的，不是阅读长文的\n"
     )
+
+    # Additional instructions for simulate-type interactions
+    if capability in ("simulate", "parameter-play"):
+        system_prompt += (
+            "\nSimulate 额外要求：\n"
+            "- scenarios 必须生成 4-8 个预计算场景，覆盖参数空间的关键区间\n"
+            "- 每个 scenario 的 conditions 用参数 id 映射到 [min, max] 范围\n"
+            "- description 说明该区间的行为特征，insight 说明为什么这个区间值得关注\n"
+            "- presets 至少 3 个，代表有教学意义的典型参数组合\n"
+        )
 
     user_prompt = (
         f"模块标题：{module.get('title', '')}\n"

@@ -11,6 +11,7 @@ import MisconceptionOpening from './MisconceptionOpening';
 import FocusPanel from './FocusPanel';
 import NarrativeStream from './NarrativeStream';
 import RetrievalSection from './RetrievalSection';
+import ExerciseSection from './ExerciseSection';
 import BridgeSection from './BridgeSection';
 import ReferencePanel from './ReferencePanel';
 import FloatingTOC from './FloatingTOC';
@@ -122,9 +123,16 @@ export default function ModuleRenderer({
           layoutMode={cfg.layoutMode}
         />
 
+        <ExerciseSection
+          exercises={module.exercises}
+          locale={locale}
+        />
+
         <RetrievalSection
           prompts={module.retrievalPrompts}
           locale={locale}
+          focusQuestion={module.focusQuestion}
+          keyInsight={module.keyInsight}
         />
 
         <BridgeSection
