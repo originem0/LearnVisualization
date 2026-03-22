@@ -32,7 +32,7 @@ export default function Header({ project, locale, basePath = `/${locale}` }: Hea
           )}
           <Link href={`${basePath}/`} className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white shadow-sm">
-              PV
+              LV
             </div>
             <div className="leading-tight">
               <div className="text-sm font-semibold text-[color:var(--color-text)]">{project.title}</div>
