@@ -1,0 +1,379 @@
+{
+  "title": "从 0 到可合并：一条可复用的 Claude Code 工作流",
+  "subtitle": "Worked example + 渐退脚手架：需求→分解→实现→测试→PR 叙事",
+  "focusQuestion": "你能否在不依赖“灵感提示词”的情况下，稳定产出一个可 review、可测试、可回滚的 PR？这条流程的不可替代节点是什么？",
+  "misconception": "只要让 Claude Code 写完代码，再让它写测试/写 PR 描述就行；流程节点可以随意跳过。",
+  "quote": "能合并的不是“代码输出”，而是一条可验证、可回滚、可解释的变更链。",
+  "keyInsight": "稳定交付 PR 的关键不在“把提示词写到完美”，而在把一次改动变成一条证据链：先把验收标准和约束落地成可检验的清单，再用小步提交把范围锁住，最后用自动化验证输出为 PR 叙事提供可审计的证据与风险边界。",
+  "opening": "很多人以为“可合并”=“代码能跑”。但在团队里，可合并更像“你能证明这次变更没破坏契约、范围可控、出了问题能回退”。\n\n同样是 Claude Code：\n- 直接让它端到端改完再补测试，常见结果是：改动范围飘、commit 杂糅、测试失败时回溯困难、review 没法只看核心差异。\n- 按一条固定流水线推进，你会发现：提示词可以很短，但每一步都在产出“下一步可用的证据”。\n\n本章要做的不是给你更长的模板，而是把“不可替代节点”钉死：哪些节点一跳过，后面就只能碰运气。",
+  "knowledgeTypes": [
+    "procedural",
+    "strategic"
+  ],
+  "bloomLevel": "evaluate",
+  "elementInteractivity": "high",
+  "concepts": [
+    {
+      "name": "验收标准",
+      "note": "把“做完了没”从主观感受变成可检验条件；没有它，测试与 PR 描述都会失焦。",
+      "relatedTo": {
+        "concept": "变更范围",
+        "link": "约束并界定"
+      }
+    },
+    {
+      "name": "约束清单",
+      "note": "把不可违反的规则（兼容性、性能、风格、目录边界、权限）外显化，防止模型在“看似合理”的方向上越走越远。",
+      "relatedTo": {
+        "concept": "上下文证据",
+        "link": "决定需要补充的"
+      }
+    },
+    {
+      "name": "变更计划",
+      "note": "将任务拆成可验证的小步，让工具调用（测试/构建/格式化）成为收敛机制，而不是最后的“祈祷”。",
+      "relatedTo": {
+        "concept": "小步提交",
+        "link": "被落实为"
+      }
+    },
+    {
+      "name": "小步提交",
+      "note": "把风险切片：每个 commit 都有单一意图与对应验证结果，出问题可精准回退与 bisect。",
+      "relatedTo": {
+        "concept": "回滚通道",
+        "link": "直接提供"
+      }
+    },
+    {
+      "name": "验证证据",
+      "note": "把“我觉得行”变成可审计输出（命令、日志、测试报告、diff 摘要），支撑 review 与追责。",
+      "relatedTo": {
+        "concept": "PR 叙事",
+        "link": "作为依据写入"
+      }
+    },
+    {
+      "name": "PR 叙事",
+      "note": "让 reviewer 快速判断：改了什么、为什么这样改、如何验证、风险在哪、如何回退；减少来回问答。",
+      "relatedTo": {
+        "concept": "验收标准",
+        "link": "应逐条对应"
+      }
+    },
+    {
+      "name": "变更范围",
+      "note": "控制改动波及面，避免“顺手重构”导致不可预期回归；是可合并的核心门槛之一。",
+      "relatedTo": {
+        "concept": "小步提交",
+        "link": "通过它被锁定"
+      }
+    },
+    {
+      "name": "回滚通道",
+      "note": "保证失败时可快速恢复： revert/restore、feature flag、或最小化可逆提交序列。",
+      "relatedTo": {
+        "concept": "验证证据",
+        "link": "依赖其定位失败点"
+      }
+    }
+  ],
+  "logicChain": [
+    "先把需求转成可检验的验收标准，否则“写测试/写 PR 描述”都会变成自由发挥",
+    "把隐含约束外显成清单（兼容性/目录边界/性能/风格/安全），否则模型会在未声明的维度上做错误优化",
+    "把工作拆成可验证的小步计划，让每一步都有“完成定义 + 验证命令 + 预期输出”",
+    "在独立分支上用小步提交推进，保证每个 commit 意图单一且可回退",
+    "把工具输出变成证据：跑了什么、结果如何、失败如何定位与修复",
+    "用 PR 叙事把证据链串起来：变更动机→实现要点→验证→风险→回滚",
+    "任何节点被跳过，都会把不确定性推到 review 阶段或上线后，代价更大且更难定位"
+  ],
+  "examples": [
+    "在一个 Node/TypeScript 仓库中新增配置项 FEATURE_X_ENABLED，并贯穿：config schema 校验→业务分支逻辑→README 配置说明→单元测试与 e2e 冒烟测试，最终产出可合并 PR（含 3 个小步 commit）。",
+    "在 Python CLI 工具中新增参数 --timeout，并同步：argparse→默认值与环境变量覆盖规则→help 文档→回归测试；PR 描述包含“兼容性：默认行为不变”的明确声明与验证命令输出。"
+  ],
+  "counterexamples": [
+    "只提交一个巨大 commit：混合重构+功能+格式化；测试失败时无法判断是哪类改动导致，review 无法聚焦。",
+    "PR 描述只有“实现了 X”；没有验收标准、没有验证命令、没有风险点；reviewer 只能靠肉眼猜。",
+    "先改代码再补测试，发现不易测后改架构，范围膨胀；最终为了赶进度放弃测试，变成不可审计的交付。"
+  ],
+  "pitfalls": [
+    {
+      "point": "把“验收标准”写成口号（例如：优化体验、支持配置）而不是可检验条件",
+      "rootCause": "没有把需求落到可观测输出（接口、日志、行为差异、性能阈值），导致后续验证无法对齐"
+    },
+    {
+      "point": "计划里只有“实现功能”，没有“验证命令 + 预期结果”",
+      "rootCause": "把测试当作最后一步而非收敛机制，失去工具闭环带来的可靠性"
+    },
+    {
+      "point": "Claude Code 顺手做大范围重构（重排目录、统一命名、换库）",
+      "rootCause": "未声明变更范围与禁止区，模型会把“更干净的代码”当成隐含目标"
+    },
+    {
+      "point": "把修复建立在重复重试上：失败就“再跑一次/再改一点”",
+      "rootCause": "没有把失败输出转成可引用证据（错误信息、复现步骤、最小失败测试），无法定位根因"
+    },
+    {
+      "point": "PR 描述与 commit 信息脱节，reviewer 无法快速建立心智模型",
+      "rootCause": "缺少“证据链”意识：每个主张（修了/没破坏/兼容）都应有验证支撑"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "这条流水线到底在“防”什么？"
+    },
+    {
+      "type": "text",
+      "content": "Claude Code 的强项是把“想法→变更→验证”串成闭环；它的弱点是：如果你不给边界与证据，它会在未声明的目标上自作主张（例如顺手重构、假设默认值、补一个看似合理但不符合契约的行为）。\n\n所以“可复用工作流”的目的不是流程化管理，而是把不确定性前移并切片：每一步都产出下一步必须依赖的材料（清单、diff、日志、测试输出、commit）。"
+    },
+    {
+      "type": "callout",
+      "content": "不可替代节点只有一个标准：跳过它会让你无法在下一步用证据做决策，而只能靠“感觉”。"
+    },
+    {
+      "type": "heading",
+      "content": "Worked example（完整示范）：新增配置项并产出可合并 PR"
+    },
+    {
+      "type": "text",
+      "content": "场景：你在一个小型 TypeScript 服务仓库里，需要新增配置项 FEATURE_X_ENABLED（默认 false）。当它为 true 时，某个 endpoint 会启用额外校验逻辑；同时要更新文档与测试。\n\n目标不是“让 Claude Code 写完”，而是用一条可移植流水线把它交付成一个可 review 的 PR。"
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "端到端工作流（full）",
+      "steps": [
+        {
+          "title": "把需求翻译成验收标准（可检验）",
+          "description": "写 3–6 条可验证条件，并明确默认行为是否变化。",
+          "visual": "验收标准示例：\n1) 默认 FEATURE_X_ENABLED=false 时，所有现有测试保持通过\n2) 当 FEATURE_X_ENABLED=true 且输入缺少 fieldA 时，/v1/foo 返回 400（含错误码 E_FIELD_A_REQUIRED）\n3) README 增加配置说明与示例\n4) 新增/更新测试：覆盖 true/false 两条路径",
+          "highlight": "可检验条件"
+        },
+        {
+          "title": "列出约束清单（范围与边界）",
+          "description": "声明不允许的改动与必须遵守的契约，锁住改动范围。",
+          "visual": "约束清单示例：\n- 不改动公共响应结构（除新增错误码文案）\n- 不引入新依赖\n- 不做目录结构调整/格式化全仓\n- 仅修改 src/config、src/routes/foo、README、tests 相关文件\n- 必须运行：pnpm test、pnpm lint",
+          "highlight": "范围锁定"
+        },
+        {
+          "title": "让 Claude Code 产出“计划+文件清单”，并请求确认",
+          "description": "先要计划，不要直接开写；计划要映射到验收标准与约束清单。",
+          "visual": "你对 Claude Code 的输入要点：\n- 给出验收标准与约束清单\n- 要求输出：1)将改哪些文件 2)每步做什么 3)每步如何验证\n- 明确“先等我确认再改”",
+          "highlight": "先计划后执行"
+        },
+        {
+          "title": "创建分支并按“小步提交”推进",
+          "description": "把一次 PR 拆成 3 个可回退 commit：配置骨架→业务逻辑→文档与测试收尾。",
+          "visual": "提交切片示例：\ncommit 1: feat(config): add FEATURE_X_ENABLED to config schema (default false)\ncommit 2: feat(foo): gate extra validation behind FEATURE_X_ENABLED\ncommit 3: test+docs: add coverage and README section",
+          "highlight": "commit 切片"
+        },
+        {
+          "title": "每个小步都跑最短闭环验证，并保留输出摘要",
+          "description": "把“跑过”变成证据：命令 + 结果（通过/失败点）。",
+          "visual": "验证证据示例：\n- pnpm test (pass: 128 tests)\n- pnpm lint (pass)\n若失败：记录最小失败用例与错误堆栈前 20 行",
+          "highlight": "证据输出"
+        },
+        {
+          "title": "把证据链写进 PR 叙事（对齐验收标准）",
+          "description": "PR 描述不是复述 diff，而是让 reviewer 快速判断“值不值得合”。",
+          "visual": "PR 描述结构示例：\n- What: 新增 FEATURE_X_ENABLED；true 时 /v1/foo 启用额外校验\n- Why: 为渐进上线提供开关\n- How: 配置 schema + 业务分支；默认 false 保持兼容\n- Verification: pnpm test / pnpm lint；新增用例：X、Y\n- Risk: 仅影响 /v1/foo；开关默认关闭\n- Rollback: revert commit 2 或关闭 FEATURE_X_ENABLED",
+          "highlight": "对齐与可回滚"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "如果你只能保留一个节点：保留“每一步都有验证证据”。没有它，计划、提交切片、PR 叙事都会变成不可审计的文字游戏。"
+    },
+    {
+      "type": "heading",
+      "content": "元认知检查点：你是否在“产出证据”，还是在“产出文字”？"
+    },
+    {
+      "type": "text",
+      "content": "停下来回想你最近一次用 Claude Code 的改动：\n- 你能否不看记录，说出当时的验收标准？\n- 你能否指出哪一个 commit 对应哪一条验收标准？\n- 如果测试失败，你手里有没有“最小失败证据”（具体命令、具体错误、具体文件/行）？\n\n如果答不上来，问题往往不在模型，而在你没有把“验证输出”当作工作流的核心产物。"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "compare-variants",
+      "bloomLevel": "analyze",
+      "knowledgeType": "strategic",
+      "scaffoldLevel": "full",
+      "prompt": "对比两段“请求 Claude Code 做需求”的指令，判断哪段更可能产出可合并 PR，并写出理由（至少 3 条）。\n\nA：\n“新增 FEATURE_X_ENABLED，让它控制 /v1/foo 的额外校验，顺便把代码整理一下，最后写好测试和 PR 描述。”\n\nB：\n“目标：新增 FEATURE_X_ENABLED（默认 false）。验收标准：1) 默认不改变行为且现有测试全过；2) true 且缺少 fieldA 时 /v1/foo 返回 400 + E_FIELD_A_REQUIRED；3) README 增加配置说明；4) 新增测试覆盖 true/false。\n约束：不引入依赖；不做全仓格式化/重构；仅改 config、foo route、README、tests。\n请先输出计划：会改哪些文件、分几步、每步的验证命令与预期输出；等我确认后再开始改。”",
+      "responseType": "generate",
+      "hints": [
+        "从“是否可验证”角度找差异：哪段把验证命令/预期结果提前了？",
+        "从“范围控制”角度找差异：哪段明确禁止重构/格式化？",
+        "从“可回滚”角度找差异：哪段更容易切成小步提交？"
+      ]
+    },
+    {
+      "id": "ex2",
+      "type": "fill-missing-steps",
+      "bloomLevel": "apply",
+      "knowledgeType": "procedural",
+      "scaffoldLevel": "faded-1",
+      "prompt": "把下面“计划草稿”补完整：为每一步补上“验证命令 + 预期证据”。\n\n计划草稿：\n1) 修改 config schema，新增 FEATURE_X_ENABLED，默认 false。\n2) 在 /v1/foo 的 handler 中用开关控制额外校验。\n3) 更新 README。\n4) 增加测试覆盖。\n\n要求：每一步至少给 1 个命令；如果是单元测试，说明要新增/修改哪个测试文件（用通用占位名也可以）。",
+      "responseType": "generate",
+      "hints": [
+        "验证证据不要写“确认没问题”，要写可运行命令和可观察结果（pass/fail、用例名）。",
+        "第 1 步可用 lint/typecheck 作为快速证据；第 2/4 步优先用针对性测试文件或过滤执行。",
+        "README 更新也要有证据：例如 doc build/markdown lint（若项目有），或至少在 PR 描述中列出改动段落位置。"
+      ]
+    },
+    {
+      "id": "ex3",
+      "type": "design-workflow",
+      "bloomLevel": "evaluate",
+      "knowledgeType": "strategic",
+      "scaffoldLevel": "faded-2",
+      "prompt": "给你自己的项目（任选一个真实仓库或你熟悉的架构）设计一条“可合并 PR 流水线”，输出 6 个节点即可。\n\n约束：\n- 必须包含：验收标准、约束清单、小步提交、自动化验证、PR 叙事、回滚说明。\n- 每个节点写一句“产物是什么”（例如：一条命令输出、一个 commit、一个清单）。",
+      "responseType": "generate",
+      "hints": [
+        "把“产物”写成能复制粘贴的东西：清单条目、命令、commit 规则、PR 模板段落。",
+        "回滚说明尽量具体：revert 哪个 commit、或开关默认值、或 feature flag 策略。"
+      ]
+    },
+    {
+      "id": "ex4",
+      "type": "scenario-response",
+      "bloomLevel": "create",
+      "knowledgeType": "procedural",
+      "scaffoldLevel": "free",
+      "prompt": "情境：Claude Code 已经改了 12 个文件、跑测试失败 20 个，你怀疑它改动范围失控。\n\n请写出你接下来要给 Claude Code 的一段指令（不超过 120 字），目标是：让它先“收敛范围并产出证据”，而不是继续盲修。你的指令必须包含：1) 先总结范围；2) 提议最小回退/最小修复方案；3) 指定一个验证命令。",
+      "responseType": "generate",
+      "hints": [
+        "用“先停手、先盘点、再选方案”的语气。",
+        "让它给出两套方案：A 最小回退到可测试状态；B 保留核心意图的最小修复。",
+        "验证命令要具体到项目常用命令：test/lint/typecheck 之一。"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "faded-2",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s07-pipeline-map",
+      "type": "conceptMap",
+      "required": true
+    },
+    {
+      "id": "s07-evidence-chain",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "让学习者能从“验收标准→计划→commit→验证输出→PR 叙事”逐段追踪证据链，识别缺口并补齐",
+      "priority": "core",
+      "componentHint": null,
+      "interactionData": {
+        "type": "trace",
+        "title": "从验收标准到 PR 叙事：证据链追踪",
+        "description": "按步骤追踪一条改动如何变成可审计的 PR。逐段检查是否有可检验产物与可回滚边界。",
+        "steps": [
+          {
+            "id": "1",
+            "label": "把需求落成验收标准",
+            "detail": "将“想要什么”改写成可验证的条件与失败条件。每条都能被测试或命令直接判定真伪。",
+            "state": "产出 3-6 条验收标准，含输入/输出与边界用例。",
+            "highlight": "验收标准必须可检验，否则后续测试与 PR 描述会漂移。"
+          },
+          {
+            "id": "2",
+            "label": "外显约束清单",
+            "detail": "列出必须遵守的兼容性、目录边界、性能、风格与安全约束。把“不能做什么”写成清单。",
+            "state": "约束清单可勾选，明确不触碰的文件夹与 API 形态。",
+            "highlight": "缺约束会导致模型在未声明维度上做错误优化。"
+          },
+          {
+            "id": "3",
+            "label": "生成变更计划（小步 + 可验收）",
+            "detail": "把工作拆成 3-7 步，每步写清完成定义、验证命令与预期输出。每步可独立 review。",
+            "state": "每步都有 DoD + 命令 + 预期结果，且依赖关系明确。",
+            "highlight": "计划要能逐步锁范围，不允许“最后再一起验证”。"
+          },
+          {
+            "id": "4",
+            "label": "在独立分支小步提交推进",
+            "detail": "每个 commit 只做一件事：测试、重构、功能、修复分开。提交信息说明意图与影响面。",
+            "state": "commit 序列可回退，任何一个 commit 都不破坏主干可用性。",
+            "highlight": "用小步提交把变更范围钉死，并形成回滚通道。"
+          },
+          {
+            "id": "5",
+            "label": "跑验证并沉淀为证据",
+            "detail": "记录跑了哪些命令、关键输出与失败定位过程。把截图/日志要点转成可引用证据。",
+            "state": "有可复现的验证清单：命令、结果、环境信息与修复点。",
+            "highlight": "工具输出要可审计，能证明满足验收标准且风险可控。"
+          },
+          {
+            "id": "6",
+            "label": "把证据编织成 PR 叙事",
+            "detail": "PR 描述按“问题-方案-范围-验证-风险-回滚”组织。每段都引用对应 commit 或验证证据。",
+            "state": "PR 可 review：范围明确、证据齐全、风险边界与回滚路径清晰。",
+            "highlight": "PR 叙事不是解释灵感，而是串起可验证的证据链。"
+          },
+          {
+            "id": "7",
+            "label": "缺口诊断与补齐",
+            "detail": "检查是否存在无验收标准的改动、无约束的触碰、无验证的步骤或不可回滚的提交。缺啥补啥。",
+            "state": "每个节点都有对应产物：清单、计划、commit、证据与叙事互相指向。",
+            "highlight": "不可替代节点是“可检验清单 + 小步提交 + 自动化证据”。"
+          }
+        ],
+        "insight": "稳定可合并的 PR 来自可追踪的证据链，而不是更灵感的提示词。"
+      }
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "写出“可合并 PR 流水线”的 6 个不可替代节点（只写节点名）。",
+      "answerShape": "6 个短语列表"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "为什么“先要计划再执行”在 Claude Code 工作流里比在普通补全工具里更关键？",
+      "answerShape": "包含：范围控制 + 验证闭环 + 失败时定位/回滚 三点"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "看到一个 PR：测试全绿但 reviewer 仍不放心。你用本章证据链框架判断，最可能缺的是哪类证据？请给出 2 个具体补充项。",
+      "answerShape": "缺口类型（如约束/风险/回滚/验证范围）+ 对应补充（命令/清单/说明）"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "把“新增配置项”类需求改写成 4 条验收标准（必须含默认行为、负例、文档、测试）。",
+      "answerShape": "4 条编号清单，每条可检验"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "为你团队写一个最小 PR 描述模板（6 行以内），要求每行都能对应到某种证据或可回滚策略。",
+      "answerShape": "6 行模板：What/Why/How/Verification/Risk/Rollback"
+    }
+  ],
+  "bridgeTo": "你已经有了一条“能交付 PR 的证据链流水线”。下一章我们把焦点从“正确性（测试）”扩展到“质量门禁”：为什么测试全绿仍会不可维护，以及应该把契约、一致性、可维护性等门禁插到流水线的哪个节点上。",
+  "id": "s07",
+  "number": 7,
+  "category": "practice",
+  "moduleKind": "integration-review",
+  "primaryCognitiveAction": "rebuild",
+  "priorKnowledge": [
+    "s02–s06 的上下文、工具、策略与权限边界"
+  ],
+  "targetChunk": "PR 交付流水线（可移植）：验收标准→约束清单→计划→分支与小步提交→自动化验证→PR 描述与风险说明。",
+  "chunkDependencies": [
+    "s02–s06 的上下文、工具、策略与权限边界"
+  ],
+  "nextModuleId": "s08"
+}

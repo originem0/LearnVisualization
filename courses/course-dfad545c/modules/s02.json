@@ -1,0 +1,224 @@
+{
+  "title": "劳动的境况：生命本身的循环",
+  "subtitle": "被自然必然性束缚的存在",
+  "focusQuestion": "为什么劳动永远「留不下痕迹」？",
+  "misconception": "劳动创造价值，是最高贵的人类活动",
+  "quote": "「劳动动物的胜利在于，它成功地将所有人类活动都降格为维持生命过程的手段。」",
+  "keyInsight": "劳动的本质不是创造，而是维持生命循环的必然性活动，其产物注定被消耗而不留下持久的世界性痕迹",
+  "opening": "想象你精心准备了一顿丰盛的晚餐——食材精心挑选，烹饪技巧精湛，摆盘精美。但一小时后，这顿晚餐只剩下空盘子和饱腹感。这就是劳动的典型命运：再精美的成果也注定被消耗，无法在世界上留下持久印记。",
+  "knowledgeTypes": [
+    "conceptual"
+  ],
+  "bloomLevel": "apply",
+  "elementInteractivity": "low",
+  "concepts": [
+    {
+      "name": "劳动",
+      "note": "维持生命必需品的活动，受制于生物必然性",
+      "relatedTo": {
+        "concept": "生命循环",
+        "link": "服务于"
+      }
+    },
+    {
+      "name": "生命循环",
+      "note": "生产-消费-再生产的无限循环，没有真正的起点和终点",
+      "relatedTo": {
+        "concept": "自然必然性",
+        "link": "体现了"
+      }
+    },
+    {
+      "name": "消耗性",
+      "note": "劳动产品的本质特征，注定被使用和消失",
+      "relatedTo": {
+        "concept": "劳动",
+        "link": "定义了"
+      }
+    }
+  ],
+  "logicChain": [
+    "劳动是为了满足生命基本需求的活动",
+    "劳动产品具有立即被消耗的特性",
+    "消耗后需要新的劳动来补充",
+    "形成永无止境的生产-消费循环",
+    "这个循环中无法产生持久的世界性存在"
+  ],
+  "examples": [
+    "做饭：无论多么精美，最终都会被吃掉",
+    "打扫卫生：灰尘会再次积累，需要重复打扫",
+    "农业生产：粮食被消耗后需要重新种植"
+  ],
+  "counterexamples": [
+    "建造房屋：属于工作，创造持久的人造物",
+    "写作书籍：属于行动，开启新的故事和可能性"
+  ],
+  "pitfalls": [
+    {
+      "point": "将劳动浪漫化为创造性活动",
+      "rootCause": "混淆了劳动与工作的本质区别"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "阿伦特将劳动定义为维持生命必需品的活动。这不是贬低劳动，而是揭示其本质：劳动永远服务于生命的生物必然性，其产物注定被消耗而不留下持久痕迹。"
+    },
+    {
+      "type": "heading",
+      "content": "劳动的循环本质"
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "劳动的生命循环",
+      "steps": [
+        {
+          "title": "生产必需品",
+          "description": "为了满足饥饿、清洁等生命基本需求而进行的活动",
+          "visual": "饥饿 → 做饭 → 食物",
+          "highlight": "满足基本需求"
+        },
+        {
+          "title": "立即消耗",
+          "description": "劳动产品具有内在的消耗性，注定被使用和消失",
+          "visual": "食物 → 被吃掉 → 空盘子",
+          "highlight": "注定被消耗"
+        },
+        {
+          "title": "再生产需求",
+          "description": "消耗产生新的需求，迫使重复劳动过程",
+          "visual": "空盘子 → 再次饥饿 → 需要新食物",
+          "highlight": "永无止境"
+        },
+        {
+          "title": "循环重复",
+          "description": "形成没有起点和终点的生命维持循环",
+          "visual": "生产 → 消耗 → 再生产 → ...",
+          "highlight": "循环本质"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "关键区别：劳动服务于生命过程，工作创造持久世界，行动开启新的可能性。"
+    },
+    {
+      "type": "heading",
+      "content": "为什么劳动留不下痕迹？"
+    },
+    {
+      "type": "text",
+      "content": "劳动的悲剧性在于：无论多么努力，其成果都注定消失在生命过程中。一顿精美的饭菜、一个干净的房间，最终都回归到满足基本需求的循环中，无法在公共领域留下持久的印记。"
+    },
+    {
+      "type": "comparison",
+      "content": "劳动：服务于生命必然性，产物被消耗\n工作：创造持久的人造世界，产物留存\n行动：在他人面前展现独特性，开启新故事",
+      "label": "三种活动的对比"
+    },
+    {
+      "type": "reflection",
+      "content": "停下来想一想：你能举出生活中哪些活动本质上是劳动？它们为什么无法留下持久痕迹？"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "categorize",
+      "bloomLevel": "apply",
+      "knowledgeType": "conceptual",
+      "scaffoldLevel": "faded-1",
+      "prompt": "将以下活动分类为劳动、工作或行动：\n1. 每天做早餐\n2. 建造一座桥梁\n3. 在会议上提出新政策建议\n4. 每周打扫办公室\n请解释你的分类理由",
+      "responseType": "generate",
+      "hints": [
+        "思考每个活动的产物是否持久",
+        "考虑活动是否受制于生命必然性",
+        "判断活动是否开启新的可能性"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s02-cycle",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "理解劳动循环的必然性",
+      "priority": "core",
+      "componentHint": null,
+      "interactionData": {
+        "type": "trace",
+        "title": "追踪：劳动为何留不下痕迹",
+        "description": "沿着“需求—生产—消耗—再需求”追踪一圈，找出痕迹消失的环节。",
+        "steps": [
+          {
+            "id": "1",
+            "label": "生命需求出现",
+            "detail": "饥饿、口渴、寒冷等基本需求再次出现，迫使人开始劳动。",
+            "state": "身体需要被维持，缺口被感知到。",
+            "highlight": "起点不是创造欲望，而是生存压力。"
+          },
+          {
+            "id": "2",
+            "label": "劳动投入",
+            "detail": "通过耕作、烹饪、取水、清洁等活动，把时间和体力换成可用之物。",
+            "state": "劳动把“缺口”转化为“可被消耗的产物”。",
+            "highlight": "产物被设计为立刻满足需要。"
+          },
+          {
+            "id": "3",
+            "label": "产物被消耗",
+            "detail": "食物被吃掉、水被喝掉、燃料被烧尽，产物迅速退出世界。",
+            "state": "满足了当下需要，但可见成果消失。",
+            "highlight": "产物以“消耗完”为终点，难以留下持久存在。"
+          },
+          {
+            "id": "4",
+            "label": "消耗后的空缺回归",
+            "detail": "身体代谢继续进行，新的饥饿与损耗再度出现。",
+            "state": "需求复位为“再次需要补充”。",
+            "highlight": "消耗不是终结，而是下一轮的起因。"
+          },
+          {
+            "id": "5",
+            "label": "循环被锁定",
+            "detail": "为了维持生命，劳动必须重复进行，生产与消费彼此追赶。",
+            "state": "活动稳定为永无止境的生产—消费循环。",
+            "highlight": "循环结构让成果持续被吞没，难形成世界性痕迹。"
+          }
+        ],
+        "insight": "劳动以维持生命循环为目的，产物注定被消耗并促发新需求，因此难以留下持久的世界性存在。"
+      }
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "用阿伦特的框架解释：为什么现代社会的「996工作制」在本质上更像是劳动而非工作？",
+      "answerShape": "应包含劳动的定义、循环特性、与工作的区别"
+    }
+  ],
+  "bridgeTo": "理解了劳动的循环本质，我们接下来要看看工作如何创造持久的世界性存在——为什么桌子比面包更「世界性」？",
+  "id": "s02",
+  "number": 2,
+  "category": "foundation",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "priorKnowledge": [
+    "s01"
+  ],
+  "targetChunk": "劳动的逻辑：生产-消费-再生产循环，无法摆脱的生命必然性",
+  "chunkDependencies": [
+    "s01"
+  ],
+  "nextModuleId": "s03"
+}

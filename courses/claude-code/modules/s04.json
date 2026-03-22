@@ -1,0 +1,205 @@
+{
+  "title": "把需求变成可执行计划：任务分解与收敛策略",
+  "subtitle": "从“让它自己想”到“你提供可控的决策结构”",
+  "focusQuestion": "什么时候应该让 Claude Code 端到端完成，什么时候必须拆成里程碑？拆错会发生什么具体灾难？",
+  "misconception": "任务分解是多余的管理动作；AI 足够聪明，给更大的任务反而更省时间。",
+  "quote": "Claude Code 不是魔法，它需要你提供决策结构，而不是替你决策。",
+  "keyInsight": "任务分解不是为了让 AI 更聪明，而是为了让你能在关键节点介入验证，防止错误累积到无法挽回。",
+  "opening": "你以为给一个大任务能节省时间，结果却是：Claude Code 改动了 20 个文件，测试全挂，你根本不知道从哪里开始修——因为从一开始你就失去了控制权。",
+  "knowledgeTypes": [
+    "conceptual",
+    "strategic"
+  ],
+  "bloomLevel": "apply",
+  "elementInteractivity": "medium",
+  "concepts": [
+    {
+      "name": "探索型任务",
+      "note": "需要先收集证据才能确定方案的任务类型",
+      "relatedTo": {
+        "concept": "上下文完整性",
+        "link": "依赖于"
+      }
+    },
+    {
+      "name": "改造型任务",
+      "note": "有明确约束和回归测试要求的代码修改任务",
+      "relatedTo": {
+        "concept": "工具调用",
+        "link": "通过"
+      }
+    },
+    {
+      "name": "交付型任务",
+      "note": "需要形成完整 PR 叙事和验收清单的端到端任务",
+      "relatedTo": {
+        "concept": "质量控制",
+        "link": "最终导向"
+      }
+    },
+    {
+      "name": "里程碑检查点",
+      "note": "人工介入验证的关键节点，防止错误累积",
+      "relatedTo": {
+        "concept": "任务分解",
+        "link": "构成"
+      }
+    }
+  ],
+  "logicChain": [
+    "Claude Code 擅长执行但不擅长判断边界",
+    "大任务容易导致改动范围失控和错误累积",
+    "任务分解让你能在关键节点介入验证",
+    "正确的分解策略取决于任务类型和风险级别",
+    "每个里程碑都应该有明确的验收标准"
+  ],
+  "examples": [
+    "探索型：『这个库用了哪些第三方依赖？先列出所有 import 语句』",
+    "改造型：『给 UserService 添加年龄验证，先写测试用例，再实现，最后跑全部用户相关测试』",
+    "交付型：『实现用户登录功能，分三步：1.设计接口 2.实现核心逻辑 3.补全文档和测试』"
+  ],
+  "counterexamples": [
+    "『把这个单体应用改成微服务架构』——范围太大，没有检查点",
+    "『优化整个项目的性能』——目标模糊，无法验证",
+    "『重构所有代码』——没有约束，必然风格混乱"
+  ],
+  "pitfalls": [
+    {
+      "point": "过早进入实现细节",
+      "rootCause": "没有先收集足够的上下文证据"
+    },
+    {
+      "point": "测试最后才跑",
+      "rootCause": "错误已经累积到难以定位"
+    },
+    {
+      "point": "一次给太多自由",
+      "rootCause": "认为 AI 能自己把握所有边界"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "看着 Claude Code 一口气改了 15 个文件，测试全红，你却不知道问题出在哪里——这不是模型不够聪明，而是你给了它一个无法管理的任务。真正的控制权不在于提示词写得多详细，而在于你如何设计任务的检查点。"
+    },
+    {
+      "type": "heading",
+      "content": "三种任务形态，三种分解策略"
+    },
+    {
+      "type": "text",
+      "content": "不是所有任务都需要同样的分解粒度。根据不确定性和风险级别，你需要选择不同的策略："
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "任务类型识别与分解策略",
+      "steps": [
+        {
+          "title": "识别任务类型",
+          "description": "先判断这是探索型（需要证据）、改造型（需要约束）、还是交付型（需要完整叙事）",
+          "visual": "需求 → 分析类型 → 选择策略",
+          "highlight": "识别类型"
+        },
+        {
+          "title": "探索型：先收集再决策",
+          "description": "让 Claude Code 先输出分析报告、依赖列表、现有模式，你再基于证据决定下一步",
+          "visual": "『先列出所有API端点』→ 分析 → 『现在实现X功能』",
+          "highlight": "先收集证据"
+        },
+        {
+          "title": "改造型：测试驱动，步步验证",
+          "description": "要求先写测试用例，再实现功能，每步都运行相关测试套件",
+          "visual": "写测试 → 实现 → 跑测试 → 修复",
+          "highlight": "测试驱动"
+        },
+        {
+          "title": "交付型：按PR叙事拆解",
+          "description": "按照代码审查的自然单元拆分：接口设计→核心逻辑→边缘case→文档测试",
+          "visual": "设计 → 实现 → 完善 → 验收",
+          "highlight": "PR叙事结构"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "分解的目的不是让AI更聪明，而是让你能在错误还小的时候抓住它。"
+    },
+    {
+      "type": "heading",
+      "content": "灾难现场：当分解策略出错时"
+    },
+    {
+      "type": "text",
+      "content": "错误的分解会导致三种典型灾难：\n\n1. 探索型当成交付型做：没摸清现状就大刀阔斧改动，必然撞上隐藏约束\n2. 改造型当成探索型做：该严格测试的地方却只做分析，漏掉关键回归用例\n3. 所有类型都端到端：没有检查点，错误像雪球一样滚到无法修复"
+    },
+    {
+      "type": "callout",
+      "content": "最危险的错误是认为『这次应该没问题』——如果你不能在每个里程碑验证，你就已经失去了控制。"
+    },
+    {
+      "type": "heading",
+      "content": "设计你的里程碑检查点"
+    },
+    {
+      "type": "text",
+      "content": "好的里程碑不是随机打断，而是基于风险设计的关键验证点：\n- 接口设计完成后：验证是否符合现有架构模式\n- 核心逻辑实现后：运行核心测试套件\n- 边缘case处理前：确认主要场景已稳定\n- 文档补充前：确保代码本身已经可读"
+    },
+    {
+      "type": "reflection",
+      "content": "停下来检查：你最近的一个任务，应该在哪个节点设置检查点？如果当时设了，能避免什么问题？"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "compare-variants",
+      "bloomLevel": "analyze",
+      "knowledgeType": "strategic",
+      "scaffoldLevel": "faded-1",
+      "prompt": "对比以下两个任务描述，哪个分解策略更合理？为什么？\nA. 『给项目添加日志功能，使用log4j，要覆盖所有重要方法』\nB. 『第一步：分析现有项目用了什么日志框架；第二步：如果没日志框架，选择log4j并配置；第三步：给UserService的重要方法添加日志；第四步：运行测试验证不影响功能』",
+      "responseType": "generate",
+      "hints": [
+        "考虑任务的不确定性程度",
+        "思考哪些地方需要人工验证",
+        "分析错误可能累积的点"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s04-task-decomposition",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "如果一个任务要求『重构支付模块的异常处理』，你会如何分解它？列出具体的里程碑和每个节点的验收标准。",
+      "answerShape": "任务类型识别 + 3-4个具体里程碑 + 每个里程碑的验证方法"
+    }
+  ],
+  "bridgeTo": "下一章我们将看到，即使有好的分解策略，仍然可能遇到测试大面积失败的情况——这时候你需要学会快速定位是『实现错误』、『范围失控』还是『环境问题』。",
+  "id": "s04",
+  "number": 4,
+  "category": "practice",
+  "moduleKind": "concept-clarification",
+  "primaryCognitiveAction": "distinguish",
+  "priorKnowledge": [
+    "s01–s03 的上下文与工具闭环",
+    "常见需求到实现的个人经验"
+  ],
+  "targetChunk": "三种任务形态与对应策略：探索型（先收集证据）、改造型（严格约束与回归测试）、交付型（PR 叙事与验收清单）。",
+  "chunkDependencies": [
+    "s01–s03 的上下文与工具闭环",
+    "常见需求到实现的个人经验"
+  ],
+  "nextModuleId": "s05"
+}

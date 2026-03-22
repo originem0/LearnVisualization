@@ -1,0 +1,64 @@
+{
+  "s02": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "跟踪上下文信息流动路径",
+      "priority": "core"
+    }
+  },
+  "s01": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学习者能沿着“输入→上下文→计划→工具→变更→验证→收敛”追踪一次任务，指出缺口会导致的失败类型",
+      "priority": "core"
+    }
+  },
+  "s05": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学习者从失败摘要追到分型类别与下一步证据，而不是直接跳到“修代码”。",
+      "priority": "core"
+    }
+  },
+  "s03": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "跟踪工具调用在具体案例中的证据流转过程",
+      "priority": "core"
+    }
+  },
+  "s07": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学习者能从“验收标准→计划→commit→验证输出→PR 叙事”逐段追踪证据链，识别缺口并补齐",
+      "priority": "core"
+    }
+  },
+  "s06": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "分析不同权限配置的风险收益",
+      "priority": "core"
+    }
+  },
+  "s04": {},
+  "s09": {
+    "secondaryInteractive1": {
+      "capability": "compare",
+      "purpose": "对比“模板驱动”与“证据驱动”的团队推广路径，识别各自失败模式",
+      "priority": "secondary"
+    }
+  },
+  "s08": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "对比四类门禁各自拦截的风险类型，并选择在工作流中的放置点",
+      "priority": "core"
+    },
+    "secondaryInteractive1": {
+      "capability": "trace",
+      "purpose": "把一次失败输出转写为可执行的下一步最小修复计划（证据→行动）",
+      "priority": "secondary"
+    }
+  }
+}

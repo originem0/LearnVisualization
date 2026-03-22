@@ -1,0 +1,239 @@
+{
+  "title": "一次任务从哪里开始：上下文是怎么被“喂”进去的",
+  "subtitle": "跟踪：指令、文件、diff、终端输出如何组成有效上下文",
+  "focusQuestion": "为什么你明明“说清楚了”，Claude Code 还是会改错文件、漏掉约束或重复犯错？到底是上下文缺了哪一块？",
+  "misconception": "只要提示写得长、写得详细，模型就一定能“记住一切”；出错就是模型不行。",
+  "quote": "上下文不是“越多越好”，而是“缺哪一块就会在哪犯错”。",
+  "keyInsight": "Claude Code 的上下文由四类信息构成：需求（要做什么）、约束（不能做什么）、证据（当前代码和输出）、边界（不该动什么）。任何一类缺失都会导致系统性错误。",
+  "opening": "你以为的“说清楚”可能只覆盖了需求，但 Claude Code 需要的是四块拼图才能完整理解任务。少一块，它就会用猜测填补空白——而猜测往往是错的。",
+  "knowledgeTypes": [
+    "conceptual",
+    "procedural"
+  ],
+  "bloomLevel": "understand",
+  "elementInteractivity": "high",
+  "concepts": [
+    {
+      "name": "需求上下文",
+      "note": "明确任务目标，避免方向性错误",
+      "relatedTo": {
+        "concept": "约束上下文",
+        "link": "共同定义"
+      }
+    },
+    {
+      "name": "约束上下文",
+      "note": "限制解决方案空间，防止越界修改",
+      "relatedTo": {
+        "concept": "边界上下文",
+        "link": "细化限制"
+      }
+    },
+    {
+      "name": "证据上下文",
+      "note": "提供现实依据，减少猜测",
+      "relatedTo": {
+        "concept": "需求上下文",
+        "link": "验证实现"
+      }
+    },
+    {
+      "name": "边界上下文",
+      "note": "划定安全范围，避免破坏性修改",
+      "relatedTo": {
+        "concept": "约束上下文",
+        "link": "具体化限制"
+      }
+    }
+  ],
+  "logicChain": [
+    "Claude Code 接收多模态上下文输入",
+    "上下文被解析为四类信息：需求、约束、证据、边界",
+    "任何一类信息缺失都会导致特定类型的错误",
+    "完整的上下文使模型能做出准确可靠的决策"
+  ],
+  "examples": [
+    "添加新配置项时提供：需求说明、代码文件、测试输出、禁止修改的文件列表",
+    "修复bug时提供：错误日志、相关代码、测试用例、架构约束"
+  ],
+  "counterexamples": [
+    "只说“改进性能”但不给性能数据和分析工具",
+    "让修改核心逻辑但不提供测试覆盖要求"
+  ],
+  "pitfalls": [
+    {
+      "point": "只给需求不给约束",
+      "rootCause": "模型会用自己的理解填补约束空白，往往与实际情况不符"
+    },
+    {
+      "point": "提供代码但不给运行证据",
+      "rootCause": "模型无法验证当前状态，容易做出基于错误假设的修改"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "Claude Code 不像人类工程师那样拥有项目背景的隐性知识。它看到的只有你明确提供的上下文。当你说“说清楚了”却仍然出错时，往往是因为某个关键信息类别被遗漏了。"
+    },
+    {
+      "type": "heading",
+      "content": "上下文的四个必要组成部分"
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "构建完整上下文的步骤",
+      "steps": [
+        {
+          "title": "明确需求",
+          "description": "具体说明要完成什么任务，包括成功标准",
+          "visual": "添加用户年龄验证功能\n↓\n需求上下文",
+          "highlight": "具体说明"
+        },
+        {
+          "title": "设定约束",
+          "description": "列出限制条件：性能要求、兼容性、不允许的修改方式",
+          "visual": "必须保持向后兼容\n不能修改数据库schema\n↓\n约束上下文",
+          "highlight": "限制条件"
+        },
+        {
+          "title": "提供证据",
+          "description": "给出当前代码、测试输出、错误日志等现实依据",
+          "visual": "当前User类代码\ntest_output.log\n↓\n证据上下文",
+          "highlight": "现实依据"
+        },
+        {
+          "title": "划定边界",
+          "description": "明确哪些文件/目录/功能绝对不能动",
+          "visual": "不要修改config/database.py\n不要动core/auth模块\n↓\n边界上下文",
+          "highlight": "绝对不能动"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "content": "缺少任何一类上下文，Claude Code 都只能用猜测来填补空白——而猜测往往是错的。"
+    },
+    {
+      "type": "heading",
+      "content": "如何诊断上下文缺失"
+    },
+    {
+      "type": "text",
+      "content": "当 Claude Code 犯错时，不要立即归咎于模型能力。先检查上下文：\n\n• 改错文件 → 可能缺少边界上下文\n• 漏掉约束 → 可能缺少约束上下文  \n• 重复已修复的错误 → 可能缺少证据上下文\n• 理解偏差 → 可能缺少清晰的需求上下文"
+    },
+    {
+      "type": "reflection",
+      "content": "回想最近一次 Claude Code 犯错的情况：你能识别出是缺少了哪一类上下文吗？如果重来，你会补充什么信息？"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "diagnose-scenario",
+      "bloomLevel": "analyze",
+      "knowledgeType": "conceptual",
+      "scaffoldLevel": "faded-1",
+      "prompt": "Claude Code 在添加新API时修改了不应该动的认证中间件。请分析可能缺失的上下文类型，并说明如何补充。",
+      "responseType": "generate",
+      "hints": [
+        "考虑哪些信息能防止越界修改",
+        "想一下边界上下文的作用",
+        "是否需要明确列出受保护的文件？"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s02-context-map",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "跟踪上下文信息流动路径",
+      "priority": "core",
+      "componentHint": null,
+      "interactionData": {
+        "type": "trace",
+        "title": "一次任务的上下文是怎么被喂进去的",
+        "description": "沿着一次改代码任务的路径追踪四类上下文何时进入、如何影响决策。找出缺哪一块会导致什么系统性错误。",
+        "steps": [
+          {
+            "id": "1",
+            "label": "任务入口：提出需求",
+            "detail": "你描述要实现的结果与验收标准，比如“修复登录后跳转异常，并补测试”。",
+            "state": "模型拿到需求上下文：要做什么、做到什么程度。",
+            "highlight": "只给需求时，模型会自选实现路径与默认假设。"
+          },
+          {
+            "id": "2",
+            "label": "补全约束：不能做什么",
+            "detail": "你声明限制条件，比如“不改 API 结构、不引入新依赖、保持兼容旧参数”。",
+            "state": "模型拿到约束上下文：哪些方案被排除、哪些行为禁止。",
+            "highlight": "缺约束时，常出现改错文件、重构过度或引入不允许改动。"
+          },
+          {
+            "id": "3",
+            "label": "提供证据：当前事实是什么",
+            "detail": "你给出相关代码片段、错误日志、现有测试失败信息与运行输出。",
+            "state": "模型拿到证据上下文：当前系统真实状态与可验证线索。",
+            "highlight": "缺证据时，容易凭空推断原因，导致修复方向偏离。"
+          },
+          {
+            "id": "4",
+            "label": "划定边界：不该动什么",
+            "detail": "你标明不可触碰范围，比如“只改 auth/ 目录，别改支付与数据库迁移”。",
+            "state": "模型拿到边界上下文：允许修改的文件/模块范围。",
+            "highlight": "缺边界时，模型可能为“更干净”而改到无关模块。"
+          },
+          {
+            "id": "5",
+            "label": "解析与合成：形成行动计划",
+            "detail": "模型把四类信息合成决策空间，选择最小改动的可行路径与步骤。",
+            "state": "需求定义目标，约束缩小方案，证据指向原因，边界限定触达范围。",
+            "highlight": "任一类缺失都会让决策空间变形，产生可预测的错误模式。"
+          },
+          {
+            "id": "6",
+            "label": "执行与回看：用证据校验",
+            "detail": "模型修改代码后对照日志与测试结果，确认是否满足需求并未违反约束与边界。",
+            "state": "证据被更新为新输出，作为下一轮上下文继续喂入。",
+            "highlight": "没有回看证据时，容易重复犯错或漏掉隐含约束。"
+          }
+        ],
+        "insight": "需求、约束、证据、边界任缺其一，都会让模型在目标、方案、判断或范围上系统性跑偏。"
+      }
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "解释为什么只提供需求上下文而不提供约束上下文会导致Claude Code做出不符合实际的修改",
+      "answerShape": "应该包含：约束上下文的作用、缺失导致的后果、具体示例说明"
+    }
+  ],
+  "bridgeTo": "理解了上下文构建，接下来要看Claude Code如何利用工具调用将代码生成转化为可验证的执行结果",
+  "id": "s02",
+  "number": 2,
+  "category": "core",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "priorKnowledge": [
+    "s01 的代理式系统全景",
+    "知道代码库由多文件与工具链构成"
+  ],
+  "targetChunk": "上下文构建的可诊断模型：需求/约束/证据（代码与输出）/边界（不该动什么）四类信息缺一不可。",
+  "chunkDependencies": [
+    "s01 的代理式系统全景",
+    "知道代码库由多文件与工具链构成"
+  ],
+  "nextModuleId": "s03"
+}

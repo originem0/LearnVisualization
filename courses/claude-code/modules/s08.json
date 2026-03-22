@@ -1,0 +1,455 @@
+{
+  "title": "质量控制：让输出“更像资深工程师”而不是“碰运气”",
+  "subtitle": "对比：测试、类型检查、lint、静态分析在 AI 协作中的角色分工",
+  "focusQuestion": "为什么同样有测试，AI 生成的改动仍会出现“通过但不可维护/隐性 bug/风格不一致”？你该用哪些质量门禁把风险前移？",
+  "misconception": "测试通过就等于质量过关；代码风格与架构一致性是“事后再说”的软性问题。",
+  "quote": "测试是底线，不是上限；门禁越前置，返工越便宜。",
+  "keyInsight": "在 Claude Code 协作里，“质量”不是单一的测试是否通过，而是四类风险的分工防线：正确性（测试）、契约（类型/接口）、一致性（格式/lint）、可维护性（复杂度/边界/依赖方向）。把门禁插在“生成→改动→验证→提交”链路上，能把 AI 的高速度转化为可审计、可回退、可长期维护的增量。",
+  "opening": "你让 Claude Code “把测试跑绿”，它确实做到了；PR 也能合。但两周后线上出现一个边界输入的 bug，回头看：测试覆盖不到；类型也没报错；代码风格甚至更统一了。问题出在更隐蔽的地方——改动悄悄引入了跨层依赖和过度复杂的分支，导致后续维护者不敢改。你以为“测试=质量”，但在 AI 时代，测试只是其中一张网，而且常常是最后一张。",
+  "knowledgeTypes": [
+    "conceptual",
+    "procedural"
+  ],
+  "bloomLevel": "evaluate",
+  "elementInteractivity": "medium",
+  "concepts": [
+    {
+      "name": "质量门禁",
+      "note": "把风险在更便宜的阶段拦住：越靠近生成环节，越能减少“跑偏后再修”的返工。",
+      "relatedTo": {
+        "concept": "工作流",
+        "link": "嵌入到"
+      }
+    },
+    {
+      "name": "正确性网",
+      "note": "用测试证明“行为符合期望”，但它只覆盖被写出来的断言与场景。",
+      "relatedTo": {
+        "concept": "质量门禁",
+        "link": "是其中一层"
+      }
+    },
+    {
+      "name": "契约网",
+      "note": "用类型/接口/Schema 保证“调用方与被调用方的约定没被悄悄改坏”，对 AI 的跨文件改动尤其关键。",
+      "relatedTo": {
+        "concept": "质量门禁",
+        "link": "补足于"
+      }
+    },
+    {
+      "name": "一致性网",
+      "note": "用 format/lint 把“可争论的风格问题”变成自动化规则，减少 review 噪音，让人力专注在设计与风险。",
+      "relatedTo": {
+        "concept": "质量门禁",
+        "link": "降低成本于"
+      }
+    },
+    {
+      "name": "可维护性网",
+      "note": "用复杂度/边界/依赖方向约束“可长期演进”，防止 AI 为了通过测试写出难改的代码。",
+      "relatedTo": {
+        "concept": "质量门禁",
+        "link": "提升上限于"
+      }
+    },
+    {
+      "name": "失败证据",
+      "note": "把工具输出（测试失败、类型错误、lint diff、复杂度报告）作为下一轮输入，让 Claude Code 在证据上收敛而非凭感觉重写。",
+      "relatedTo": {
+        "concept": "工具闭环",
+        "link": "驱动"
+      }
+    }
+  ],
+  "logicChain": [
+    "测试主要覆盖“已想到的场景”，无法保证契约、边界与长期可维护性",
+    "Claude Code 的强项是快速产生跨文件增量，但也更容易引入“隐性耦合”和“局部最优实现”",
+    "把质量拆成四类风险（正确性/契约/一致性/可维护性），每类用最便宜的自动化门禁去拦截",
+    "门禁要前置到“生成后立即检查”，并把失败输出变成下一轮修复的证据",
+    "最终把 review 从“找格式/低级错误”升级为“评估设计取舍与风险”，让 AI 速度变成团队收益"
+  ],
+  "examples": [
+    "在 TypeScript 服务中新增 config 字段：单元测试通过，但忘了更新 zod schema；类型检查 + schema 校验能提前拦住“运行时配置被丢弃”。",
+    "在 Python 项目里改了一个解析函数：测试只覆盖 happy path；ruff/mypy/复杂度检查提示分支爆炸并引入循环依赖，迫使重构为更清晰的纯函数 + 显式错误类型。",
+    "在 Go 服务里新增一个返回字段：编译通过、部分测试通过，但契约测试（golden file / API snapshot）发现 JSON 字段名不一致，提前阻止破坏客户端。",
+    "在 Monorepo 中 Claude Code 修改了 6 个文件：lint 全绿但跨层依赖方向被打破；依赖规则（例如 eslint-plugin-boundaries / dep-cruiser）把“domain 反向依赖 infra”直接挡在 CI。"
+  ],
+  "counterexamples": [
+    "只有“跑测试”：AI 为了让测试过，在实现里加入大量 if/else 和临时兼容分支，测试全绿但可读性与演进性显著下降。",
+    "只做“format/lint”：代码很整齐，但接口契约被悄悄改动（参数语义改变/默认值变化），线上仍会出问题。",
+    "只靠“类型检查”：类型正确并不等于行为正确；例如把金额从 string 改成 number，类型过了但精度与舍入规则错了。",
+    "只靠“复杂度门禁”：把复杂逻辑拆得很碎但缺少行为测试，最终变成“很多函数都看不出对错”。"
+  ],
+  "pitfalls": [
+    {
+      "point": "把“所有质量问题”都寄托在最后一步跑测试",
+      "rootCause": "把质量等同于正确性，忽略契约/一致性/可维护性；且把反馈延后导致修复成本变高。"
+    },
+    {
+      "point": "让 Claude Code 在没有失败证据时反复“重写一版试试”",
+      "rootCause": "没有把工具输出转成可定位的约束（具体哪条规则/哪条测试/哪个类型错误），导致随机游走式修复。"
+    },
+    {
+      "point": "CI 门禁太多但本地无法一键复现",
+      "rootCause": "门禁设计缺少“开发者回路”，Claude Code/人都只能在 CI 里猜，反馈周期过长。"
+    },
+    {
+      "point": "lint 规则与团队意图不一致，review 仍在争论风格",
+      "rootCause": "未把“可争论的风格”交给工具，或规则选择过度主观，导致噪音而非减少噪音。"
+    },
+    {
+      "point": "用“覆盖率数字”替代“关键路径的证据”",
+      "rootCause": "把可量化指标当作目标；忽略契约测试、回归样例、边界条件等更贴近风险的证据。"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "质量不是一个开关，而是四张不同的网"
+    },
+    {
+      "type": "text",
+      "content": "把 Claude Code 接入工作流后，最常见的错觉是：只要“测试绿”，就可以放心合并。但 AI 的典型问题往往不体现在单一失败上，而是体现在：\n\n- 行为正确但契约悄悄变了（调用方未来会炸）\n- 测试覆盖不到的边界输入被忽略（隐性 bug）\n- 为了过测试写出难维护的结构（长期成本）\n- 风格/结构不一致让 review 成本飙升（团队摩擦）\n\n所以要把质量拆成四类门禁：正确性、契约、一致性、可维护性。每一类都要“在最便宜的位置”拦截。"
+    },
+    {
+      "type": "callout",
+      "content": "把“测试通过”重新定义为：只是通过了正确性网；其余三张网不补齐，风险只是被延后。"
+    },
+    {
+      "type": "heading",
+      "content": "门禁地图：每张网拦截什么、放在哪里"
+    },
+    {
+      "type": "comparison",
+      "content": "正确性网（tests）：验证行为；适合回归、边界、关键路径。缺点：覆盖不全、反馈可能较慢。\n契约网（types/schema/api snapshot）：验证“约定没变坏”；适合跨文件改动、对外接口、配置/数据结构。优点：反馈快、定位清晰。\n一致性网（format/lint）：验证“写法一致”；适合减少 review 噪音。优点：最便宜、可自动修复。\n可维护性网（complexity/boundary/deps）：验证“结构可演进”；适合防止跨层耦合、函数爆炸。优点：提前阻止架构腐化。",
+      "label": "四类门禁的分工"
+    },
+    {
+      "type": "heading",
+      "content": "Worked Example：把“新增配置项”做成可合并 PR（含门禁证据）"
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "从改动到证据：一次闭环的门禁顺序",
+      "steps": [
+        {
+          "title": "先声明门禁目标（让 Claude Code 以证据收敛）",
+          "description": "在任务开始前明确：要交付的不只是代码，还要交付“每张网的通过证据”。把验证命令也写进计划。",
+          "visual": "目标：新增 config: FEATURE_X_TIMEOUT\n证据：\n1) unit tests 通过\n2) 类型/Schema 校验通过\n3) lint/format 无差异\n4) 边界/依赖规则未破坏",
+          "highlight": "证据"
+        },
+        {
+          "title": "一致性网先跑（最便宜的错误先清掉）",
+          "description": "生成或修改代码后，先 format/lint。它们通常能自动修复，也能减少后续 diff 噪音，让你更容易看出“真正的逻辑变化”。",
+          "visual": "make fmt\nmake lint\n# 或：npm run format && npm run lint",
+          "highlight": "fmt/lint"
+        },
+        {
+          "title": "契约网再跑（最快发现跨文件/接口错配）",
+          "description": "跑类型检查、Schema 校验、API snapshot/golden。目标是捕捉“测试可能没覆盖”的接口破坏，尤其是新增字段、改默认值、改返回结构。",
+          "visual": "npm run typecheck\nnpm run schema:check\n# 或：go test ./... (编译层面) + API snapshot",
+          "highlight": "契约"
+        },
+        {
+          "title": "正确性网最后跑（用测试证明行为）",
+          "description": "单元/集成测试证明：新增配置项贯穿到了解析层、业务层，并且关键路径行为符合预期。若失败，保留失败输出作为修复输入。",
+          "visual": "npm test\n# 失败输出（截取最小必要段）：\nExpected timeout=5000, got 0\nat config.test.ts:42",
+          "highlight": "失败输出"
+        },
+        {
+          "title": "可维护性网做“结构门禁”（防止为了过测试写烂）",
+          "description": "检查复杂度、边界依赖、禁止反向依赖等规则。它回答的问题是：改动是否破坏分层与演进性？",
+          "visual": "npm run complexity\nnpm run boundaries\n# 例：domain -> infra 反向依赖被拒绝",
+          "highlight": "边界"
+        },
+        {
+          "title": "把证据附着在提交/PR（让 review 变轻）",
+          "description": "把通过的命令与关键输出（或 CI 链接）写进 PR 描述；必要时附上“为什么选择这种实现”的短解释，减少来回问答。",
+          "visual": "PR 描述：\n- 验证：typecheck ✅ / lint ✅ / unit ✅ / boundaries ✅\n- 设计：timeout 解析集中在 config 层，业务层仅依赖接口，不读 env",
+          "highlight": "附着"
+        }
+      ]
+    },
+    {
+      "type": "reflection",
+      "content": "停下来检查：如果只允许你保留其中两张网，你会保留哪两张？你选择的代价是什么（会放过哪类风险）？\n\n如果你答不出来，回看“分工”对比表，尝试用“会放过的失败类型”来解释，而不是用工具名解释。"
+    },
+    {
+      "type": "heading",
+      "content": "把门禁写进 Claude Code 的提问方式"
+    },
+    {
+      "type": "text",
+      "content": "门禁不是“人自己记得跑”，而应该成为你给 Claude Code 的工作指令结构。一个可复用的提问骨架是：\n\n1) 你要改什么（最小范围）\n2) 哪些门禁必须过（列命令/规则）\n3) 失败时要返回什么证据（粘贴哪段输出、定位到哪一行）\n\n这样 Claude Code 的下一步行动会围绕证据修复，而不是“再改一版试试”。"
+    },
+    {
+      "type": "callout",
+      "content": "在 AI 协作里，最有价值的不是“让它写代码”，而是“让它持续产出可验证的增量”。门禁就是把增量变可靠的装置。"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "compare-variants",
+      "bloomLevel": "analyze",
+      "knowledgeType": "conceptual",
+      "scaffoldLevel": "full",
+      "prompt": "同一个 PR：测试全绿，但 reviewer 说“不可维护”。请比较下面两种补救路径，哪一种更像“把风险前移”的门禁思路？并说明另一种为什么仍然像碰运气。\nA. 让 Claude Code ‘再重构一版让代码更优雅’，不加额外检查。\nB. 先加一个边界/依赖规则（例如禁止 domain 依赖 infra），再让 Claude Code 在规则约束下做最小重构，并附上 complexity 报告前后对比。",
+      "responseType": "generate",
+      "hints": [
+        "用四张网的语言回答：哪一张网在起作用？哪类风险被拦住？",
+        "指出‘无证据重构’的失败模式：改动扩大、目标漂移、不可回滚。"
+      ]
+    },
+    {
+      "id": "ex2",
+      "type": "debug-decision-tree",
+      "bloomLevel": "evaluate",
+      "knowledgeType": "procedural",
+      "scaffoldLevel": "faded-1",
+      "prompt": "你新增了一个配置字段，出现以下现象：\n- 单元测试通过\n- 线上日志显示字段偶尔为默认值\n- typecheck 通过\n请写出你会新增/前置的两个门禁，并说明它们各自要抓住什么证据（输出长什么样）。",
+      "responseType": "generate",
+      "hints": [
+        "从‘契约网’与‘正确性网’中各选一个，但要更贴近‘偶尔默认值’这种症状。",
+        "想想：是不是缺了 schema 校验、配置加载的集成测试、或 API snapshot？"
+      ]
+    },
+    {
+      "id": "ex3",
+      "type": "fill-missing-steps",
+      "bloomLevel": "apply",
+      "knowledgeType": "procedural",
+      "scaffoldLevel": "faded-2",
+      "prompt": "把下面的 Claude Code 指令补完整，让它围绕门禁闭环工作（补上缺失的两段）：\n\n‘请在最小改动范围内修复 issue #217（解析层对空字符串处理不一致）。\n改完后按顺序执行：①____ ②____ ③npm test。\n如果任何一步失败，请粘贴最短失败输出（包含文件路径与行号），并给出下一步最小修复计划。最后生成 PR 描述，包含你跑过的命令与结果。’",
+      "responseType": "generate",
+      "hints": [
+        "从最便宜到最贵：先一致性网，再契约网，再正确性网。",
+        "用你项目里真实存在的命令名（例如 lint/typecheck）。"
+      ]
+    },
+    {
+      "id": "ex4",
+      "type": "design-a-checklist",
+      "bloomLevel": "create",
+      "knowledgeType": "conceptual",
+      "scaffoldLevel": "free",
+      "prompt": "为你的项目写一份“AI 协作最小质量门禁清单”（最多 8 条），要求：\n- 每条都能自动执行（本地或 CI）\n- 覆盖四张网（正确性/契约/一致性/可维护性）\n- 每条写清楚‘失败时你希望 Claude Code 返回的证据格式’（例如粘贴哪段输出）",
+      "responseType": "generate",
+      "hints": [
+        "不要堆工具名；用‘拦截的风险类型’来决定是否需要这一条。",
+        "优先选择能在 1-2 分钟内反馈的检查，把慢的放到 CI。"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "faded-2",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s08-gate-map",
+      "type": "conceptMap",
+      "required": true
+    },
+    {
+      "id": "s08-pipeline-overlay",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "compare",
+      "purpose": "对比四类门禁各自拦截的风险类型，并选择在工作流中的放置点",
+      "priority": "core",
+      "componentHint": null,
+      "interactionData": {
+        "type": "compare",
+        "title": "四类质量门禁：各拦什么风险，放在工作流哪一步",
+        "description": "对比四类门禁的拦截对象与最佳放置点。选出最能把风险前移的一组组合。",
+        "items": [
+          {
+            "id": "correctness",
+            "label": "正确性网（测试）",
+            "detail": "拦“结果对不对”。适合在改动后立刻跑关键测试，再在提交前跑全量。",
+            "pros": [
+              "直接验证行为，能快速发现回归",
+              "失败输出可作为修复的最强证据"
+            ],
+            "cons": [
+              "只覆盖“已想到的场景”，盲区仍可能出隐性 bug",
+              "通过不等于接口契约与可维护性达标"
+            ]
+          },
+          {
+            "id": "contract",
+            "label": "契约网（类型/接口）",
+            "detail": "拦“约定是否被破坏”。放在生成后与改动后立即跑类型检查、接口一致性校验。",
+            "pros": [
+              "在无测试用例时也能提前暴露不匹配",
+              "能阻止跨文件改动造成的隐性耦合扩散"
+            ],
+            "cons": [
+              "类型正确不代表逻辑正确，仍需测试验证",
+              "弱类型或接口未显式化时效果打折"
+            ]
+          },
+          {
+            "id": "consistency",
+            "label": "一致性网（格式/lint）",
+            "detail": "拦“风格和规范偏差”。适合在生成后自动格式化，并在提交前强制 lint 通过。",
+            "pros": [
+              "把 review 从“挑格式”解放到“评估设计”",
+              "降低合并噪音，减少无意义 diff"
+            ],
+            "cons": [
+              "几乎不发现业务风险，易被误当成质量充分条件",
+              "规则不当会造成摩擦或误报"
+            ]
+          },
+          {
+            "id": "maintainability",
+            "label": "可维护性网（复杂度/边界/依赖方向）",
+            "detail": "拦“能否长期演进”。在改动后立即跑复杂度/架构规则检查，提交前再做门禁汇总。",
+            "pros": [
+              "提前阻止局部最优实现与边界侵蚀",
+              "把设计约束自动化，减少靠人记忆"
+            ],
+            "cons": [
+              "规则需要团队共识，初期成本较高",
+              "无法替代设计评审，需配合人工判断"
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "name": "主要拦截的风险",
+            "description": "它主要防的是正确性、契约破坏、风格不一致，还是可维护性退化。"
+          },
+          {
+            "name": "最佳放置点（生成→改动→验证→提交）",
+            "description": "选择最靠前且成本最低的节点，让失败尽早发生。"
+          },
+          {
+            "name": "失败证据形态",
+            "description": "失败输出是否能直接指导下一轮修复，如测试用例、类型错误、lint 报告、依赖违规。"
+          },
+          {
+            "name": "误通过的常见原因",
+            "description": "解释为什么即使通过这一关，仍可能留下隐性 bug 或不可维护改动。"
+          },
+          {
+            "name": "对 Review 的影响",
+            "description": "它能否把 review 从低级错误检查升级为设计取舍与风险评估。"
+          }
+        ],
+        "insight": "质量是四类风险分工防线：门禁越前置、证据越明确，AI 速度越能转化为可审计增量。"
+      }
+    },
+    {
+      "capability": "trace",
+      "purpose": "把一次失败输出转写为可执行的下一步最小修复计划（证据→行动）",
+      "priority": "secondary",
+      "componentHint": null,
+      "interactionData": {
+        "type": "trace",
+        "title": "从失败证据追踪到最小修复计划（证据→行动）",
+        "description": "沿着一次失败输出逐步标注“证据→风险网→最小修复”。完成后你会得到可执行的下一步检查清单。",
+        "steps": [
+          {
+            "id": "1",
+            "label": "收集失败证据",
+            "detail": "把失败日志拆成可引用的片段：报错、文件路径、行号、命令与期望行为。",
+            "state": "你有一段混杂输出，但尚未形成可复述的失败结论。",
+            "highlight": "提取“最小可重现信息”：命令+失败摘要+定位线索。"
+          },
+          {
+            "id": "2",
+            "label": "给证据贴“风险网”标签",
+            "detail": "判断证据属于正确性/契约/一致性/可维护性中的哪一类，必要时可多选。",
+            "state": "你知道“哪里坏了”，但还不清楚该由哪道门禁来拦截。",
+            "highlight": "把问题从“修代码”改写为“修哪张网的洞”。"
+          },
+          {
+            "id": "3",
+            "label": "把证据改写成可验证断言",
+            "detail": "将日志转换为一句断言：在什么条件下，应出现什么结果；现在却出现了什么。",
+            "state": "失败是描述性的，不足以指导下一轮生成或修复。",
+            "highlight": "形成“可通过/可失败”的判据，避免模糊修复。"
+          },
+          {
+            "id": "4",
+            "label": "定位最小影响面",
+            "detail": "追踪到最小集合：一个入口、一个边界、一个直接依赖，避免跨层扩散改动。",
+            "state": "你可能想“顺手重构”，但风险和回滚成本会增大。",
+            "highlight": "锁定“最小变更集”：只动能让断言翻转的点。"
+          },
+          {
+            "id": "5",
+            "label": "选择最便宜的门禁先拦截",
+            "detail": "按成本从低到高排：格式/lint→类型/接口→单测→复杂度与依赖方向检查。",
+            "state": "你在“先修什么”上犹豫，容易陷入反复试错。",
+            "highlight": "先跑最快的网，让反馈更密集、迭代更短。"
+          },
+          {
+            "id": "6",
+            "label": "产出“最小修复计划”",
+            "detail": "写出三行计划：要改的文件与点、要新增/调整的门禁、通过标准与回归命令。",
+            "state": "你有结论但缺少可执行的下一步，Claude 容易发散生成。",
+            "highlight": "把证据变成行动清单：改动点+门禁+验收命令。"
+          },
+          {
+            "id": "7",
+            "label": "把失败输出固化为下一轮输入",
+            "detail": "将断言、日志片段、门禁命令作为“失败证据块”贴回协作上下文。",
+            "state": "修复可能成功一次，但下次同类问题仍会复发。",
+            "highlight": "把失败变成可复用约束，让生成更可审计、可回退。"
+          }
+        ],
+        "insight": "把失败输出转为“证据→风险网→断言→最小变更+门禁”的链路，才能前置风险并减少试错。"
+      }
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "不看材料，说出“质量门禁”的四张网分别解决什么问题（每张网一句话）。",
+      "answerShape": "四条要点：正确性/契约/一致性/可维护性，各自对应的风险"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "当你看到“测试通过但线上偶发默认值”时，更可能缺的是（____）网的证据；你会优先加的检查是（____），它的失败输出应能定位到（文件/规则/行号）。",
+      "answerShape": "填空 + 一句解释：缺口网类型→具体检查→期望的失败证据形态"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "解释为什么把 lint/typecheck 前置到测试之前，通常能让 Claude Code 更快收敛到可合并改动。",
+      "answerShape": "因果链：反馈成本/定位清晰/减少 diff 噪音/避免随机重写"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "写一个三句式的 Claude Code 指令骨架，把‘改动目标 + 门禁命令 + 失败证据要求’写全。",
+      "answerShape": "三句模板：最小范围目标；按顺序的门禁命令；失败时粘贴的最短证据与下一步计划"
+    }
+  ],
+  "bridgeTo": "下一章要把这些门禁与证据要求上升为“团队级规范”：哪些必须强制写进约定与 CI，哪些可以留给个人判断；以及如何用最少规则让新人也能复现、审计并解释每一次 Claude Code 的改动。",
+  "id": "s08",
+  "number": 8,
+  "category": "practice",
+  "moduleKind": "system-overview",
+  "primaryCognitiveAction": "compare",
+  "priorKnowledge": [
+    "s07 的交付流水线",
+    "基本 CI/本地检查工具概念"
+  ],
+  "targetChunk": "质量门禁地图：正确性（测试）/契约（类型与接口）/一致性（lint/format）/可维护性（复杂度与边界）及其在 AI 工作流中的放置点。",
+  "chunkDependencies": [
+    "s07 的交付流水线",
+    "基本 CI/本地检查工具概念"
+  ],
+  "nextModuleId": "s09"
+}

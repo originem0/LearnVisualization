@@ -1,0 +1,95 @@
+{
+  "s01": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学习者用“目的—时间结构—他人维度”逐步追踪一个日常活动被劳动化/工作化/行动化的判定过程，形成可迁移的诊断脚本。",
+      "priority": "core"
+    }
+  },
+  "s02": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "理解劳动循环的必然性",
+      "priority": "core"
+    }
+  },
+  "s04": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "在多个情境中区分“行动”与“执行/工作”，并指出差异来自开端性、依赖他者与不可逆性中的哪一项",
+      "priority": "core"
+    },
+    "secondaryInteractive1": {
+      "capability": "classify",
+      "purpose": "把混合情境按“劳动/工作/行动”为主进行归类，以减少概念混淆并形成可迁移判断规则",
+      "priority": "secondary"
+    }
+  },
+  "s05": {
+    "heroInteractive": {
+      "capability": "compare",
+      "purpose": "让学习者用“双核结构”对比不同场景的政治性强弱，而不是按“是否政府管理/是否公共场所”来分类。",
+      "priority": "core"
+    },
+    "secondaryInteractive1": {
+      "capability": "trace",
+      "purpose": "让学习者追踪“可见→可回应→共享对象→形成公共记忆”的链条，理解公共领域如何被建构出来。",
+      "priority": "secondary"
+    }
+  },
+  "s06": {},
+  "s03": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学习者按“成品标准→抽离循环→稳定形态→使用维护→共同世界”的顺序追踪工作如何生成世界性，而不是停留在‘有工资/很辛苦’的分类。",
+      "priority": "core"
+    }
+  },
+  "s07": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "追踪家政逻辑如何侵蚀政治领域",
+      "priority": "core"
+    }
+  },
+  "s08": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "理解视角转变的逻辑链条",
+      "priority": "core"
+    }
+  },
+  "s11": {
+    "heroInteractive": {
+      "capability": "rebuild",
+      "purpose": "让学习者把历史案例重建为“中心议题—公共领域命运—建制承接—结果”的因果链，而不是停留在事件叙述或道德评判。",
+      "priority": "core"
+    },
+    "secondaryInteractive1": {
+      "capability": "compare",
+      "purpose": "在相同框架下对比不同革命路径，突出“社会问题居中”与“自由建制居中”的结构差异。",
+      "priority": "secondary"
+    }
+  },
+  "s09": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学习者沿着“增长压力→周转加速→消费化→世界稳定下降→空虚增强”的链条逐步标注每一步的因果与中介变量",
+      "priority": "core"
+    }
+  },
+  "s10": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "让学习者沿“不可逆/不可预期 → 宽恕/承诺”的路径标注每一步在修复哪种行动困境",
+      "priority": "core"
+    }
+  },
+  "s12": {
+    "heroInteractive": {
+      "capability": "trace",
+      "purpose": "引导学习者沿“显现—共同世界—平台激励—社会化逻辑”的链条追踪一次线上事件的机制走向，并据此提出重建动作。",
+      "priority": "core"
+    }
+  }
+}

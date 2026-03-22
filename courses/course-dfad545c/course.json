@@ -1,0 +1,190 @@
+{
+  "id": "course-dfad545c",
+  "slug": "course-dfad545c",
+  "title": "解读《人的境况》：汉娜·阿伦特的思想体系",
+  "subtitle": "从劳动、工作、行动到现代性危机",
+  "goal": "建立对阿伦特政治哲学的整体认知框架，理解其核心概念的内在逻辑，并能应用于分析现代政治现象",
+  "projectType": "mixed",
+  "startDate": "2026-03-22",
+  "topic": "解读《人的境况》汉娜阿伦特",
+  "language": "zh",
+  "status": "draft",
+  "categories": [
+    {
+      "id": "foundation",
+      "name": "概念基础",
+      "color": "blue"
+    },
+    {
+      "id": "mechanism",
+      "name": "机制剖析",
+      "color": "emerald"
+    },
+    {
+      "id": "crisis",
+      "name": "现代性危机",
+      "color": "purple"
+    },
+    {
+      "id": "application",
+      "name": "当代应用",
+      "color": "amber"
+    }
+  ],
+  "audience": {
+    "primaryAudience": "哲学、政治学初学者，对公共事务感兴趣但未系统接触阿伦特思想的读者",
+    "priorKnowledge": [
+      "基本政治学术语（如权力、权威）",
+      "西方哲学史常识（如柏拉图、亚里士多德）"
+    ],
+    "constraints": [
+      "无德语或希腊语基础",
+      "未读过原著"
+    ],
+    "desiredOutcome": "能清晰解释阿伦特的核心概念体系，并用于分析当代公共领域问题"
+  },
+  "learningGoals": [
+    "掌握劳动（labor）、工作（work）、行动（action）的三元区分",
+    "理解公共领域（public realm）与私人领域（private realm）的辩证关系",
+    "分析现代性如何导致「人的境况」危机",
+    "应用「行动」理论解读当代政治现象"
+  ],
+  "nonGoals": [
+    "全面涵盖阿伦特所有著作",
+    "深入探讨其争议性观点（如艾希曼审判）",
+    "比较其他政治哲学流派"
+  ],
+  "assumptions": [
+    "读者关心现代社会的政治困境",
+    "读者认同理性讨论的价值",
+    "读者愿意重新审视日常概念（如劳动、自由）"
+  ],
+  "philosophy": {
+    "promise": "学完本课程，你将不再用「好坏」简单评判政治，而是能从「人的境况」深度分析现代性危机",
+    "corePrinciples": [
+      "概念区分优先于价值判断",
+      "历史脉络决定概念内涵",
+      "政治哲学必须回应现实困境"
+    ],
+    "shiftStatement": "从「政治是什么」转向「人作为政治存在意味着什么」"
+  },
+  "paths": [
+    {
+      "id": "core-path",
+      "title": "核心路径",
+      "description": "从概念奠基到现代应用的系统学习",
+      "moduleIds": [
+        "s01",
+        "s02",
+        "s03",
+        "s04",
+        "s05",
+        "s06",
+        "s07",
+        "s08",
+        "s09",
+        "s10",
+        "s11",
+        "s12"
+      ]
+    }
+  ],
+  "moduleGraph": {
+    "order": [
+      "s01",
+      "s02",
+      "s03",
+      "s04",
+      "s05",
+      "s06",
+      "s07",
+      "s08",
+      "s09",
+      "s10",
+      "s11",
+      "s12"
+    ],
+    "edges": [
+      {
+        "from": "s01",
+        "to": "s02",
+        "type": "prerequisite",
+        "note": "必须先理解三元区分，才能深入分析劳动境况"
+      },
+      {
+        "from": "s01",
+        "to": "s03",
+        "type": "prerequisite",
+        "note": "工作境况的理解依赖基础概念区分"
+      },
+      {
+        "from": "s01",
+        "to": "s04",
+        "type": "prerequisite",
+        "note": "行动概念建立在与劳动工作的对比上"
+      },
+      {
+        "from": "s04",
+        "to": "s05",
+        "type": "prerequisite",
+        "note": "公共领域是行动展开的空间前提"
+      },
+      {
+        "from": "s05",
+        "to": "s06",
+        "type": "bridge",
+        "note": "公共与私人领域的辩证关系"
+      },
+      {
+        "from": "s05",
+        "to": "s07",
+        "type": "prerequisite",
+        "note": "社会的兴起以公共领域概念为基础"
+      },
+      {
+        "from": "s03",
+        "to": "s08",
+        "type": "bridge",
+        "note": "世界异化问题直接关联工作境况"
+      },
+      {
+        "from": "s02",
+        "to": "s09",
+        "type": "bridge",
+        "note": "消费社会批判建立在劳动境况分析上"
+      },
+      {
+        "from": "s04",
+        "to": "s10",
+        "type": "prerequisite",
+        "note": "承诺与宽恕是应对行动困境的技艺"
+      },
+      {
+        "from": "s10",
+        "to": "s11",
+        "type": "bridge",
+        "note": "革命研究需要行动理论工具"
+      },
+      {
+        "from": "s11",
+        "to": "s12",
+        "type": "recommended",
+        "note": "从历史案例到当代应用的整合"
+      }
+    ]
+  },
+  "modules": [
+    "s01",
+    "s02",
+    "s03",
+    "s04",
+    "s05",
+    "s06",
+    "s07",
+    "s08",
+    "s09",
+    "s10",
+    "s11",
+    "s12"
+  ]
+}

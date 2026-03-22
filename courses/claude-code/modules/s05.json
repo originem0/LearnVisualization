@@ -1,0 +1,380 @@
+{
+  "title": "案例推理：修一个“测试全挂但看起来没改核心逻辑”的 PR",
+  "subtitle": "专家如何读失败输出、定位根因并约束下一步",
+  "focusQuestion": "当 Claude Code 提交的改动让测试大面积失败，你如何判断是“实现错了”、还是“改动范围失控”、还是“环境/命令用错”？下一句你要怎么问，才能让它走向可验证的修复？",
+  "misconception": "测试挂了就让它“继续修到通过”；多试几次总会好。",
+  "quote": "不要让模型“继续修”，先让失败输出变成证据，再让证据约束下一步。",
+  "keyInsight": "大面积失败并不等于“代码写错了”。先做故障分型：命令/环境层、依赖层、接口契约层、业务行为层；每一类都有最小可复现与最小修复的不同策略。你问 Claude Code 的下一句，必须同时指定：复现命令、要提取的证据、允许的改动边界、验证门槛（跑哪些测试/看哪些 diff）。",
+  "opening": "很多人看到 30+ 测试失败会本能地下达一个指令：\n\n> “继续修到测试全绿。”\n\n这通常把你带向“改动越来越大、线索越来越少”的灾难：模型为了让结果变绿，会不断改代码、改测试、甚至改配置，而你失去对“最初哪里错了”的可追溯性。\n\n更有效的做法反直觉：先暂停修复，把失败当成一条条可验证的“证据”，先用证据完成故障分型，再决定最小修复路径。",
+  "knowledgeTypes": [
+    "strategic",
+    "procedural"
+  ],
+  "bloomLevel": "analyze",
+  "elementInteractivity": "high",
+  "concepts": [
+    {
+      "name": "故障分型",
+      "note": "把“测试全挂”拆成可行动的类别，避免盲目扩大改动范围。",
+      "relatedTo": {
+        "concept": "证据链",
+        "link": "由其驱动"
+      }
+    },
+    {
+      "name": "证据链",
+      "note": "用可复现命令、失败摘要、关键日志、diff 约束推理，防止靠猜和重试。",
+      "relatedTo": {
+        "concept": "最小复现",
+        "link": "起点是"
+      }
+    },
+    {
+      "name": "最小复现",
+      "note": "先选一个最能代表根因的失败用例，降低搜索空间与认知负荷。",
+      "relatedTo": {
+        "concept": "定位层级",
+        "link": "决定"
+      }
+    },
+    {
+      "name": "定位层级",
+      "note": "按命令/环境→依赖→接口契约→业务行为的顺序排查，先排除低成本高概率项。",
+      "relatedTo": {
+        "concept": "最小修复",
+        "link": "指向"
+      }
+    },
+    {
+      "name": "最小修复",
+      "note": "只改必须改的点，并立即回归验证，避免“为了绿而绿”。",
+      "relatedTo": {
+        "concept": "回归验证",
+        "link": "必须伴随"
+      }
+    },
+    {
+      "name": "回归验证",
+      "note": "用分层测试门槛（单测子集→全量→lint/build）把修复闭环，防止回归与漂移。",
+      "relatedTo": {
+        "concept": "证据链",
+        "link": "补强"
+      }
+    }
+  ],
+  "logicChain": [
+    "“测试全挂”是症状，不是根因；先避免把修复当成随机搜索",
+    "收集可复现命令与失败摘要，建立证据链（能重复、能对比）",
+    "做故障分型：命令/环境、依赖、接口契约、业务行为",
+    "选一个最小复现用例作为主线，减少并行变量",
+    "按定位层级从低成本项到高成本项排除与确认",
+    "产出最小修复：限定改动边界与允许触碰的文件/模块",
+    "回归验证：从最相关测试子集扩展到全量，并记录验证输出作为审计证据"
+  ],
+  "examples": [
+    "PR 只改了一个默认配置值，但 CI 上 Jest 36 个用例失败：失败集中在“snapshot 不匹配”和“expected 400 got 200”两类",
+    "在本机运行 `pnpm test` 全绿，但 CI 运行 `pnpm test -- --runInBand` 大面积失败，最终定位为测试依赖执行顺序与共享全局状态",
+    "将 `parseConfig()` 返回类型从 `string | undefined` 改成 `string`，导致调用方依赖“undefined 表示禁用”的逻辑全部失效，出现成片断言失败"
+  ],
+  "counterexamples": [
+    "让 Claude Code 直接改 10+ 个测试快照以“修复” snapshot 失败，结果把真实的 API 行为回归掩盖掉",
+    "为了让测试通过，把失败用例直接 `skip` 或降低断言强度，短期变绿但引入隐性 bug",
+    "在未固定复现命令的情况下反复“修到绿”，最后本地能过、CI 仍挂，且 diff 已经难以 review"
+  ],
+  "pitfalls": [
+    {
+      "point": "把“测试全挂”当成一个问题让模型一次性修",
+      "rootCause": "没有证据链与分型，模型只能在巨大搜索空间里碰运气"
+    },
+    {
+      "point": "同时改实现、改测试、改配置",
+      "rootCause": "缺少改动边界（scope guard），导致无法判断哪一类改动带来效果"
+    },
+    {
+      "point": "只盯第一条失败日志就开改",
+      "rootCause": "没有聚类失败模式，忽略“成片失败往往共享同一根因”的特征"
+    },
+    {
+      "point": "本地通过就合并，CI 失败才回头",
+      "rootCause": "复现环境不一致未被显式化（Node 版本、命令参数、环境变量）"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "你要训练的不是“让 Claude Code 更努力”，而是让它更像资深工程师：先收集证据、缩小问题、再做最小改动。\n\n当测试大面积失败时，最贵的不是修代码的时间，而是你让改动范围失控后，失去对根因的可解释性：你不知道哪一次改动真正修对了，也很难让同事 review。"
+    },
+    {
+      "type": "heading",
+      "content": "第一步：把失败输出变成“可用证据”"
+    },
+    {
+      "type": "text",
+      "content": "把 Claude Code 的下一步从“继续修”改成“先提取证据”。你要它给你三样东西：\n1) 复现命令（精确到参数）\n2) 失败聚类（失败类型/错误信息模式/涉及模块）\n3) 与 PR diff 的关联假设（哪些改动可能影响这类失败）\n\n这一步的目的，是把模糊的挫败感变成可推理的输入。"
+    },
+    {
+      "type": "callout",
+      "content": "你问模型的句式要从“修好它”变成：“用这个命令复现 → 总结失败模式 → 给出 2-3 个可证伪的根因假设 → 为每个假设列出要看的证据与最小验证步骤。”"
+    },
+    {
+      "type": "heading",
+      "content": "故障分型：4 类失败，4 种修法"
+    },
+    {
+      "type": "comparison",
+      "content": "命令/环境层：命令不一致、Node 版本、环境变量、工作目录、CI 参数差异\n依赖层：lockfile 漂移、可选依赖、native 模块、缓存导致版本不一致\n接口契约层：类型/返回值/默认值/异常语义改变，引发调用方成片失败\n业务行为层：实现逻辑错误、边界条件、并发/时序问题、状态泄漏",
+      "label": "从症状到类别"
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "Worked Example：把“36 个 Jest 失败”走到可验证修复",
+      "steps": [
+        {
+          "title": "固定复现入口",
+          "description": "先锁定“同一条命令、同一环境、同一失败集合”。如果 CI 失败，本地也要用同参数复现。",
+          "visual": "记录：\n- CI 命令：pnpm test -- --runInBand\n- Node：20.11.1\n- 失败数：36\n- 首次失败时间戳/Job 链接",
+          "highlight": "同一命令"
+        },
+        {
+          "title": "对失败做聚类而不是逐条读",
+          "description": "把 36 条失败按错误信息模式分组，优先处理占比最高的一组（往往共享根因）。",
+          "visual": "聚类示例：\nA: snapshot mismatch (22)\nB: expected 400 got 200 (11)\nC: timeout (3)",
+          "highlight": "聚类"
+        },
+        {
+          "title": "先排除命令/环境层",
+          "description": "检查本地是否与 CI 一致：Node、环境变量、测试参数、工作目录、是否走了缓存。",
+          "visual": "核对清单：\nnode -v\npnpm -v\necho $CI\nprintenv | grep API_\n是否有 --runInBand/--maxWorkers",
+          "highlight": "环境层"
+        },
+        {
+          "title": "读取 PR diff，找“契约变化点”",
+          "description": "如果失败集中在响应码/返回值/默认值，优先怀疑接口契约层而非业务实现细节。",
+          "visual": "diff 线索：\nparseConfig(): string | undefined  → string\ngetFeatureFlag(): default false → true",
+          "highlight": "契约层"
+        },
+        {
+          "title": "选一个最小复现用例做主线",
+          "description": "从 B 组里选一个最短路径的失败用例，追到断言与调用链，确认契约预期。",
+          "visual": "选择：tests/api/config.test.ts\n断言：expect(res.status).toBe(400)\n调用链：handler → parseConfig → validate",
+          "highlight": "最小复现"
+        },
+        {
+          "title": "产出最小修复：只改一个层级并立刻验证",
+          "description": "如果契约确实被破坏：恢复原语义或显式迁移调用方；避免同时改多处来“碰巧变绿”。",
+          "visual": "修复策略二选一：\n1) 恢复 parseConfig 可返回 undefined\n2) 保持 string，但调用方改为显式检查空字符串并更新契约文档+测试",
+          "highlight": "最小修复"
+        },
+        {
+          "title": "回归验证并留证据",
+          "description": "先跑相关测试子集确认方向，再跑全量；把命令与输出贴进 PR 作为可审计证据。",
+          "visual": "验证门槛：\npnpm test tests/api/config.test.ts\npnpm test\npnpm lint\n记录：通过截图/日志片段",
+          "highlight": "留证据"
+        }
+      ]
+    },
+    {
+      "type": "reflection",
+      "content": "元认知检查点：\n- 现在不看材料，你能把“4 类故障分型”完整说出来吗？\n- 你在 worked example 里最想跳过哪一步？那一步被跳过后，最可能发生的坏事是什么？\n\n如果你说不出“为什么要先聚类失败”，回到上面的 comparison：成片失败往往共享根因，逐条修会把你拖进随机游走。"
+    },
+    {
+      "type": "heading",
+      "content": "把“下一句”写成可执行的约束：给 Claude Code 的修复指令模板"
+    },
+    {
+      "type": "text",
+      "content": "当你准备让 Claude Code 真正动手修复时，你的指令应包含四个约束：\n1) 复现命令：用哪条命令跑（含参数）\n2) 目标证据：你要它在输出里报告什么（失败聚类、关键堆栈、关联 diff）\n3) 改动边界：允许改哪些目录/文件类型；禁止动哪些（例如 lockfile、CI 配置、快照批量更新）\n4) 验证门槛：先跑哪些子集，再跑全量；通过后给出总结\n\n这会把“修到绿”变成一条可审计、可回滚的工程流程。"
+    },
+    {
+      "type": "callout",
+      "content": "强约束建议：在第一次修复回合里，禁止“批量更新 snapshot/批量放宽断言/skip 测试”。这些动作会让你丢失根因信号。"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "compare-variants",
+      "bloomLevel": "analyze",
+      "knowledgeType": "conceptual",
+      "scaffoldLevel": "full",
+      "prompt": "你看到两条失败摘要：\n(1) `ReferenceError: fetch is not defined` 出现在 18 个测试里\n(2) `Expected status 400, received 200` 出现在 9 个测试里\n\n对每一条，判断更可能属于哪一类（命令/环境、依赖、接口契约、业务行为），并写出你会要求 Claude Code 先提取的“第一条证据”。",
+      "responseType": "generate",
+      "hints": [
+        "想想：错误信息是否指向运行环境能力缺失（例如全局对象/Node 版本差异）",
+        "想想：成片出现同一句断言失败，更像“语义/默认值”改变还是“偶发实现 bug”？",
+        "证据要可执行：命令、版本、堆栈、diff 位置，而不是一句猜测"
+      ]
+    },
+    {
+      "id": "ex2",
+      "type": "debugging-plan",
+      "bloomLevel": "analyze",
+      "knowledgeType": "procedural",
+      "scaffoldLevel": "faded-1",
+      "prompt": "给你一个场景：CI 上 `pnpm test` 失败 27 个；本地直接 `pnpm test` 全绿。\n\n补全你的排查计划（至少 6 步）。已给出前 3 步：\n1) 复制 CI 的完整命令（含参数）与 Node/pnpm 版本\n2) 在本地用相同命令尝试复现，并记录失败差异\n3) 将失败按错误信息聚类并选一个最小复现用例\n4) ______\n5) ______\n6) ______",
+      "responseType": "generate",
+      "hints": [
+        "先补“命令/环境层”的核对项：环境变量、工作目录、CI 特有参数、缓存",
+        "再补“依赖层”的核对项：lockfile、安装方式、optionalDependencies、node-gyp/native",
+        "最后才进入“契约/业务层”：从 diff 找影响面最大的改动点"
+      ]
+    },
+    {
+      "id": "ex3",
+      "type": "write-a-prompt",
+      "bloomLevel": "analyze",
+      "knowledgeType": "procedural",
+      "scaffoldLevel": "faded-2",
+      "prompt": "把下面这句低质量指令改写成“可执行约束”的 Claude Code 指令：\n\n原句：\"测试挂了，继续修到通过。\"\n\n要求：你的改写必须同时包含 4 个部分：复现命令、目标证据、改动边界、验证门槛。",
+      "responseType": "generate",
+      "hints": [
+        "复现命令要精确到参数（例如 --runInBand）",
+        "改动边界要包含“禁止项”（例如禁止批量更新 snapshot）",
+        "验证门槛要分阶段：先子集后全量，并要求报告结果"
+      ]
+    },
+    {
+      "id": "ex4",
+      "type": "case-analysis",
+      "bloomLevel": "analyze",
+      "knowledgeType": "strategic",
+      "scaffoldLevel": "free",
+      "prompt": "你 review 一个 AI 生成的修复 PR：它让测试从 40 失败变成全绿，但 diff 里包含：\n- 更新了 18 个 snapshot\n- 把 6 个断言从严格相等改成了 `toBeTruthy()`\n- 还改了一个默认配置值\n\n请你用本章的“证据链 + 故障分型”框架，写出：\n1) 你认为它最可能隐藏了哪一类根因？\n2) 你会要求补充哪些证据才能允许合并？\n3) 你会建议回退或重做的改动有哪些（至少 2 条）？",
+      "responseType": "generate",
+      "hints": [
+        "思考：哪些改动会“抹掉信号”而不是修根因？",
+        "思考：默认配置变化可能是契约变化还是行为变化？要怎么验证？",
+        "用“最小修复”原则：先把不必要的改动移出，重新建立可解释性"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "faded-2",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s05-map",
+      "type": "conceptMap",
+      "required": true
+    },
+    {
+      "id": "s05-fault-tree",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "让学习者从失败摘要追到分型类别与下一步证据，而不是直接跳到“修代码”。",
+      "priority": "core",
+      "componentHint": null,
+      "interactionData": {
+        "type": "trace",
+        "title": "从“测试全挂”追到故障分型与下一句可验证提问",
+        "description": "根据失败摘要逐步追踪到最可能的故障类别，并产出下一步要向 Claude Code 追问的可验证证据。",
+        "steps": [
+          {
+            "id": "1",
+            "label": "先固定复现命令（避免错跑）",
+            "detail": "你只拿到一句“测试全挂”。先追问并记录：在 CI 与本地分别跑的具体命令与参数。",
+            "state": "复现信息缺失，无法判断是环境/命令还是代码问题。",
+            "highlight": "补齐复现命令：例如 `pytest -q` vs `pytest tests/unit -q` 或带不同环境变量。"
+          },
+          {
+            "id": "2",
+            "label": "抓失败摘要（建立证据链）",
+            "detail": "要求输出失败总数、前 3 个错误栈、以及最早失败的测试文件/用例名。",
+            "state": "只有情绪化结论，没有可对比的失败模式。",
+            "highlight": "把“全挂”压缩成可比对信号：错误类型、入口测试、共同前缀模块。"
+          },
+          {
+            "id": "3",
+            "label": "看是否是命令/环境层信号",
+            "detail": "若大量报 `ModuleNotFoundError`、路径不存在、权限/端口错误，优先归为命令/环境层。",
+            "state": "测试失败可能来自运行上下文，而非实现逻辑。",
+            "highlight": "关键证据：Python/Node 版本、工作目录、必需环境变量、CI 镜像/缓存命中情况。"
+          },
+          {
+            "id": "4",
+            "label": "排查依赖层：锁文件与解析差异",
+            "detail": "若错误集中在导入/链接/版本不兼容，追踪 PR 是否改了 lockfile、依赖范围或构建脚本。",
+            "state": "失败呈现为“运行不起来”或二进制/包版本冲突。",
+            "highlight": "关键证据：`pip freeze`/`npm ls` 差异、lockfile diff、CI 是否做了 clean install。"
+          },
+          {
+            "id": "5",
+            "label": "识别接口契约层：大量断言同类失败",
+            "detail": "若许多用例同一断言点失败，如字段名/返回结构变化，归为接口契约层而非单点业务错误。",
+            "state": "实现看似没动核心逻辑，但输出形态/类型可能变了。",
+            "highlight": "关键证据：失败断言的期望/实际 diff、公共函数签名或序列化格式变化。"
+          },
+          {
+            "id": "6",
+            "label": "定位业务行为层：少数关键用例带动连锁",
+            "detail": "若失败集中在少数核心场景，且错误为计算结果/状态机路径差异，归为业务行为层。",
+            "state": "更可能是实现错了或边界条件被改变。",
+            "highlight": "关键证据：最早失败的用例输入、状态变化日志、与基线行为的对照输出。"
+          },
+          {
+            "id": "7",
+            "label": "选最小复现主线（减少并行变量）",
+            "detail": "从摘要里挑一个最快、最稳定复现的单测作为主线，并固定运行方式与数据。",
+            "state": "并行修多个失败会变成随机搜索，难验证因果。",
+            "highlight": "明确主线：例如只跑 `tests/api/test_user.py::test_create_user` 并记录复现时间与输出。"
+          },
+          {
+            "id": "8",
+            "label": "写给 Claude Code 的下一句（四要素齐全）",
+            "detail": "把复现命令、要提取的证据、允许改动边界、验证门槛一次说清，逼近最小修复。",
+            "state": "从“去修代码”转为“拿证据→选分型→最小修复→回归验证”。",
+            "highlight": "模板：用此命令复现；请贴前 3 个错误栈与首个失败用例 diff；只改 X 文件/不改公共接口；修完需通过这些测试并给出最小 diff。"
+          }
+        ],
+        "insight": "“全挂”先分型再修复：用可复现命令与失败摘要建立证据链，下一句同时约束证据、边界与验证门槛。"
+      }
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "不看材料，写出“测试大面积失败”的 4 类故障分型。",
+      "answerShape": "四项列表：命令/环境、依赖、接口契约、业务行为"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "为什么“先聚类失败再选最小复现”通常比逐条修更快？用 2-3 句话解释。",
+      "answerShape": "包含：共享根因/缩小搜索空间/减少并行变量（至少两点）"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "补全证据链句式：先固定 ________，再做失败 ________，选一个 ________ 用例，按 ________ 排查，产出 ________，最后做 ________ 并留证据。",
+      "answerShape": "应依次包含：复现命令、聚类、最小复现、定位层级、最小修复、回归验证"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "给出一条你会用来约束 Claude Code 的“下一句指令”，要求包含：复现命令 + 改动边界 + 验证门槛（至少三项）。",
+      "answerShape": "一段可直接复制的指令文本，明确命令/禁止项/验证步骤"
+    }
+  ],
+  "bridgeTo": "你已经能用“证据链 + 故障分型”把修复从碰运气变成可解释的流程。下一章我们把这套思路落到更硬的边界上：如果你给 Claude Code 工具权限，它能更快拿到证据、也更容易造成破坏；我们将用“最小权限 + 可审计 + 可回滚”设计出既能跑测试/改代码又不失控的权限策略。",
+  "id": "s05",
+  "number": 5,
+  "category": "practice",
+  "moduleKind": "case-study",
+  "primaryCognitiveAction": "analyze",
+  "priorKnowledge": [
+    "s03 的执行闭环",
+    "s04 的任务分解策略"
+  ],
+  "targetChunk": "故障分型与证据链：失败类别→最小可复现→定位层级（命令/依赖/接口/行为）→最小修复→回归验证。",
+  "chunkDependencies": [
+    "s03 的执行闭环",
+    "s04 的任务分解策略"
+  ],
+  "nextModuleId": "s06"
+}

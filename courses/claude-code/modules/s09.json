@@ -1,0 +1,376 @@
+{
+  "title": "把它讲清楚：团队级使用规范与自我解释",
+  "subtitle": "从个人熟练到团队可复制：规则、示例与反思",
+  "focusQuestion": "如果你要把 Claude Code 引入团队，你如何用最少的规则换来最大的稳定性？哪些规则必须写进团队约定，哪些应该交给个人判断？",
+  "misconception": "团队推广只能靠“统一提示词模板”；或者只能靠“禁止/放开”这种二元决策。",
+  "quote": "团队要标准化的不是“怎么说”，而是“怎么证明改动是对的、可回退的”。",
+  "keyInsight": "把个人经验变成团队稳定性，靠的是一份“可审计的最小协议”：明确允许的任务类型与边界、最小权限、每次变更必须附的证据（命令与输出）、统一的 PR 叙事结构，以及失败时的回退通道。提示词可以多样，但证据与边界必须一致。",
+  "opening": "很多团队引入 Claude Code 时，第一反应是收集“神提示词”，或直接争论“到底能不能让它执行命令”。这两个方向都会把问题带偏：提示词无法审计、无法复现；权限争论如果没有“证据要求”和“回退策略”，最终不是放飞就是瘫痪。真正能让你在团队里睡得着的，是让每次改动都能被复核：它改了什么、依据是什么、怎么验证的、失败怎么撤回。",
+  "knowledgeTypes": [
+    "metacognitive",
+    "strategic"
+  ],
+  "bloomLevel": "create",
+  "elementInteractivity": "medium",
+  "concepts": [
+    {
+      "name": "最小协议",
+      "note": "把“个人技巧”变成“团队可复制”的最小规则集合，避免把复杂度转移到口口相传。",
+      "relatedTo": {
+        "concept": "证据要求",
+        "link": "以其为核心"
+      }
+    },
+    {
+      "name": "任务边界",
+      "note": "规定哪些任务可交给 Claude Code 端到端做，哪些必须拆里程碑或人工决策，防止改动范围失控。",
+      "relatedTo": {
+        "concept": "失败回退",
+        "link": "决定是否需要"
+      }
+    },
+    {
+      "name": "最小权限",
+      "note": "用最小可用能力换取可控风险：只给完成闭环所需的读/写/执行范围，并确保可审计。",
+      "relatedTo": {
+        "concept": "任务边界",
+        "link": "必须匹配"
+      }
+    },
+    {
+      "name": "证据要求",
+      "note": "把“我觉得改对了”升级为“我能展示验证链路”：命令、输出、关键 diff 与契约变化说明。",
+      "relatedTo": {
+        "concept": "质量门禁",
+        "link": "是其输入"
+      }
+    },
+    {
+      "name": "PR 叙事",
+      "note": "让 reviewer 用最小认知负荷完成复核：动机→方案→影响→验证→风险与回滚。",
+      "relatedTo": {
+        "concept": "证据要求",
+        "link": "承载并组织"
+      }
+    },
+    {
+      "name": "失败回退",
+      "note": "把“重试直到碰巧成功”变成“可预期的止损机制”：撤销、回滚、降级、拆分与重新定位。",
+      "relatedTo": {
+        "concept": "最小协议",
+        "link": "必须包含"
+      }
+    },
+    {
+      "name": "自我解释",
+      "note": "要求提交者/Claude Code 解释关键决策与证据链，减少黑箱改动带来的维护成本。",
+      "relatedTo": {
+        "concept": "PR 叙事",
+        "link": "通过其呈现"
+      }
+    },
+    {
+      "name": "质量门禁",
+      "note": "把风险前移到流程节点：正确性/契约/一致性/可维护性分别在哪里检查与阻断。",
+      "relatedTo": {
+        "concept": "证据要求",
+        "link": "依赖其证明"
+      }
+    }
+  ],
+  "logicChain": [
+    "团队不缺“能写代码的人”，缺的是“可复核、可回退的变更机制”",
+    "提示词模板无法保证稳定性：不同任务/上下文缺口/权限差异会导致模板失效",
+    "稳定性来自约束与证据：先限定任务边界与权限，再要求每次变更给出可复现的验证输出",
+    "把证据组织进统一 PR 叙事，降低 reviewer 负担，形成团队共同语言",
+    "把失败当作流程事件：设置止损条件与回退通道，避免无穷重试与范围漂移",
+    "最终产物是一份“最小协议草案”，可培训、可审计、可迭代"
+  ],
+  "examples": [
+    "允许任务：在仓库内新增一个配置项 FEATURE_X，并贯穿 config schema/解析层/业务开关/文档/测试；要求提供 `pnpm test` 输出与关键 diff 说明",
+    "禁止任务：让 Claude Code 读取 `~/.ssh` 或 `.env` 中的密钥；禁止任何网络外发与 curl 上传日志",
+    "PR 叙事示例（节选）：\"What: 新增 featureX.enabled；Why: 灰度开关；How: 解析层添加默认值 false；Tests: pnpm test（附输出）；Risk: 老配置不含字段时行为不变；Rollback: revert commit abc123\"",
+    "失败回退示例：发现改动触发 30+ 测试失败且集中在 API 合同变化 → 立即停止扩改，先回退到“只修合同适配 + 加回归测试”的最小补丁，再拆里程碑"
+  ],
+  "counterexamples": [
+    "只发一段“统一提示词模板”，但不要求贴命令与输出：结果每个人都说“我跑过了”，但 CI 仍红、问题难复现",
+    "权限全开但无审计：Claude Code 在错误目录执行格式化/重写脚本，生成大量无关 diff，review 与回滚成本爆炸",
+    "把规范写成“必须用这 30 条提示词”而不是“必须提供这些证据”：遇到新语言/新仓库结构时模板立刻失效"
+  ],
+  "pitfalls": [
+    {
+      "point": "把规范做成“提示词库”而不是“证据与边界”",
+      "rootCause": "把成功归因于措辞，而不是归因于可验证闭环（工具→输出→收敛）"
+    },
+    {
+      "point": "把权限讨论简化成开/关",
+      "rootCause": "没有把权限与任务类型、审计、回滚绑定，导致争论无法落地"
+    },
+    {
+      "point": "PR 只贴最终代码，不贴验证命令与输出",
+      "rootCause": "缺少“证据作为交付物”的团队共识，reviewer 被迫在本地重跑或盲审"
+    },
+    {
+      "point": "失败时无限重试、不断扩改",
+      "rootCause": "缺少止损条件与里程碑拆分策略，导致范围漂移与二次引入缺陷"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "heading",
+      "content": "你要标准化的不是“提示词”，而是“可复核的闭环”"
+    },
+    {
+      "type": "text",
+      "content": "团队层面最贵的不是写代码时间，而是复核时间、追责时间与返工时间。Claude Code 真正放大的是“变更吞吐量”，所以团队治理的重点应当是：每个变更是否可审计（谁让它改的、改了什么）、可复现（用同样命令能得到同样结论）、可回退（出事能快速撤）。\n\n因此，团队规范应该围绕三个交付物：边界（允许做什么）、证据（怎么证明做对了）、回退（做错了怎么办）。"
+    },
+    {
+      "type": "callout",
+      "content": "如果一条规则不能让 reviewer 更快判断“是否可合并”，它大概率不该进入最小协议。"
+    },
+    {
+      "type": "heading",
+      "content": "最小协议的 5 个条款（建议写进团队约定）"
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "从 0 写出“可落地的团队协议草案”",
+      "steps": [
+        {
+          "title": "列出允许的任务类型（以及明确禁止项）",
+          "description": "用“任务边界”替代“谁更会写提示词”。允许项用动词开头（新增/修复/重构小步），禁止项聚焦高风险（密钥、生产环境、外发）。",
+          "visual": "允许：仓库内代码修改 + 本地/CI 可运行验证\n禁止：读取 ~/.ssh、访问 secrets/、上传日志到外部",
+          "highlight": "允许/禁止"
+        },
+        {
+          "title": "定义最小权限配置（读/写/执行 + 目录/命令白名单）",
+          "description": "权限必须与允许任务匹配：能读仓库、能写受控目录、能执行 test/lint/build。把“不可触碰目录”写死（secrets、证书、个人配置）。",
+          "visual": "读：repo/**\n写：repo/src/**, repo/tests/**\n执行：pnpm test, pnpm lint, pnpm build\n禁止：cat ~/.ssh/*, 访问 .env, secrets/",
+          "highlight": "白名单"
+        },
+        {
+          "title": "规定证据要求（把输出当作交付物）",
+          "description": "每次变更必须附：运行了哪些命令、原始输出（或 CI 链接）、关键假设/契约变化。没有证据的 PR 默认“不合并”。",
+          "visual": "Evidence:\n- Command: pnpm test\n- Output: (粘贴失败/成功摘要)\n- Notes: API 契约是否变更？默认值是否改变？",
+          "highlight": "Evidence"
+        },
+        {
+          "title": "统一 PR 叙事结构（降低 review 认知负荷）",
+          "description": "固定 6 段：Why/What/How/Impact/Tests/Rollback。让 Claude Code 也按此结构生成 PR 描述，但必须引用证据与 diff 位置。",
+          "visual": "PR 模板：\nWhy:\nWhat:\nHow:\nImpact:\nTests (命令+输出):\nRollback (revert/feature flag):",
+          "highlight": "Tests + Rollback"
+        },
+        {
+          "title": "写下失败回退策略（止损条件 + 重新定位方式）",
+          "description": "定义“何时停止让它继续改”：例如测试失败数暴增、出现不相关大 diff、触及边界。然后规定回退动作：revert、回到上一个绿 commit、拆分里程碑、先加回归测试再修。",
+          "visual": "Stop 条件：\n- 失败测试 > 5 且分布跨模块\n- diff 涉及 > 10 文件且无明确原因\n- 触及禁止目录/命令\n\nRollback：revert / reset 到 last-green / 拆分任务",
+          "highlight": "Stop 条件"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "content": "哪些交给团队，哪些交给个人？一条分界线"
+    },
+    {
+      "type": "text",
+      "content": "分界线是：是否影响他人复核与系统风险。\n\n必须团队统一的：任务边界、权限白名单、证据要求、PR 叙事、止损与回退。这些决定了“别人能不能看懂/复现/撤回”。\n\n可以交给个人的：具体如何提问、如何让 Claude Code 输出更顺手的中间格式、个人偏好的探索步骤。只要最终交付物满足证据与边界，措辞风格不必统一。"
+    },
+    {
+      "type": "callout",
+      "content": "把“自由”留给探索，把“约束”放在交付：交付物的格式、证据链与风险边界必须一致。"
+    },
+    {
+      "type": "heading",
+      "content": "反思检查点：你能把这套规范“讲给新人听”吗？"
+    },
+    {
+      "type": "text",
+      "content": "闭上课程材料，尝试用 60 秒回答：\n1）我们团队允许 Claude Code 做哪三类事？\n2）它最小需要哪些权限？\n3）一个 PR 至少要给出哪些证据？\n\n如果你回答时仍然在讲“怎么写提示词”，说明你还没把注意力放在“可审计闭环”。回到上面的 5 条款，尤其是证据要求与止损条件。"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "compare-variants",
+      "bloomLevel": "analyze",
+      "knowledgeType": "strategic",
+      "scaffoldLevel": "full",
+      "prompt": "对比两种团队推广方案，指出各自会导致的失败模式，并给出你会保留/删除的条款。\n\n方案 A：统一提示词模板（30 条规则），不要求贴测试输出；权限默认全开。\n方案 B：不统一提示词；统一 PR 模板（Why/What/How/Tests/Rollback）+ 证据要求（命令与输出）+ 权限白名单（仅 test/lint/build）。",
+      "responseType": "generate",
+      "hints": [
+        "从 reviewer 的工作量与可复现性出发：哪种更容易快速判断能否合并？",
+        "从风险出发：哪种把“不可控行为”关在边界内？",
+        "写出至少 2 个具体失败场景（例如：CI 红但无法复现；无关大 diff）。"
+      ]
+    },
+    {
+      "id": "ex2",
+      "type": "fill-structure",
+      "bloomLevel": "create",
+      "knowledgeType": "strategic",
+      "scaffoldLevel": "faded-1",
+      "prompt": "补全这份“最小协议”草案中缺失的部分（用你的团队/仓库习惯填写具体命令与目录）。\n\n1) 允许任务类型（至少 3 条）：____\n2) 明确禁止项（至少 3 条）：____\n3) 最小权限：\n- 读：____\n- 写：____\n- 执行（命令白名单）：____\n4) 证据要求（每次 PR 必须附）：____\n5) 止损条件（触发任一就停止扩改并进入回退）：____",
+      "responseType": "generate",
+      "hints": [
+        "允许项用“动词 + 范围 + 验证方式”写，例如“新增 X，并跑 pnpm test”。",
+        "禁止项优先写“密钥/生产/外发/不可逆操作”。",
+        "止损条件至少包含：失败范围扩大、diff 无关膨胀、触及边界。"
+      ]
+    },
+    {
+      "id": "ex3",
+      "type": "scenario-response",
+      "bloomLevel": "evaluate",
+      "knowledgeType": "metacognitive",
+      "scaffoldLevel": "faded-2",
+      "prompt": "场景：Claude Code 提交了一个 PR，自称“已通过测试”。你发现 PR 描述只有一句“all tests passed”，没有命令与输出；diff 涉及 18 个文件，其中 8 个是格式化。\n\n请写出你作为 reviewer 的三条反馈，分别对应：证据、范围控制、回退/止损。每条反馈都要能落到“可执行的下一步”。",
+      "responseType": "generate",
+      "hints": [
+        "证据：要求具体命令与原始输出/CI 链接。",
+        "范围：要求解释每个非核心文件变更的必要性，或拆分 PR。",
+        "回退：要求提供 revert 方案或把格式化独立成单独提交。"
+      ]
+    },
+    {
+      "id": "ex4",
+      "type": "design",
+      "bloomLevel": "create",
+      "knowledgeType": "strategic",
+      "scaffoldLevel": "free",
+      "prompt": "为你团队写一个“Claude Code 使用规范”的一页版（不超过 12 条 bullet）。要求：必须覆盖任务边界、权限、证据、PR 叙事、止损/回退；并明确哪些内容允许个人自由发挥。",
+      "responseType": "generate",
+      "hints": [
+        "先写“必须统一的 5 条”，再写“个人可选的 3-5 条”。",
+        "每条都写成可检查的句子（看到 PR 就能判断是否满足）。"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "faded-2",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s09-map",
+      "type": "conceptMap",
+      "required": true
+    },
+    {
+      "id": "s09-template",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "compare",
+      "purpose": "对比“模板驱动”与“证据驱动”的团队推广路径，识别各自失败模式",
+      "priority": "secondary",
+      "componentHint": null,
+      "interactionData": {
+        "type": "compare",
+        "title": "模板驱动 vs 证据驱动：团队引入 Claude Code 的两条路径",
+        "description": "对比两种推广路径在稳定性上的差异，并找出最常见的失败模式。",
+        "items": [
+          {
+            "id": "a",
+            "label": "模板驱动（先统一提示词）",
+            "detail": "用统一提示词模板推动一致产出，把稳定性主要寄托在“说法一致”。",
+            "pros": [
+              "启动快，培训成本低",
+              "短期内输出格式更统一",
+              "适合低风险、重复性任务"
+            ],
+            "cons": [
+              "遇到上下文缺口时模板失效，输出不可复核",
+              "权限与边界不清，容易范围漂移或越权操作",
+              "缺少可复现证据，review 变成主观判断"
+            ]
+          },
+          {
+            "id": "b",
+            "label": "证据驱动（先最小协议）",
+            "detail": "先写清任务边界与最小权限，并要求每次变更附可复现的命令与输出证据。",
+            "pros": [
+              "变更可审计、可复现，review 负担更低",
+              "边界与权限明确，减少越权与范围漂移",
+              "失败有止损与回退通道，稳定性更高"
+            ],
+            "cons": [
+              "前期需要定义协议与证据清单",
+              "对提交者自我解释要求更高",
+              "可能降低探索性改动的速度"
+            ]
+          }
+        ],
+        "dimensions": [
+          {
+            "name": "失败模式",
+            "description": "最可能在哪一步崩溃：上下文、权限、验证还是回退。"
+          },
+          {
+            "name": "可复核性",
+            "description": "reviewer 能否靠命令与输出复现结论，而不是相信描述。"
+          },
+          {
+            "name": "范围控制",
+            "description": "是否能把任务限制在允许的类型与边界内，避免需求漂移。"
+          },
+          {
+            "name": "权限风险",
+            "description": "是否落实最小权限，避免误删、误改、误发布等高代价操作。"
+          },
+          {
+            "name": "PR 叙事成本",
+            "description": "PR 是否有统一叙事结构，能快速传达动机、改动、证据与回退。"
+          },
+          {
+            "name": "失败回退",
+            "description": "失败时是否有明确止损条件与回退路径，避免无穷重试。"
+          }
+        ],
+        "insight": "提示词可多样，但团队稳定性必须靠一致的边界、证据与回退协议来保证。"
+      }
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "不用看材料，说出“最小协议”必须包含的 5 个条款名称，并各用一句话解释目的。",
+      "answerShape": "5 条款清单 + 每条 1 句目的（边界/权限/证据/叙事/回退）"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "给出一个症状：PR 里测试都绿但你仍不放心。请分别从“证据缺口、边界缺口、叙事缺口”提出一个可能原因与一个追问。",
+      "answerShape": "3 组（缺口 → 可能原因 → 追问）"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "写出 3 条“止损条件”，并解释每条止损条件背后的风险是什么（例如范围漂移/不可复现/触边界）。",
+      "answerShape": "3 条止损条件 + 每条对应的风险解释"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "把你常用的一条个人提示技巧，改写成团队可审计的规则（要求能被 reviewer 检查）。",
+      "answerShape": "原个人技巧一句话 + 改写后的团队规则一句话 + 可检查点（证据/格式/命令/输出）"
+    }
+  ],
+  "bridgeTo": null,
+  "id": "s09",
+  "number": 9,
+  "category": "core",
+  "moduleKind": "meta-reflection",
+  "primaryCognitiveAction": "reflect",
+  "priorKnowledge": [
+    "全课程：系统全景、机制、案例、权限、工作流与质量门禁"
+  ],
+  "targetChunk": "可落地的团队协议草案：允许的任务类型、权限配置、证据要求（必须贴测试输出/命令）、PR 叙事结构、失败回退策略。",
+  "chunkDependencies": [
+    "全课程：系统全景、机制、案例、权限、工作流与质量门禁"
+  ],
+  "nextModuleId": null
+}

@@ -1,0 +1,250 @@
+{
+  "title": "工具调用如何改变结果：从“会写代码”到“会执行与验证”",
+  "subtitle": "跟踪：shell/test/lint/git 等工具在闭环里的位置",
+  "focusQuestion": "同样是生成代码，为什么“让它跑测试并修到绿”会显著提升可靠性？Claude Code 的“工具能力”到底解决了什么问题？",
+  "misconception": "工具调用只是锦上添花；核心还是模型一次性写对，跑不跑测试区别不大。",
+  "quote": "工具输出不是日志噪音，而是新证据。",
+  "keyInsight": "工具调用让 Claude Code 从“静态代码生成器”变成了“动态执行引擎”——它能通过执行结果获得新证据，定位问题，并迭代修正，这才是可靠性的根本提升。",
+  "opening": "你可能以为 Claude Code 只是更聪明的代码补全——给它需求，它生成代码。但当你让它“跑一下测试看看”，你会发现它开始了一个完全不同的工作模式：生成、执行、读输出、定位问题、最小修改、再验证。这不是锦上添花，这是从“猜”到“验证”的本质转变。",
+  "knowledgeTypes": [
+    "procedural",
+    "conceptual"
+  ],
+  "bloomLevel": "apply",
+  "elementInteractivity": "high",
+  "concepts": [
+    {
+      "name": "执行闭环",
+      "note": "Claude Code 通过工具调用形成生成→执行→验证→修正的循环，这是可靠性提升的核心机制",
+      "relatedTo": {
+        "concept": "上下文四块模型",
+        "link": "提供执行所需的约束和边界证据"
+      }
+    },
+    {
+      "name": "工具输出",
+      "note": "执行命令后的 stdout/stderr/exit code 不是日志，而是定位问题的关键证据",
+      "relatedTo": {
+        "concept": "执行闭环",
+        "link": "作为修正决策的新输入"
+      }
+    },
+    {
+      "name": "最小修改",
+      "note": "基于工具输出证据的精确定位，只修改必要部分，避免改动范围失控",
+      "relatedTo": {
+        "concept": "工具输出",
+        "link": "将证据转化为针对性修正"
+      }
+    }
+  ],
+  "logicChain": [
+    "Claude Code 生成代码但存在不确定性",
+    "工具调用执行测试/构建获得实际输出",
+    "分析输出定位具体问题位置",
+    "基于证据进行最小范围修正",
+    "再次验证直到问题解决"
+  ],
+  "examples": [
+    "生成 API 路由代码后运行 curl 测试，发现 404 错误，定位到路由注册遗漏",
+    "写解析器后运行测试，根据错误堆栈定位到特定边界条件处理缺失",
+    "修改配置后运行应用，根据启动错误发现环境变量命名不一致"
+  ],
+  "counterexamples": [
+    "只生成代码不验证，假设一次就能写对",
+    "看到测试失败就全部重写，而不是基于错误信息精确定位",
+    "把工具输出当噪音忽略，继续凭直觉修改"
+  ],
+  "pitfalls": [
+    {
+      "point": "工具权限配置过严，无法形成执行闭环",
+      "rootCause": "没有理解工具输出作为证据的价值"
+    },
+    {
+      "point": "看到错误就重试整个生成，而不是分析输出",
+      "rootCause": "把工具调用当作魔法黑盒，而不是证据来源"
+    }
+  ],
+  "narrative": [
+    {
+      "type": "text",
+      "content": "传统代码生成工具停在了‘写出来’这一步——它们给你代码片段，但不会帮你验证这些代码到底能不能工作。Claude Code 的工具能力让它能继续往下走：执行、读结果、定位问题、修正。这个闭环才是可靠性的真正来源。"
+    },
+    {
+      "type": "heading",
+      "content": "工具输出：从噪音到证据"
+    },
+    {
+      "type": "text",
+      "content": "当你运行 `npm test` 时，那些红色错误信息不是需要忽略的噪音，而是精确的问题坐标。Claude Code 会读取这些输出，分析堆栈跟踪，定位到具体的文件、函数、甚至行号。这是人类调试的数字化版本——但更快、更系统。"
+    },
+    {
+      "type": "callout",
+      "content": "工具输出的价值不在于‘通过’或‘失败’，而在于提供了修正所需的具体证据。"
+    },
+    {
+      "type": "heading",
+      "content": "执行闭环的工作流程"
+    },
+    {
+      "type": "steps",
+      "content": "",
+      "label": "一次完整的工具调用修正循环",
+      "steps": [
+        {
+          "title": "生成初始代码",
+          "description": "基于需求和上下文生成第一版代码实现",
+          "visual": "需求 → 生成代码",
+          "highlight": "生成代码"
+        },
+        {
+          "title": "执行验证工具",
+          "description": "运行测试、构建或相关验证命令",
+          "visual": "代码 → 执行 npm test",
+          "highlight": "执行"
+        },
+        {
+          "title": "分析工具输出",
+          "description": "解析 stdout/stderr/exit code，定位具体问题",
+          "visual": "输出 → 分析错误信息",
+          "highlight": "分析输出"
+        },
+        {
+          "title": "最小范围修正",
+          "description": "基于证据只修改必要部分，避免过度改动",
+          "visual": "定位 → 修正特定行",
+          "highlight": "最小修改"
+        },
+        {
+          "title": "再次验证",
+          "description": "重新执行验证，确认问题解决",
+          "visual": "修正 → 再次执行",
+          "highlight": "再验证"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "content": "为什么这个闭环如此重要？"
+    },
+    {
+      "type": "text",
+      "content": "因为代码生成本质上是概率性的——模型基于训练数据‘猜测’正确的实现。但执行结果是确定性的：测试要么过要么不过，应用要么能启动要么不能。工具调用把概率性生成变成了确定性验证，这是质的不同。"
+    },
+    {
+      "type": "callout",
+      "content": "没有工具调用，Claude Code 只是更聪明的猜测机器。有了工具调用，它变成了能自我验证的工程系统。"
+    },
+    {
+      "type": "reflection",
+      "content": "停下来想一想：在你的项目中，哪些验证命令（test/lint/build）应该成为 Claude Code 的必跑工具？这些工具的输出中，哪些信息最能帮助精确定位问题？"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "ex1",
+      "type": "trace-execution",
+      "bloomLevel": "analyze",
+      "knowledgeType": "procedural",
+      "scaffoldLevel": "faded-1",
+      "prompt": "给定一个测试失败场景：Claude Code 生成了一个函数，但运行测试时出现 'TypeError: Cannot read properties of undefined'。请描述 Claude Code 应该如何利用工具输出来定位和修正这个问题。",
+      "responseType": "generate",
+      "hints": [
+        "先分析错误堆栈确定具体出错位置",
+        "考虑可能的根因：参数未定义？异步问题？",
+        "设计最小修改策略，避免重写整个函数"
+      ]
+    }
+  ],
+  "scaffoldProgression": [
+    "full",
+    "faded-1",
+    "free"
+  ],
+  "visuals": [
+    {
+      "id": "s03-loop",
+      "type": "conceptMap",
+      "required": true
+    }
+  ],
+  "interactionRequirements": [
+    {
+      "capability": "trace",
+      "purpose": "跟踪工具调用在具体案例中的证据流转过程",
+      "priority": "core",
+      "componentHint": null,
+      "interactionData": {
+        "type": "trace",
+        "title": "从“生成代码”到“跑测试修到绿”的证据流转",
+        "description": "按步骤追踪：代码生成后如何借助工具输出获得证据，并用最小修改迭代到通过测试。",
+        "steps": [
+          {
+            "id": "1",
+            "label": "生成：仍有不确定性",
+            "detail": "Claude Code 生成了 parseDate() 与测试用例，看似合理但未被验证。",
+            "state": "只有静态代码与推测，缺少真实运行证据。",
+            "highlight": "风险点：逻辑正确≠可通过测试。"
+          },
+          {
+            "id": "2",
+            "label": "工具调用：执行测试",
+            "detail": "调用工具运行 `npm test`，把测试结果作为新的外部证据拉回对话。",
+            "state": "从“猜测正确”变为“有可检查的失败输出”。",
+            "highlight": "工具输出成为下一步分析的唯一依据。"
+          },
+          {
+            "id": "3",
+            "label": "读取工具输出：定位失败点",
+            "detail": "测试报错：`Expected '2024-03-02' but got '2024-02-03'`，指向 test/parseDate.test.js:18。",
+            "state": "问题被具体化：日期解析在日/月顺序上出错。",
+            "highlight": "证据把问题从“可能哪里错”缩小到“哪一类错+在哪个断言”。"
+          },
+          {
+            "id": "4",
+            "label": "最小修改：只改必要逻辑",
+            "detail": "仅调整 parseDate() 对 `DD/MM/YYYY` 的分支解析顺序，不重写函数结构。",
+            "state": "修改范围可控，避免引入新回归。",
+            "highlight": "用证据驱动的最小修改替代“重写一遍更保险”。"
+          },
+          {
+            "id": "5",
+            "label": "再次工具调用：验证闭环",
+            "detail": "再次运行 `npm test`，确认原失败用例通过且无新增失败。",
+            "state": "从修复假设回到可验证结果，形成执行闭环。",
+            "highlight": "可靠性来自“改一次就验一次”，直到全绿。"
+          }
+        ],
+        "insight": "工具调用把代码生成变成证据驱动的执行闭环：用输出定位问题并最小修改迭代到通过。"
+      }
+    }
+  ],
+  "retrievalPrompts": [
+    {
+      "type": "fill-gap",
+      "prompt": "解释为什么‘让 Claude Code 跑测试并修到绿’比‘只生成代码’的可靠性提升不是线性的，而是本质性的？",
+      "answerShape": "应该包含：概率性生成 vs 确定性验证、证据定位、最小修改避免误差累积"
+    },
+    {
+      "type": "fill-gap",
+      "prompt": "设计一个适合你项目的工具调用策略：列出 3 个必跑的验证命令，并说明每个命令的输出如何帮助 Claude Code 定位特定类型的问题。",
+      "answerShape": "命令-输出类型-问题定位的映射关系"
+    }
+  ],
+  "bridgeTo": "理解了工具调用的价值后，下一个问题是如何设计任务分解策略来最大化利用这个能力——这就是我们下一章‘任务分解与收敛策略’要解决的核心问题。",
+  "id": "s03",
+  "number": 3,
+  "category": "core",
+  "moduleKind": "mechanism-walkthrough",
+  "primaryCognitiveAction": "trace",
+  "priorKnowledge": [
+    "s02 的上下文四块模型",
+    "知道如何在终端运行测试/构建"
+  ],
+  "targetChunk": "执行闭环模型：生成→运行→读输出→定位→最小修改→再验证；工具输出是“新证据”，不是日志噪音。",
+  "chunkDependencies": [
+    "s02 的上下文四块模型",
+    "知道如何在终端运行测试/构建"
+  ],
+  "nextModuleId": "s04"
+}
