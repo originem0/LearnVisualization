@@ -356,24 +356,39 @@ def update_provider_config(payload: dict) -> dict:
 
 
 def test_provider_connection() -> dict:
-    """Send a minimal request to verify provider connectivity, model, and JSON support."""
+    """Send a realistic request to verify the model can generate structured Chinese JSON."""
     config = ProviderConfig.from_env()
     client = OpenAICompatibleClient(config)
     t0 = time.monotonic()
     try:
         response = client.generate_json(
             schema_name="connection_test",
-            system_prompt='Reply with exactly: {"ok": true}',
-            user_prompt="ping",
-            temperature=0,
-            max_tokens=20,
+            system_prompt=(
+                "你是课程生成引擎。输出一个包含以下字段的 JSON：\n"
+                '{"title": "一句话标题", "focusQuestion": "一个尖锐的问题？", '
+                '"concepts": [{"name": "概念A", "note": "为什么重要"}, {"name": "概念B", "note": "为什么重要"}], '
+                '"logicChain": ["步骤1导致步骤2", "步骤2导致步骤3"]}\n'
+                "主题：缓存系统。内容必须具体，不能用占位符。"
+            ),
+            user_prompt="生成上述 JSON。",
+            temperature=0.2,
+            max_tokens=500,
         )
         latency_ms = round((time.monotonic() - t0) * 1000)
+        content = response.get("content", {})
+        has_required = (
+            isinstance(content, dict)
+            and bool(content.get("title"))
+            and bool(content.get("focusQuestion"))
+            and isinstance(content.get("concepts"), list)
+            and len(content.get("concepts", [])) >= 2
+        )
         return {
             "ok": True,
             "latency_ms": latency_ms,
             "model": response.get("model", config.model),
-            "json_ok": isinstance(response.get("content"), dict),
+            "json_ok": isinstance(content, dict),
+            "quality_ok": has_required,
         }
     except Exception as exc:
         latency_ms = round((time.monotonic() - t0) * 1000)

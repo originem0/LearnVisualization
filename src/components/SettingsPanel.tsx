@@ -29,7 +29,7 @@ export default function SettingsPanel({ locale }: { locale: string }) {
   const [apiKey, setApiKey] = useState('');
   const [fallbackModel, setFallbackModel] = useState('');
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; latency_ms?: number; model?: string; json_ok?: boolean; error?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ ok: boolean; latency_ms?: number; model?: string; json_ok?: boolean; quality_ok?: boolean; error?: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
   const loadConfig = useCallback(async () => {
@@ -228,7 +228,7 @@ export default function SettingsPanel({ locale }: { locale: string }) {
                 {testResult && (
                   testResult.ok ? (
                     <p className="text-xs text-green-600">
-                      {isZh ? '连通' : 'Connected'} · {testResult.model} · {testResult.latency_ms}ms · JSON {testResult.json_ok ? '✓' : '✗'}
+                      {isZh ? '连通' : 'Connected'} · {testResult.model} · {testResult.latency_ms}ms · JSON {testResult.json_ok ? '✓' : '✗'} · {isZh ? '生成质量' : 'Quality'} {testResult.quality_ok ? '✓' : '✗'}
                     </p>
                   ) : (
                     <p className="text-xs text-red-500">{testResult.error}</p>

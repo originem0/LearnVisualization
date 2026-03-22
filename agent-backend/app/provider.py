@@ -42,7 +42,7 @@ class ProviderConfig:
     base_url: str
     model: str
     api_key: str | None = None
-    timeout_seconds: int = 120
+    timeout_seconds: int = 300
     max_retries: int = 3
     fallback_model: str | None = None
 
@@ -75,8 +75,8 @@ class ProviderConfig:
         )
         model = os.environ.get("AGENT_LLM_MODEL") or "gpt-4o-mini"
         api_key = os.environ.get("AGENT_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
-        timeout_seconds = int(os.environ.get("AGENT_LLM_TIMEOUT_SECONDS") or "120")
-        max_retries = int(os.environ.get("AGENT_LLM_MAX_RETRIES") or "2")
+        timeout_seconds = int(os.environ.get("AGENT_LLM_TIMEOUT_SECONDS") or "300")
+        max_retries = int(os.environ.get("AGENT_LLM_MAX_RETRIES") or "3")
         fallback_model = os.environ.get("AGENT_LLM_FALLBACK_MODEL") or None
 
         # runtime-config.json overrides env vars
