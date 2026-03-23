@@ -98,6 +98,7 @@ export interface CourseModule {
   category: string;
   moduleKind: ModuleKind;
   primaryCognitiveAction: CognitiveAction;
+  knowledgeTypes?: string[];
 
   focusQuestion: string;
   misconception?: string;

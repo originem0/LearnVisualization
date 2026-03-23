@@ -161,6 +161,12 @@ def build_plan_prompts(request_payload: dict[str, Any], planning_seed: dict[str,
         "- 不允许连续 3 个相同 moduleKind\n"
         "- 概念性和程序性应交替出现\n"
         "- focusQuestion 必须指向认知冲突或设计决策，不能是定义式\n\n"
+        "【主题→知识类型映射】\n"
+        "根据主题特征为模块选择正确的 knowledgeTypes：\n"
+        "- 编程/代码/框架/语言（Python、Git、React、Docker）：至少 60% 模块标 procedural，moduleKind 用 mechanism-walkthrough\n"
+        "- 系统/架构/协议（TCP/IP、数据库、操作系统）：procedural + conceptual 混合，moduleKind 用 mechanism-walkthrough + system-overview\n"
+        "- 哲学/历史/社会学：以 conceptual + strategic 为主，moduleKind 用 concept-clarification + case-study\n"
+        "- 数学/物理/推导：procedural + conceptual 混合，moduleKind 可用 derivation\n\n"
         "输出必须是合法 JSON。\n\n"
         "输出约束：\n"
         "- 只输出 JSON，不要 Markdown，不要解释。\n"
@@ -200,6 +206,45 @@ _KIND_CONSTRAINTS = {
     "case-study": "以具体案例开场。必须包含 callout 揭示案例中的决策权衡。不强制 steps。",
     "meta-reflection": "focusQuestion 指向元层级。不强制 steps。包含反思类 callout。",
 }
+
+_KT_PRIORITY = ["procedural", "strategic", "metacognitive", "conceptual", "factual"]
+_KT_STRATEGIES = {
+    "procedural": (
+        "【程序性知识 — 代码优先】\n"
+        "- narrative 中 code 块至少 3 个，每个关键概念用真实代码示例说明\n"
+        "- code 块紧跟 text 块解释（前端会并排渲染为左代码/右解释）\n"
+        "- steps 块的 visual 字段是可运行的代码片段，不是文字描述\n"
+        "- 遵循 PRIMM：先展示完整代码 → 预测输出 → 解释 → 修改变体\n"
+    ),
+    "conceptual": (
+        "【概念性知识 — 对比优先】\n"
+        "- narrative 以 text + comparison 块为主轴，至少 2 个 comparison\n"
+        "- 概念边界和区别比定义更重要\n"
+        "- code 块仅在概念本身涉及代码时使用\n"
+    ),
+    "strategic": (
+        "【策略性知识 — 案例优先】\n"
+        "- 以具体案例或决策场景开场\n"
+        "- 用 callout 揭示决策权衡和约束\n"
+    ),
+    "metacognitive": (
+        "【元认知知识 — 反思优先】\n"
+        "- narrative 以 reflection 块为主轴\n"
+        "- 引导回顾和重建，不追加新知识\n"
+    ),
+    "factual": (
+        "【事实性知识 — 结构优先】\n"
+        "- 简洁直接，用 callout 和 diagram 做结构化展示\n"
+    ),
+}
+
+
+def _knowledge_type_narrative_strategy(knowledge_types: list[str]) -> str:
+    """Return the highest-priority knowledge type narrative strategy."""
+    for kt in _KT_PRIORITY:
+        if kt in knowledge_types:
+            return _KT_STRATEGIES.get(kt, "")
+    return ""
 
 
 def _kind_narrative_constraint(module_kind: str) -> str:
@@ -270,8 +315,9 @@ def build_module_prompts(
         "- interactionRequirements[].capability 只能使用: " + ", ".join(ALLOWED_INTERACTION_CAPABILITIES) + "\n"
         "- retrievalPrompts[].type 只能使用: " + ", ".join(ALLOWED_RETRIEVAL_PROMPTS) + "\n"
         "- narrative 至少 6 个 block，必须包含至少 1 个 heading。\n"
-        + _kind_narrative_constraint(module_outline.get("moduleKind", "")) +
-        "- examples 必须具体到主题内实体、过程或案例，不能写空泛描述。\n"
+        + _kind_narrative_constraint(module_outline.get("moduleKind", ""))
+        + _knowledge_type_narrative_strategy(module_outline.get("knowledgeTypes", []))
+        + "- examples 必须具体到主题内实体、过程或案例，不能写空泛描述。\n"
         "- concepts[].name 必须是名词短语（8 字以内），不是完整句子。\n"
         "- bridgeTo 必须自然导向下一章；如果是最后一章，bridgeTo 设为 null。\n"
         "- componentHint 设为 null（前端交互由数据驱动渲染器处理，不使用预置组件）。\n"

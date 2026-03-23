@@ -39,15 +39,16 @@ interface ModuleRendererProps {
  * Analyzes narrative blocks to pick a layout mode; checks misconception
  * existence rather than relying solely on moduleKind.
  */
-function getLayoutConfig(module: { narrative?: Array<{type: string}>, moduleKind?: string, misconception?: string }) {
+function getLayoutConfig(module: { narrative?: Array<{type: string}>, moduleKind?: string, misconception?: string, knowledgeTypes?: string[] }) {
   const blocks = module.narrative || [];
   const codeCount = blocks.filter(b => b.type === 'code').length;
   const stepsCount = blocks.filter(b => b.type === 'steps').length;
+  const isProcedural = (module.knowledgeTypes || []).includes('procedural');
 
   return {
     conceptMapFirst: module.moduleKind === 'system-overview',
     misconceptionEmphasis: module.misconception ? 'strong' as const : 'normal' as const,
-    layoutMode: (codeCount >= 3 ? 'code-focus' : stepsCount >= 2 ? 'steps-focus' : 'standard') as 'standard' | 'code-focus' | 'steps-focus',
+    layoutMode: (codeCount >= 3 || isProcedural ? 'code-focus' : stepsCount >= 2 ? 'steps-focus' : 'standard') as 'standard' | 'code-focus' | 'steps-focus',
   };
 }
 
