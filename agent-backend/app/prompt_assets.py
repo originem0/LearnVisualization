@@ -67,6 +67,8 @@ def load_design_prompt_principles() -> str:
     DESIGN.md v3 splits content across design/*.md files.  The Agent prompt
     needs the learning-science constraints (01) and the agent contract (04).
     We also pull the non-goals from the top-level DESIGN.md for grounding.
+
+    Updated 2026-06-21: narrative-essay refactor changed section headers.
     """
     parts: list[str] = []
 
@@ -76,22 +78,37 @@ def load_design_prompt_principles() -> str:
     if non_goals.strip():
         parts.append(non_goals.strip())
 
-    # design/01 — learning principles (Merrill baseline, knowledge types)
+    # design/01 — learning principles (narrative + cognitive load)
     learning_path = REPO_ROOT / "design" / "01-learning-principles.md"
     if learning_path.exists():
         lp = read_text(learning_path)
-        merrill = _extract_section(lp, "### 2.1 Merrill 教学首要原则", "### 2.2")
-        if merrill.strip():
-            parts.append(merrill.strip())
+        # Extract narrative section
+        narrative = _extract_section(lp, "## 一、叙事作为认知组织器", "## 二、")
+        if narrative.strip():
+            parts.append(narrative.strip())
+        # Extract cognitive load section
+        cognitive = _extract_section(lp, "## 二、认知负荷是底盘，不是装饰", "## 三、")
+        if cognitive.strip():
+            parts.append(cognitive.strip())
 
-    # design/04 — agent contract (compose constraints, quality rules)
+    # design/04 — agent contract (narrative rules + register + anti-pastiche)
     agent_path = REPO_ROOT / "design" / "04-agent-contract.md"
     if agent_path.exists():
         ac = read_text(agent_path)
-        compose = _extract_section(ac, "## 三、Compose 阶段约束", "## 四、质量检查规则")
-        negative = _extract_section(ac, "## 五、生成负面样本", "## 六、")
-        if compose.strip():
-            parts.append(compose.strip())
+        # Extract narrative generation rules
+        narrative_rules = _extract_section(ac, "## 二、叙事生成规则", "## 三、")
+        if narrative_rules.strip():
+            parts.append(narrative_rules.strip())
+        # Extract register/voice guidance
+        register = _extract_section(ac, "## 三、Register（语域）", "## 四、")
+        if register.strip():
+            parts.append(register.strip())
+        # Extract anti-pastiche rules (防八股四道闸)
+        anti_pastiche = _extract_section(ac, "## 四、防八股（四道闸）", "## 五、")
+        if anti_pastiche.strip():
+            parts.append(anti_pastiche.strip())
+        # Extract negative samples
+        negative = _extract_section(ac, "## 八、生成负面样本", "## 九、")
         if negative.strip():
             parts.append(negative.strip())
 
@@ -529,6 +546,8 @@ def build_interaction_data_prompt(
 ) -> tuple[str, str]:
     """Build prompts for generating structured interaction data (not code)."""
     capability = interaction.get("capability", "compare")
+    knowledge_types = module.get("knowledgeTypes", [])
+    is_procedural = "procedural" in knowledge_types
 
     schema_by_capability = {
         "compare": {
@@ -542,56 +561,132 @@ def build_interaction_data_prompt(
             "dimensions": [{"name": "维度名", "description": "比较维度说明"}],
             "insight": "对比后应得出的关键认知",
         },
-        "trace": {
-            "type": "trace",
-            "title": "追踪标题",
-            "description": "引导说明",
-            "steps": [
-                {"id": "1", "label": "步骤名", "detail": "本步骤发生了什么", "state": "当前状态的文字描述", "highlight": "需要关注的关键变化"},
-            ],
-            "insight": "追踪完成后应得出的关键认知",
-        },
-        "step-through": {
-            "type": "step-through",
-            "title": "分步演示标题",
-            "description": "引导说明",
-            "steps": [
-                {"id": "1", "label": "步骤名", "detail": "本步骤发生了什么", "state": "当前状态的文字描述", "highlight": "需要关注的关键变化"},
-            ],
-            "insight": "演示完成后应得出的关键认知",
-        },
-        "simulate": {
-            "type": "simulate",
-            "title": "模拟标题",
-            "description": "引导说明",
-            "parameters": [
-                {"id": "param1", "label": "参数名", "min": 0, "max": 100, "default": 50, "step": 1, "unit": "单位"},
-            ],
-            "computeDescription": "参数如何影响结果的文字描述（前端用此解释变化）",
-            "presets": [
-                {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
-            ],
-            "scenarios": [
-                {"conditions": {"param1": [0, 25]}, "description": "当参数在此范围时的表现", "insight": "该区间的关键洞察"},
-            ],
-            "insight": "调参后应得出的关键认知",
-        },
-        "parameter-play": {
-            "type": "simulate",
-            "title": "参数调节标题",
-            "description": "引导说明",
-            "parameters": [
-                {"id": "param1", "label": "参数名", "min": 0, "max": 100, "default": 50, "step": 1, "unit": "单位"},
-            ],
-            "computeDescription": "参数如何影响结果的文字描述",
-            "presets": [
-                {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
-            ],
-            "scenarios": [
-                {"conditions": {"param1": [0, 25]}, "description": "当参数在此范围时的表现", "insight": "该区间的关键洞察"},
-            ],
-            "insight": "调参后应得出的关键认知",
-        },
+        "trace": (
+            # Procedural variant: code trace with line highlighting + variable state
+            {
+                "type": "trace",
+                "title": "代码追踪标题",
+                "description": "引导说明",
+                "steps": [
+                    {
+                        "id": "1",
+                        "label": "步骤名",
+                        "code": "实际代码片段（完整可运行的代码块，当前步骤对应的部分）",
+                        "highlightLines": [1],
+                        "variables": {"变量名": "当前值"},
+                        "detail": "这步发生了什么",
+                    },
+                ],
+                "insight": "追踪完成后应得出的关键认知",
+            }
+            if is_procedural
+            else {
+                "type": "trace",
+                "title": "追踪标题",
+                "description": "引导说明",
+                "steps": [
+                    {"id": "1", "label": "步骤名", "detail": "本步骤发生了什么", "state": "当前状态的文字描述", "highlight": "需要关注的关键变化"},
+                ],
+                "insight": "追踪完成后应得出的关键认知",
+            }
+        ),
+        "step-through": (
+            {
+                "type": "step-through",
+                "title": "代码分步演示标题",
+                "description": "引导说明",
+                "steps": [
+                    {
+                        "id": "1",
+                        "label": "步骤名",
+                        "code": "实际代码片段",
+                        "highlightLines": [1],
+                        "variables": {"变量名": "当前值"},
+                        "detail": "这步发生了什么",
+                    },
+                ],
+                "insight": "演示完成后应得出的关键认知",
+            }
+            if is_procedural
+            else {
+                "type": "step-through",
+                "title": "分步演示标题",
+                "description": "引导说明",
+                "steps": [
+                    {"id": "1", "label": "步骤名", "detail": "本步骤发生了什么", "state": "当前状态的文字描述", "highlight": "需要关注的关键变化"},
+                ],
+                "insight": "演示完成后应得出的关键认知",
+            }
+        ),
+        "simulate": (
+            # Procedural variant: discrete code variants instead of parameter sliders
+            {
+                "type": "simulate",
+                "title": "代码变体预测标题",
+                "description": "引导说明",
+                "baseCode": "基准代码（完整可运行）",
+                "variants": [
+                    {
+                        "label": "变体名（如：改用列表推导式）",
+                        "modifiedCode": "修改后的代码",
+                        "expectedOutput": "预期输出",
+                        "explanation": "为什么是这个输出",
+                    },
+                ],
+                "insight": "对比变体后应得出的关键认知",
+            }
+            if is_procedural
+            else {
+                "type": "simulate",
+                "title": "模拟标题",
+                "description": "引导说明",
+                "parameters": [
+                    {"id": "param1", "label": "参数名", "min": 0, "max": 100, "default": 50, "step": 1, "unit": "单位"},
+                ],
+                "computeDescription": "参数如何影响结果的文字描述（前端用此解释变化）",
+                "presets": [
+                    {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
+                ],
+                "scenarios": [
+                    {"conditions": {"param1": [0, 25]}, "description": "当参数在此范围时的表现", "insight": "该区间的关键洞察"},
+                ],
+                "insight": "调参后应得出的关键认知",
+            }
+        ),
+        "parameter-play": (
+            {
+                "type": "simulate",
+                "title": "代码变体预测标题",
+                "description": "引导说明",
+                "baseCode": "基准代码（完整可运行）",
+                "variants": [
+                    {
+                        "label": "变体名",
+                        "modifiedCode": "修改后的代码",
+                        "expectedOutput": "预期输出",
+                        "explanation": "为什么是这个输出",
+                    },
+                ],
+                "insight": "对比变体后应得出的关键认知",
+            }
+            if is_procedural
+            else {
+                "type": "simulate",
+                "title": "参数调节标题",
+                "description": "引导说明",
+                "parameters": [
+                    {"id": "param1", "label": "参数名", "min": 0, "max": 100, "default": 50, "step": 1, "unit": "单位"},
+                ],
+                "computeDescription": "参数如何影响结果的文字描述",
+                "presets": [
+                    {"label": "预设名", "values": {"param1": 50}, "note": "为什么这个值有意义"},
+                ],
+                "scenarios": [
+                    {"conditions": {"param1": [0, 25]}, "description": "当参数在此范围时的表现", "insight": "该区间的关键洞察"},
+                ],
+                "insight": "调参后应得出的关键认知",
+            }
+        ),
         "classify": {
             "type": "classify",
             "title": "分类练习标题",
@@ -653,12 +748,32 @@ def build_interaction_data_prompt(
 
     # Additional instructions for simulate-type interactions
     if capability in ("simulate", "parameter-play"):
+        if is_procedural:
+            system_prompt += (
+                "\nSimulate（代码变体）额外要求：\n"
+                "- baseCode 必须是完整可运行的代码片段\n"
+                "- variants 至少 3 个，每个修改一处关键代码\n"
+                "- modifiedCode 必须完整可运行，不是伪代码\n"
+                "- expectedOutput 是实际运行结果\n"
+                "- explanation 解释为什么这个修改导致不同输出\n"
+            )
+        else:
+            system_prompt += (
+                "\nSimulate 额外要求：\n"
+                "- scenarios 必须生成 4-8 个预计算场景，覆盖参数空间的关键区间\n"
+                "- 每个 scenario 的 conditions 用参数 id 映射到 [min, max] 范围\n"
+                "- description 说明该区间的行为特征，insight 说明为什么这个区间值得关注\n"
+                "- presets 至少 3 个，代表有教学意义的典型参数组合\n"
+            )
+
+    # Additional instructions for trace-type interactions with procedural knowledge
+    if capability in ("trace", "step-through") and is_procedural:
         system_prompt += (
-            "\nSimulate 额外要求：\n"
-            "- scenarios 必须生成 4-8 个预计算场景，覆盖参数空间的关键区间\n"
-            "- 每个 scenario 的 conditions 用参数 id 映射到 [min, max] 范围\n"
-            "- description 说明该区间的行为特征，insight 说明为什么这个区间值得关注\n"
-            "- presets 至少 3 个，代表有教学意义的典型参数组合\n"
+            "\nTrace（代码追踪）额外要求：\n"
+            "- 每个 step 的 code 字段是当前步骤对应的完整代码块\n"
+            "- highlightLines 标注当前步骤执行的行号（1-based）\n"
+            "- variables 记录该步执行后所有关键变量的值\n"
+            "- 代码必须真实可运行，不是伪代码\n"
         )
 
     user_prompt = (
