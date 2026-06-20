@@ -190,6 +190,9 @@ LearnVisualization 现在能根据主题自动生成"课程包"（12–14 个模
 ## 13. 实施分期
 
 0. **地基**：手写 2 个种子 + 改写设计文档。
+
+> Plan 1（数据契约）已完成：新 schema 的 TS 类型 / JS 引擎 / Python 规范化器 / fixture 就位。
+
 1. **后端**：新 schema/models + plan 出脊柱 + 章节串上一章 + 双语域 + 防八股 prompt + LLM 评审闸 + 重写 `quality.py`。
 2. **前端**：章节阅读器 + 全景落地页 + 拆站点 + 砍作业本交互（留 bespoke + trace）。
 3. **迁移**：转 llm-fundamentals、重生成、删死课。
