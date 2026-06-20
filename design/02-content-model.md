@@ -4,7 +4,95 @@
 
 ---
 
-## 一、层级结构
+## Essay-Course 模型（新）
+
+从 2026-06 开始，新课程采用 narrative-essay 数据契约。一门课 = course spine + 4–6 chapters。
+
+### 课程层 (EssayCourse)
+
+```typescript
+interface EssayCourse {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle?: string;
+  topic: string;
+  language: 'zh';
+  status: 'draft' | 'review' | 'published';
+  
+  // 语域：决定叙事风格
+  register: 'explainer' | 'essay';
+  
+  // 知识类型（单选）
+  knowledgeType: string;  // 'factual' | 'conceptual' | 'procedural' | 'strategic' | 'metacognitive'
+  
+  // Course Spine — 主线结构
+  drivingQuestion: string;      // 贯穿全课的主线问题
+  centralTension: string;       // 核心张力（为什么这个问题难/重要）
+  overview: {
+    whyExists: string;          // 这门课为什么存在
+    wherePoints: string;        // 学完后指向哪里
+    arc: string[];              // 叙事弧线（3-5 句话概括全课走向）
+  };
+  
+  // 章节列表（4-6 章）
+  chapters: string[];           // chapter IDs
+}
+```
+
+### 章节层 (Chapter)
+
+```typescript
+interface Chapter {
+  id: string;
+  number: number;
+  title: string;
+  role?: string;                // 这一章在全课中的作用（可选）
+  
+  // 叙事内容
+  narrative: EssayNarrativeBlock[];
+  
+  // 可选交互高光（插入点由 afterBlock 指定）
+  highlight?: {
+    kind: 'bespoke' | 'trace';
+    component?: string;         // bespoke 必填：组件名
+    data?: Record<string, unknown>;  // trace 必填：追踪数据
+    caption: string;
+    afterBlock: number;         // 插入在第几个 block 之后
+  } | null;
+  
+  // 到下一章的过渡（可选）
+  bridge?: string | null;
+}
+```
+
+### 叙事块 (EssayNarrativeBlock)
+
+```typescript
+type EssayNarrativeBlockType = 'text' | 'heading' | 'callout' | 'code' | 'quote';
+
+interface EssayNarrativeBlock {
+  type: EssayNarrativeBlockType;
+  content: string;
+  
+  // code 块专用
+  lang?: string;                // 'typescript' | 'python' | 'go' | 'rust' | ...
+  
+  // quote 块专用
+  cite?: string;                // 引用来源
+}
+```
+
+### 语域 (Register) 与知识类型映射
+
+- **explainer**（技术博主解说腔）：适用于 procedural / factual knowledge
+- **essay**（思想随笔腔）：适用于 conceptual / strategic / metacognitive knowledge
+
+后端根据 `knowledgeType` 自动推断 `register`，也可手动指定。
+
+---
+
+## 一、层级结构（遗留模型）
 
 ```
 CoursePackage
@@ -93,7 +181,9 @@ interface ConceptEdge {
 
 ---
 
-## 三、模块层 (CourseModule)
+## 三、模块层 (CourseModule) — 遗留模型
+
+> ⚠️ **遗留模型**：12-module pedagogical checklist 模式正在淘汰，仅 llm-fundamentals 等旧课保留。新课使用 Essay-Course 模型。
 
 ```typescript
 interface CourseModule {
@@ -221,59 +311,7 @@ interface NarrativeBlock {
 
 ---
 
-## 五、练习系统 (Exercise)
-
-v3 新增独立的练习层，超越原来的 retrievalPrompts。
-
-```typescript
-interface Exercise {
-  id: string;
-  type: ExerciseType;
-  bloomLevel: CognitiveLevel;
-  knowledgeType: KnowledgeType;
-  scaffoldLevel: ScaffoldLevel;
-
-  prompt: string;
-  responseType: ResponseType;
-
-  // 渐退元数据
-  workedStepsShown?: number;
-  workedStepsOmitted?: number;
-
-  // 反馈
-  hints?: string[];                      // 递进提示（教练阶段）
-  expertAnnotation?: string;             // 专家思路
-
-  // 间隔复习
-  spacingRecommendation?: {
-    initialDelayModules: number;
-    expansionFactor: number;
-  };
-}
-
-type ExerciseType =
-  // 通用
-  | 'fill-blank' | 'rebuild-map' | 'compare-variants' | 'predict-next-step'
-  | 'classify' | 'explain' | 'free-response' | 'self-explanation'
-  // 代码专用 (PRIMM)
-  | 'predict-output' | 'trace-execution' | 'parsons-problem'
-  | 'modify-program' | 'write-program' | 'debug'
-  // 数学专用 (CRA)
-  | 'concrete-manipulation' | 'abstract-symbolic'
-  // 系统专用
-  | 'trace-through-layers'
-  // 设计专用
-  | 'critique' | 'exemplar-analysis'
-  ;
-
-type ResponseType = 'select' | 'generate' | 'arrange' | 'code' | 'explain' | 'draw';
-
-type ScaffoldLevel = 'full' | 'faded-1' | 'faded-2' | 'free';
-```
-
----
-
-## 六、类型枚举
+## 五、类型枚举（遗留模型）
 
 ```typescript
 type KnowledgeType =
@@ -312,7 +350,7 @@ type DomainPedagogy =
 
 ---
 
-## 七、向后兼容
+## 六、向后兼容（遗留模型）
 
 v3 schema 是 v2 的超集。所有 v2 字段保持兼容：
 
