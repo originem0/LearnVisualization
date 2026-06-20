@@ -50,3 +50,12 @@ export interface DialogTurn {
   role: 'learner' | 'guide';
   text: string;
 }
+
+export type EssayBlockType = 'text' | 'heading' | 'callout' | 'code' | 'quote';
+
+export interface EssayNarrativeBlock {
+  type: EssayBlockType;
+  content: string;
+  lang?: string; // 仅 type === 'code'
+  cite?: string; // 仅 type === 'quote'
+}

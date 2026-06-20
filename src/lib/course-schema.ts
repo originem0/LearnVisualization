@@ -1,4 +1,4 @@
-import type { Category, ConceptItem, DialogTurn, Exercise, NarrativeBlock, PitfallItem } from '@/lib/types';
+import type { Category, ConceptItem, DialogTurn, EssayNarrativeBlock, Exercise, NarrativeBlock, PitfallItem } from '@/lib/types';
 
 export type CourseStatus = 'draft' | 'review' | 'published';
 export type CourseLanguage = 'zh';
@@ -151,4 +151,47 @@ export interface CoursePackage {
   paths?: LearningPath[];
   moduleGraph: ModuleGraph;
   modules: CourseModule[];
+}
+
+export type CourseRegister = 'explainer' | 'essay';
+export type HighlightKind = 'bespoke' | 'trace';
+
+export interface CourseOverview {
+  whyExists: string;
+  wherePoints: string;
+  arc: string[];
+}
+
+export interface Highlight {
+  kind: HighlightKind;
+  component?: string; // kind === 'bespoke' 时必填
+  data?: Record<string, unknown>; // kind === 'trace' 时必填
+  caption: string;
+  afterBlock: number;
+}
+
+export interface Chapter {
+  id: string;
+  number: number;
+  title: string;
+  role?: string;
+  narrative: EssayNarrativeBlock[];
+  highlight?: Highlight | null;
+  bridge?: string | null;
+}
+
+export interface EssayCourse {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle?: string;
+  topic: string;
+  language: CourseLanguage;
+  status: CourseStatus;
+  register: CourseRegister;
+  knowledgeType: string;
+  drivingQuestion: string;
+  centralTension: string;
+  overview: CourseOverview;
+  chapters: string[];
 }
