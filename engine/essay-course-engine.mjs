@@ -121,3 +121,91 @@ export function compileEssayCourse(input) {
     },
   };
 }
+
+function summarizeReviewApproval(reviewApproval, reviewApprovalPath = null) {
+  return {
+    exists: Boolean(reviewApprovalPath || reviewApproval),
+    approved: Boolean(reviewApproval && reviewApproval.approved === true),
+    reviewedBy: typeof reviewApproval?.reviewedBy === 'string' ? reviewApproval.reviewedBy : null,
+    reviewedAt: typeof reviewApproval?.reviewedAt === 'string' ? reviewApproval.reviewedAt : null,
+    notes: typeof reviewApproval?.notes === 'string' ? reviewApproval.notes : null,
+  };
+}
+
+export function validateEssayCoursePackage(input, options = {}) {
+  const requireReviewApproval = options.requireReviewApproval === true;
+  const source = normalizeLoadedSource(input);
+  const compiled = compileEssayCourse(source);
+  const course = source.course ?? {};
+  const errors = [];
+  const warnings = [];
+  const err = (m) => errors.push(m);
+  const warn = (m) => warnings.push(m);
+
+  if (!isNonEmptyString(course.id)) err('course.json: missing id');
+  if (!isNonEmptyString(course.title)) err('course.json: missing title');
+  if (!isNonEmptyString(course.drivingQuestion)) err('course.json: missing drivingQuestion');
+  if (!isNonEmptyString(course.centralTension)) err('course.json: missing centralTension');
+  if (!REGISTERS.has(course.register)) err(`course.json: register must be explainer|essay (got '${course.register}')`);
+  if (!isRecord(course.overview)) {
+    warn('course.json: missing overview');
+  } else {
+    if (!isNonEmptyString(course.overview.whyExists)) warn('course.json: overview.whyExists empty');
+    if (!isNonEmptyString(course.overview.wherePoints)) warn('course.json: overview.wherePoints empty');
+    if (!Array.isArray(course.overview.arc) || course.overview.arc.length === 0) warn('course.json: overview.arc empty');
+  }
+
+  const declaredOrder = Array.isArray(course.chapters) ? course.chapters : [];
+  if (declaredOrder.length === 0) err('course.json: missing chapters[]');
+  if (declaredOrder.length < 4 || declaredOrder.length > 6) warn(`course.json: expected 4-6 chapters (got ${declaredOrder.length})`);
+
+  const fileIds = source.chapters.map((c) => c.data.id);
+  if (JSON.stringify(declaredOrder) !== JSON.stringify(fileIds)) err('course.json: chapters[] does not match chapter file order');
+  if (compiled.unresolvedChapterIds.length) err(`course.json: chapters[] references missing files: ${compiled.unresolvedChapterIds.join(', ')}`);
+  if (compiled.extraChapters.length) err(`chapter files missing from course.chapters[]: ${compiled.extraChapters.map((c) => c.id).join(', ')}`);
+
+  source.chapters.forEach(({ name, data: ch }, idx) => {
+    if (name !== `${ch.id}.json`) err(`${name}: filename does not match chapter id '${ch.id}'`);
+    if (ch.number !== idx + 1) err(`${name}: number should be ${idx + 1} (got ${ch.number})`);
+    if (!isNonEmptyString(ch.title)) err(`${name}: missing title`);
+    if (!isNonEmptyString(ch.role)) warn(`${name}: missing role`);
+
+    if (!Array.isArray(ch.narrative) || ch.narrative.length === 0) {
+      err(`${name}: missing narrative`);
+    } else {
+      ch.narrative.forEach((b, bi) => {
+        if (!BLOCK_TYPES.has(b?.type)) err(`${name}: narrative[${bi}] invalid type '${b?.type}'`);
+        if (!isNonEmptyString(b?.content)) err(`${name}: narrative[${bi}] empty content`);
+      });
+    }
+
+    if (ch.highlight != null) {
+      const h = ch.highlight;
+      if (!HIGHLIGHT_KINDS.has(h.kind)) err(`${name}: highlight.kind must be bespoke|trace`);
+      if (h.kind === 'bespoke' && !isNonEmptyString(h.component)) err(`${name}: bespoke highlight requires component`);
+      if (h.kind === 'trace' && !isRecord(h.data)) err(`${name}: trace highlight requires data object`);
+      if (!isNonEmptyString(h.caption)) err(`${name}: highlight missing caption`);
+      const n = Array.isArray(ch.narrative) ? ch.narrative.length : 0;
+      if (!Number.isInteger(h.afterBlock) || h.afterBlock < 0 || h.afterBlock >= n) err(`${name}: highlight.afterBlock out of range`);
+    }
+
+    const isLast = idx === source.chapters.length - 1;
+    if (!isLast && !isNonEmptyString(ch.bridge)) warn(`${name}: missing bridge (not last chapter)`);
+  });
+
+  const reviewApproval = summarizeReviewApproval(source.reviewApproval, source.reviewApprovalPath);
+  const reviewMustPass = requireReviewApproval || course.status === 'published';
+  if (!reviewApproval.exists) {
+    if (reviewMustPass) err('missing review/approval.json');
+  } else if (reviewApproval.approved === true) {
+    if (!isNonEmptyString(reviewApproval.reviewedBy)) err("review/approval.json: 'reviewedBy' required when approved=true");
+    if (!isNonEmptyString(reviewApproval.reviewedAt)) err("review/approval.json: 'reviewedAt' required when approved=true");
+  } else if (reviewMustPass) {
+    err('review approval is required before publish/promote');
+  }
+
+  const ok = errors.length === 0;
+  const promoteReady = ok && reviewApproval.approved === true;
+  const publishReady = promoteReady && course.status === 'published';
+  return { ok, promoteReady, publishReady, errors, warnings, summary: compiled.summary, reviewApproval };
+}
