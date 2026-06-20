@@ -34,7 +34,21 @@
 
 ---
 
-## 二、各层职责
+## 二、双引擎并存（迁移期）
+
+在 narrative-essay 模型迁移期间，系统同时支持两套引擎：
+
+- **旧引擎**：`engine/course-package-engine.mjs` — 12-module 模型（遗留课程）
+- **新引擎**：`engine/essay-course-engine.mjs` — essay-course 模型（新课程）
+- **路由判断**：前端通过 `course.register` 字段判断走哪条渲染路径
+  - `register: "essay-course"` → 调用新引擎 + EssayCourseRenderer
+  - 无 register 或其他值 → 调用旧引擎 + ModuleRenderer
+- **数据隔离**：两类课程的数据 schema 互不干扰，可独立演进
+- **退出策略**：迁移完成后删除旧引擎及相关适配代码
+
+---
+
+## 四、各层职责
 
 ### 课程数据层
 - **是什么**：纯 JSON 文件，遵循 `02-content-model.md` 定义的 schema
@@ -71,14 +85,28 @@
 
 ---
 
-## 三、数据流
+## 五、数据流
 
 ### 生成流（Agent → 课程）
+
+**旧模型（12-module）：**
 ```
 POST /jobs/course-generation {topic: "..."}
-  → plan 阶段: LLM 生成课程计划 → normalize（透传+修正） → 保存 artifact
-  → compose 阶段: 逐模块 LLM 生成 → normalize → checkpoint（支持断点续传）
+  → plan 阶段: LLM 生成 12 个模块大纲 → normalize → 保存 artifact
+  → compose 阶段: 逐模块 LLM 生成 → normalize → checkpoint
   → validate 阶段: 引擎校验（仅结构性 error 阻断）
+  → export 阶段: 写入 generated/{slug}/
+  → 等待人工审核
+  → POST /jobs/{id}/review {approved: true}
+  → promote: 复制到 courses/{slug}/
+```
+
+**新模型（essay-course）：**
+```
+POST /jobs/course-generation {topic: "...", register: "essay-course"}
+  → plan 阶段: LLM 生成 spine（核心论点）+ 4-6 章标题 → normalize → 保存 artifact
+  → compose 阶段: 串行生成各章（后章引用前章摘要） → essay_schema.py normalize → checkpoint
+  → validate 阶段: 新引擎校验 + LLM judge 质量打分
   → export 阶段: 写入 generated/{slug}/
   → 等待人工审核
   → POST /jobs/{id}/review {approved: true}
@@ -105,7 +133,7 @@ npm run build     — Next.js 静态构建
 
 ---
 
-## 四、错误处理策略
+## 六、错误处理策略
 
 | 场景 | 处理方式 |
 |------|---------|
@@ -122,7 +150,7 @@ npm run build     — Next.js 静态构建
 
 ---
 
-## 五、安全约束
+## 七、安全约束
 
 1. **路径验证**：所有 slug 参数必须匹配 `^[a-z0-9-]+$`，阻止路径遍历
 2. **API 密钥**：不写入版本控制（.env 在 .gitignore 中），不在响应中暴露
@@ -132,7 +160,7 @@ npm run build     — Next.js 静态构建
 
 ---
 
-## 六、未来演进方向
+## 八、未来演进方向
 
 ### 短期（不改架构）
 - ~~Agent 后端换用 FastAPI~~ 当前手写路由 + 全局异常捕获已基本够用
