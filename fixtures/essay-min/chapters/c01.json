@@ -1,0 +1,13 @@
+{
+  "id": "c01",
+  "number": 1,
+  "title": "立题",
+  "role": "抛出驱动问题",
+  "narrative": [
+    { "type": "text", "content": "第一段直接进入问题，不做摆拍开场。" },
+    { "type": "heading", "content": "一个小节" },
+    { "type": "text", "content": "继续展开，保持连续散文。" }
+  ],
+  "highlight": null,
+  "bridge": "下一章承接这里抛出的问题。"
+}

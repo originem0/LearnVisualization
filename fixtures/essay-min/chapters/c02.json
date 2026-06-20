@@ -1,0 +1,13 @@
+{
+  "id": "c02",
+  "number": 2,
+  "title": "演示",
+  "role": "演示机制",
+  "narrative": [
+    { "type": "text", "content": "展开正文，引出一段代码。" },
+    { "type": "code", "content": "print('hi')", "lang": "python" },
+    { "type": "text", "content": "解释这段代码做了什么。" }
+  ],
+  "highlight": { "kind": "trace", "data": { "steps": [] }, "caption": "看它一步步执行", "afterBlock": 1 },
+  "bridge": "由演示过渡到转折。"
+}

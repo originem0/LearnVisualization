@@ -1,0 +1,12 @@
+{
+  "id": "c03",
+  "number": 3,
+  "title": "转折",
+  "role": "引入反直觉",
+  "narrative": [
+    { "type": "text", "content": "提出一个让前面结论站不住的反例。" },
+    { "type": "callout", "content": "这里是真正的关键洞见。" }
+  ],
+  "highlight": { "kind": "bespoke", "component": "TokenizerPlayground", "caption": "动手切词", "afterBlock": 0 },
+  "bridge": "把转折收束回主线。"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "c04",
+  "number": 4,
+  "title": "收束",
+  "role": "回到驱动问题给出回答",
+  "narrative": [
+    { "type": "text", "content": "回到开篇的问题，给出经过推进后的回答。" },
+    { "type": "quote", "content": "一句收尾引文。", "cite": "某出处" }
+  ],
+  "highlight": null,
+  "bridge": null
+}

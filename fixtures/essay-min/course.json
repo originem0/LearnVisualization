@@ -1,0 +1,19 @@
+{
+  "id": "essay-min",
+  "slug": "essay-min",
+  "title": "最小叙事课",
+  "subtitle": "data-contract fixture",
+  "topic": "fixture",
+  "language": "zh",
+  "status": "draft",
+  "register": "explainer",
+  "knowledgeType": "procedural",
+  "drivingQuestion": "这个最小课用来验证什么？",
+  "centralTension": "schema 要严到挡住坏数据，又松到容纳连续散文。",
+  "overview": {
+    "whyExists": "给新数据契约一个会通过校验的最小样例。",
+    "wherePoints": "成为校验器与编译器的测试基线。",
+    "arc": ["第1章立题", "第2章演示", "第3章转折", "第4章收束"]
+  },
+  "chapters": ["c01", "c02", "c03", "c04"]
+}
