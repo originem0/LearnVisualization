@@ -40,6 +40,37 @@ class SecurityTests(unittest.TestCase):
             handler = self.make_handler({"X-Agent-Admin-Token": "admin-token"})
             handler._require_admin({})
 
+    def test_course_generation_and_clarification_are_admin_exempt(self):
+        self.assertIn("/api/clarify/start", main.AUTH_EXEMPT_POST_PATHS)
+        self.assertIn("/api/clarify/respond", main.AUTH_EXEMPT_POST_PATHS)
+        self.assertIn("/jobs/course-generation", main.AUTH_EXEMPT_POST_PATHS)
+
+    def test_public_job_get_boundary(self):
+        self.assertTrue(main._is_public_job_get(["jobs"]))
+        self.assertTrue(main._is_public_job_get(["jobs", "abc123"]))
+        self.assertFalse(main._is_public_job_get(["jobs", "abc123", "artifacts"]))
+        self.assertFalse(main._is_public_job_get(["jobs", "abc123", "delete"]))
+
+    def test_public_job_view_omits_internal_fields(self):
+        public = main._public_job_view(
+            {
+                "id": "job123",
+                "status": "queued",
+                "currentStage": None,
+                "request": {"topic": "Nietzsche", "_request_identity": "client:127.0.0.1"},
+                "provider": {"apiKey": "***"},
+                "artifacts": {"plan": "/tmp/internal"},
+                "stages": [{"name": "plan", "status": "pending", "artifactPath": "/tmp/internal"}],
+                "resultSummary": {},
+                "createdAt": "2026-06-22T00:00:00+08:00",
+                "updatedAt": "2026-06-22T00:00:00+08:00",
+            }
+        )
+        self.assertEqual(public["request"], {"topic": "Nietzsche"})
+        self.assertNotIn("provider", public)
+        self.assertNotIn("artifacts", public)
+        self.assertNotIn("artifactPath", public["stages"][0])
+
 
 if __name__ == "__main__":
     unittest.main()

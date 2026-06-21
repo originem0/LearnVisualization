@@ -33,6 +33,8 @@ interface JobState {
   error?: { stage?: string; message?: string } | null;
   stages: JobStage[];
   resultSummary?: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface ClarificationResult {
@@ -197,23 +199,33 @@ export default function GenerateForm({ locale }: { locale: string }) {
     }
   }, [isZh]);
 
-  // On mount: restore jobs from localStorage
+  const fetchRecentJobs = useCallback(async (): Promise<JobState[]> => {
+    try {
+      const res = await agentFetch('/jobs', {}, isZh);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data.jobs) ? data.jobs : [];
+    } catch {
+      return [];
+    }
+  }, [isZh]);
+
+  // On mount: restore local jobs; if the browser has no local index, fall back to server history.
   useEffect(() => {
     mountedRef.current = true;
     const ids = loadJobIds();
-    if (ids.length === 0) return;
 
     (async () => {
-      const results = await Promise.all(ids.map(fetchJob));
+      const results = ids.length > 0 ? await Promise.all(ids.map(fetchJob)) : await fetchRecentJobs();
       if (!mountedRef.current) return;
       const valid = results.filter((j): j is JobState => j !== null);
       setJobs(valid);
       const validIds = new Set(valid.map((j) => j.id));
-      saveJobIds(ids.filter((id) => validIds.has(id)));
+      saveJobIds(ids.length > 0 ? ids.filter((id) => validIds.has(id)) : Array.from(validIds));
     })();
 
     return () => { mountedRef.current = false; };
-  }, [fetchJob]);
+  }, [fetchJob, fetchRecentJobs]);
 
   // Polling: poll all active jobs every 3 seconds
   useEffect(() => {

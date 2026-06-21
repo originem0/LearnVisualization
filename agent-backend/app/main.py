@@ -86,6 +86,9 @@ LEGACY_GENERATION_ENDPOINTS = {
 }
 
 AUTH_EXEMPT_POST_PATHS = {
+    "/api/clarify/start",
+    "/api/clarify/respond",
+    "/jobs/course-generation",
     "/provider-config/verify",
     "/provider-config",
     "/provider-config/test",
@@ -123,6 +126,42 @@ def _unwrap_llm_json_content(response: dict) -> dict:
     if isinstance(content, dict):
         return content
     return response
+
+
+def _is_public_job_get(parts: list[str]) -> bool:
+    return (len(parts) == 1 and parts[0] == "jobs") or (len(parts) == 2 and parts[0] == "jobs")
+
+
+def _public_job_view(job: dict) -> dict:
+    request = job.get("request") if isinstance(job.get("request"), dict) else None
+    public_request = None
+    if request is not None:
+        public_request = {key: value for key, value in request.items() if not key.startswith("_")}
+
+    stages = []
+    for stage in job.get("stages") or []:
+        if not isinstance(stage, dict):
+            continue
+        stages.append(
+            {
+                "name": stage.get("name"),
+                "status": stage.get("status"),
+                "summary": stage.get("summary"),
+                "error": stage.get("error"),
+            }
+        )
+
+    return {
+        "id": job.get("id"),
+        "status": job.get("status"),
+        "currentStage": job.get("currentStage"),
+        "request": public_request,
+        "error": job.get("error"),
+        "stages": stages,
+        "resultSummary": job.get("resultSummary") or {},
+        "createdAt": job.get("createdAt"),
+        "updatedAt": job.get("updatedAt"),
+    }
 
 
 def _clarification_gate_question(error: str) -> str:
@@ -790,16 +829,16 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 return self._send_json(get_provider_config())
 
             parts = [part for part in path.split("/") if part]
-            if parts and parts[0] == "jobs":
+            if parts and parts[0] == "jobs" and not _is_public_job_get(parts):
                 self._require_admin({})
 
             pipeline = get_pipeline()
             if len(parts) == 1 and parts[0] == "jobs":
                 jobs = pipeline.store.list_jobs()
                 jobs.sort(key=lambda j: j.get("createdAt", ""), reverse=True)
-                return self._send_json({"jobs": jobs})
+                return self._send_json({"jobs": [_public_job_view(job) for job in jobs]})
             if len(parts) == 2 and parts[0] == "jobs":
-                return self._send_json(pipeline.get_job(safe_job_id(parts[1])))
+                return self._send_json(_public_job_view(pipeline.get_job(safe_job_id(parts[1]))))
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "artifacts":
                 job_id = safe_job_id(parts[1])
                 return self._send_json({"job_id": job_id, "artifacts": pipeline.get_artifacts(job_id)})
@@ -852,7 +891,7 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 pipeline = get_pipeline()
                 request_payload = normalize_job_create_request(payload)
                 request_payload["_request_identity"] = self._request_identity()
-                return self._send_json(pipeline.create_job(request_payload), status=202)
+                return self._send_json(_public_job_view(pipeline.create_job(request_payload)), status=202)
 
             if path == "/validate-build/dry-run":
                 return self._send_json(validate_build_dry_run(normalize_validate_request(payload)))
