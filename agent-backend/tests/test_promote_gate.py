@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 def load_main_module():
@@ -193,19 +194,35 @@ class PromoteGateTests(unittest.TestCase):
     def test_promote_write_accepts_reviewed_draft_package(self) -> None:
         create_package(self.generated_root, "reviewed-course", approved=True, status="draft", scaffold=False)
 
-        result = MAIN.promote_generated_course_package(
-            {
-                "source_slug": "reviewed-course",
-                "target_slug": "reviewed-course",
-                "overwrite": False,
-            }
-        )
+        with patch.object(MAIN, "_rebuild_static_site", return_value={"ok": True, "skipped": False}):
+            result = MAIN.promote_generated_course_package(
+                {
+                    "source_slug": "reviewed-course",
+                    "target_slug": "reviewed-course",
+                    "overwrite": False,
+                }
+            )
 
         self.assertTrue(result["promoted"])
         self.assertTrue(result["post_promote_ready"])
         self.assertEqual(result["module_count"], 1)
         self.assertEqual(result["module_ids"], ["s01"])
         self.assertTrue((self.courses_root / "reviewed-course" / "course.json").exists())
+
+    def test_promote_write_rolls_back_when_build_fails(self) -> None:
+        create_package(self.generated_root, "rollback-course", approved=True, status="draft", scaffold=False)
+
+        with patch.object(MAIN, "_rebuild_static_site", side_effect=RuntimeError("build failed")):
+            with self.assertRaises(RuntimeError):
+                MAIN.promote_generated_course_package(
+                    {
+                        "source_slug": "rollback-course",
+                        "target_slug": "rollback-course",
+                        "overwrite": False,
+                    }
+                )
+
+        self.assertFalse((self.courses_root / "rollback-course").exists())
 
 
 if __name__ == "__main__":

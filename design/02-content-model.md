@@ -22,6 +22,9 @@ interface EssayCourse {
   
   // 语域：决定叙事风格
   register: 'explainer' | 'essay';
+
+  // 写作/评审模式：决定生成和 judge 使用的内部尺子
+  writingMode?: 'conceptual-essay' | 'case-narrative' | 'mechanism-explainer';
   
   // 知识类型（单选）
   knowledgeType: string;  // 'factual' | 'conceptual' | 'procedural' | 'strategic' | 'metacognitive'
@@ -89,6 +92,16 @@ interface EssayNarrativeBlock {
 - **essay**（思想随笔腔）：适用于 conceptual / strategic / metacognitive knowledge
 
 后端根据 `knowledgeType` 自动推断 `register`，也可手动指定。
+
+`register` 只表示大语域，不表示文体任务。尤其是 `register: 'essay'` 不是“记叙文/故事散文”的同义词。
+
+`writingMode` 是生成与评审内部使用的更细尺子：
+
+- **conceptual-essay**：概念论证、价值辨析、策略判断、元认知模型。适用于 conceptual / strategic / metacognitive。尼采这类哲学课属于这里；不要求人物、情节、场景或个人经历。
+- **mechanism-explainer**：事实机制、操作过程、系统状态变化。适用于 factual / procedural / 未知类型。
+- **case-narrative**：具体情境、真实案例轨迹或事件过程本身承载主线时使用。不自动默认选择。
+
+旧课程缺少 `writingMode` 时，后端按 `knowledgeType` 推断默认值，不做迁移。
 
 ---
 

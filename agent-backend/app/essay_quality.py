@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -15,10 +16,32 @@ BANNED_PHRASES = (
 )
 
 
-def evaluate_chapter_quality(chapter: dict[str, Any], *, register: str) -> dict[str, Any]:
+COMPARISON_NAMES = ("萨特", "康德", "黑格尔", "马克思", "福柯", "海德格尔", "柏拉图", "苏格拉底", "弗洛伊德")
+CONCEPTUAL_DRIFT_PHRASES = ("从某种意义上", "某种程度上", "本质上", "更深层", "深刻", "意义", "价值", "秩序", "主体", "现代性")
+
+
+def _role_terms(role: str) -> list[str]:
+    cleaned = re.sub(r"[^\w\u4e00-\u9fff]+", " ", role)
+    terms: list[str] = []
+    for chunk in cleaned.split():
+        if re.fullmatch(r"[\u4e00-\u9fff]{2,}", chunk):
+            terms.extend(chunk[i:i + 2] for i in range(0, max(len(chunk) - 1, 1), 2))
+        elif len(chunk) >= 4:
+            terms.append(chunk)
+    return [term for term in terms if term not in {"这一", "这个", "本章", "章节", "主线", "作用"}]
+
+
+def evaluate_chapter_quality(
+    chapter: dict[str, Any],
+    *,
+    register: str,
+    writing_mode: str = "mechanism-explainer",
+    chapter_plan: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     narrative = chapter.get("narrative") if isinstance(chapter, dict) else []
     blocks = narrative if isinstance(narrative, list) else []
     text = "\n".join(str(block.get("content") or "") for block in blocks if isinstance(block, dict))
+    title_and_text = f"{chapter.get('title') or ''}\n{text}"
     issues: list[str] = []
 
     if len(blocks) < 4:
@@ -32,6 +55,22 @@ def evaluate_chapter_quality(chapter: dict[str, Any], *, register: str) -> dict[
         issues.append("explainer 章节滑向空泛哲学化")
     if text.count("。") + text.count("；") < 6:
         issues.append("正文句子太少，实质密度不足")
+    if writing_mode == "conceptual-essay":
+        role = str((chapter_plan or {}).get("role") or chapter.get("role") or "").strip()
+        terms = _role_terms(role)
+        if role and terms and not any(term in title_and_text for term in terms):
+            issues.append(f"conceptual-essay 没有明显完成章节 role: {role}")
+
+        anchor_hits = sum(text.count(token) for token in ("例如", "比如", "具体", "案例", "事实", "文本", "历史", "经验", "处境"))
+        anchor_hits += len(re.findall(r"\d{2,4}|《[^》]+》|“[^”]{2,}”", text))
+        drift_hits = sum(text.count(phrase) for phrase in CONCEPTUAL_DRIFT_PHRASES)
+        if drift_hits >= 10 and anchor_hits == 0:
+            issues.append("conceptual-essay 连续空转概念，缺少具体事实/文本/经验锚点")
+
+        role_mentions_comparison = any(name in role for name in COMPARISON_NAMES)
+        runaway_names = [name for name in COMPARISON_NAMES if text.count(name) >= 4]
+        if runaway_names and not role_mentions_comparison:
+            issues.append(f"比较对象喧宾夺主: {', '.join(runaway_names)}")
 
     return {
         "pass": not issues,

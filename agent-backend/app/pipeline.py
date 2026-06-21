@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import atexit
 import json
+import os
 import shutil
+import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
@@ -10,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
+    from .common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from .essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
     from .essay_quality import evaluate_chapter_quality
     from .essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
@@ -19,7 +21,7 @@ try:
     from .prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
     from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError
 except ImportError:
-    from common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
+    from common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
     from essay_quality import evaluate_chapter_quality
     from essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
@@ -31,6 +33,7 @@ except ImportError:
 MAX_CONCURRENT_JOBS = 3
 COMPOSE_CONCURRENCY = 1
 DAILY_JOB_LIMIT = 10
+DAILY_IDENTITY_JOB_LIMIT = 5
 MAX_TOTAL_COURSES = 50
 
 # Serialize all npm builds — concurrent builds corrupt the output directory
@@ -39,6 +42,43 @@ _build_lock = threading.Lock()
 
 class CancelledError(Exception):
     """Raised when a job is cancelled via cooperative cancellation."""
+
+
+class StaticBuildError(RuntimeError):
+    """Raised when static site publication cannot be made consistent."""
+
+
+def run_static_build(repo_root: Path, *, log_prefix: str = "[pipeline]", timeout: int = 600) -> dict[str, Any]:
+    """Run the static build synchronously; success is required before publication is complete."""
+    import sys
+
+    if not (repo_root / "package.json").exists():
+        print(f"{log_prefix} Skipping build; package.json not found in {repo_root}", file=sys.stderr)
+        return {"ok": True, "skipped": True, "reason": "package.json not found"}
+
+    if not _build_lock.acquire(timeout=0):
+        raise StaticBuildError("static build already in progress")
+    try:
+        print(f"{log_prefix} Running npm run build...", file=sys.stderr)
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()[-1200:]
+            raise StaticBuildError(f"static build failed: {detail}")
+        print(f"{log_prefix} Build completed successfully", file=sys.stderr)
+        return {
+            "ok": True,
+            "skipped": False,
+            "stdout": (result.stdout or "")[-4000:],
+            "stderr": (result.stderr or "")[-4000:],
+        }
+    finally:
+        _build_lock.release()
 
 
 class CourseGenerationPipeline:
@@ -100,23 +140,31 @@ class CourseGenerationPipeline:
                     except Exception:
                         pass
 
-        # 3. Remove orphaned generated dirs — already promoted or no active job needing them
-        courses_root = self.repo_root / "courses"
-        active_slugs = set()
+        # 3. Remove orphaned generated dirs — keep anything referenced by any job for audit/retry
+        referenced_slugs = set()
         for job in self.store.list_jobs():
             req = job.get("request") or {}
             slug = req.get("output_slug")
-            if slug and job.get("status") in ("queued", "running"):
-                active_slugs.add(slug)
+            if slug:
+                try:
+                    referenced_slugs.add(safe_slug(slug, "output_slug"))
+                except ValueError:
+                    pass
+            for artifact_path in (job.get("artifacts") or {}).values():
+                try:
+                    path = Path(str(artifact_path)).resolve()
+                    generated_root = self.generated_root.resolve()
+                    if path == generated_root or generated_root in path.parents:
+                        referenced_slugs.add(path.relative_to(generated_root).parts[0])
+                except (OSError, ValueError, IndexError):
+                    continue
 
         removed_generated = 0
         if self.generated_root.is_dir():
             for d in list(self.generated_root.iterdir()):
                 if not d.is_dir():
                     continue
-                # Keep only if an active (queued/running) job references it
-                # AND it hasn't been promoted to courses/ yet
-                if d.name in active_slugs and not (courses_root / d.name).is_dir():
+                if d.name in referenced_slugs:
                     continue
                 shutil.rmtree(d, ignore_errors=True)
                 removed_generated += 1
@@ -163,6 +211,14 @@ class CourseGenerationPipeline:
         )
         if today_count >= DAILY_JOB_LIMIT:
             raise ValueError(f"今日生成次数已达上限（{DAILY_JOB_LIMIT} 次），请明天再试")
+        request_identity = str(request_payload.get("_request_identity") or "direct").strip()
+        identity_count = sum(
+            1 for j in self.store.list_jobs()
+            if j.get("createdAt", "")[:10] == today
+            and ((j.get("request") or {}).get("_request_identity") or "direct") == request_identity
+        )
+        if identity_count >= DAILY_IDENTITY_JOB_LIMIT:
+            raise ValueError(f"当前调用方今日生成次数已达上限（{DAILY_IDENTITY_JOB_LIMIT} 次），请明天再试")
 
         courses_root = self.repo_root / "courses"
         course_count = sum(
@@ -191,12 +247,13 @@ class CourseGenerationPipeline:
             canonical = str(topic_validation.get("canonicalTopic") or "").strip()
             if canonical:
                 request_payload["topic"] = canonical
-        except (ProviderError, Exception):
-            pass  # LLM unavailable or error — continue with original topic
+        except Exception as exc:
+            raise ValueError(f"主题验证暂时不可用，不能跳过输入门控: {exc}") from exc
 
+        output_slug = safe_slug(request_payload.get("output_slug") or slugify(request_payload["topic"]), "output_slug")
         request_payload = {
             **request_payload,
-            "output_slug": request_payload.get("output_slug") or slugify(request_payload["topic"]),
+            "output_slug": output_slug,
             "overwrite": bool(request_payload.get("overwrite", False)),
         }
         output_slug = request_payload["output_slug"]
@@ -245,6 +302,7 @@ class CourseGenerationPipeline:
 
     def cancel_job(self, job_id: str) -> dict[str, Any]:
         """Cancel a queued or running job."""
+        job_id = safe_job_id(job_id)
         job = self.store.load_job(job_id)
         status = job.get("status")
         if status not in ("queued", "running"):
@@ -267,6 +325,7 @@ class CourseGenerationPipeline:
 
     def delete_job(self, job_id: str) -> dict[str, Any]:
         """Delete a job and its generated output."""
+        job_id = safe_job_id(job_id)
         job = self.store.load_job(job_id)
         status = job.get("status")
         if status in ("queued", "running"):
@@ -275,7 +334,7 @@ class CourseGenerationPipeline:
         # Remove generated output directory
         output_slug = (job.get("request") or {}).get("output_slug")
         if output_slug:
-            output_dir = self.generated_root / output_slug
+            output_dir = self.generated_root / safe_slug(output_slug, "output_slug")
             if output_dir.exists():
                 shutil.rmtree(output_dir)
 
@@ -284,6 +343,7 @@ class CourseGenerationPipeline:
         return {"deleted": True, "id": job_id}
 
     def run_job(self, job_id: str) -> dict[str, Any]:
+        job_id = safe_job_id(job_id)
         # Snapshot client at job start — config changes during this job won't affect it
         with self._lock:
             client = self.client
@@ -311,6 +371,7 @@ class CourseGenerationPipeline:
                         "chapterCount": len(plan_artifact["chapters"]),
                         "moduleCount": len(plan_artifact["chapters"]),
                         "register": plan_artifact["register"],
+                        "writingMode": plan_artifact.get("writingMode"),
                     },
                 )
 
@@ -383,6 +444,7 @@ class CourseGenerationPipeline:
                     "readyForPromote": True,
                     "reviewStatus": "pending",
                     "published": False,
+                    "writingMode": composed_artifact["course"].get("writingMode"),
                 },
             )
             return self.store.load_job(job_id)
@@ -399,12 +461,13 @@ class CourseGenerationPipeline:
             return self.store.load_job(job_id)
 
     def get_job(self, job_id: str) -> dict[str, Any]:
-        return self.store.load_job(job_id)
+        return self.store.load_job(safe_job_id(job_id))
 
     def get_artifacts(self, job_id: str) -> dict[str, str]:
-        return self.store.artifact_index(job_id)
+        return self.store.artifact_index(safe_job_id(job_id))
 
     def retry_job(self, job_id: str, *, stage: str | None = None) -> dict[str, Any]:
+        job_id = safe_job_id(job_id)
         job = self.store.prepare_retry(job_id, stage)
         self._submit_job(job_id)
         return job
@@ -417,6 +480,7 @@ class CourseGenerationPipeline:
         reviewed_by: str | None,
         notes: str | None,
     ) -> dict[str, Any]:
+        job_id = safe_job_id(job_id)
         job = self.store.load_job(job_id)
         output_dir = Path((job.get("artifacts") or {}).get("output") or "")
         if not output_dir or not output_dir.exists():
@@ -431,13 +495,21 @@ class CourseGenerationPipeline:
         write_json_atomic(approval_path, approval_payload)
         updated_job = self.store.update_review(job_id, approved=approved, reviewed_by=reviewed_by, notes=notes)
         if approved:
-            promote_result = self._promote_reviewed_output(
-                job_id,
-                source_dir=output_dir,
-                target_slug=(job.get("request") or {}).get("output_slug") or output_dir.name,
-                overwrite=bool((job.get("request") or {}).get("overwrite", False)),
-            )
-            self._run_next_build(job_id)
+            promote_result: dict[str, str] | None = None
+            try:
+                promote_result = self._promote_reviewed_output(
+                    job_id,
+                    source_dir=output_dir,
+                    target_slug=safe_slug((job.get("request") or {}).get("output_slug") or output_dir.name, "target_slug"),
+                    overwrite=bool((job.get("request") or {}).get("overwrite", False)),
+                )
+                build_result = self._run_next_build(job_id)
+                self._finalize_promote_backup(promote_result)
+            except Exception as exc:
+                if promote_result:
+                    self._rollback_promote(promote_result)
+                self.store.mark_publish_failed(job_id, str(exc))
+                raise RuntimeError(f"publish failed: {exc}") from exc
             with self.store.job_lock(job_id):
                 promoted_job = self.store.load_job(job_id)
                 promoted_job["artifacts"]["output"] = promote_result["targetDir"]
@@ -447,6 +519,7 @@ class CourseGenerationPipeline:
                     "published": True,
                     "reviewStatus": "approved",
                     "promotedTo": promote_result["targetDir"],
+                    "buildSkipped": bool(build_result.get("skipped")),
                     "readyForPromote": False,
                 }
                 self.store.write_job(promoted_job)
@@ -462,6 +535,7 @@ class CourseGenerationPipeline:
         target_slug: str,
         overwrite: bool,
     ) -> dict[str, str]:
+        target_slug = safe_slug(target_slug, "target_slug")
         validation = validate_package_dir(source_dir, repo_root=self.repo_root, require_review_approval=True)
         if not validation.get("promoteReady"):
             raise ValueError(f"reviewed package is not promote-ready: {issue_messages(validation)}")
@@ -475,16 +549,25 @@ class CourseGenerationPipeline:
             shutil.rmtree(tmp_dir)
         if old_dir.exists():
             shutil.rmtree(old_dir)
-        shutil.copytree(source_dir, tmp_dir)
-        if courses_dir.exists():
-            courses_dir.rename(old_dir)
-        tmp_dir.rename(courses_dir)
-        if old_dir.exists():
-            shutil.rmtree(old_dir, ignore_errors=True)
+        old_dir_kept = False
+        try:
+            shutil.copytree(source_dir, tmp_dir)
+            if courses_dir.exists():
+                courses_dir.rename(old_dir)
+                old_dir_kept = True
+            tmp_dir.rename(courses_dir)
 
-        post_validation = validate_package_dir(courses_dir, repo_root=self.repo_root, require_review_approval=True)
-        if not post_validation.get("promoteReady"):
-            raise ValueError(f"promoted package failed validation: {issue_messages(post_validation)}")
+            post_validation = validate_package_dir(courses_dir, repo_root=self.repo_root, require_review_approval=True)
+            if not post_validation.get("promoteReady"):
+                raise ValueError(f"promoted package failed validation: {issue_messages(post_validation)}")
+        except Exception:
+            if tmp_dir.exists():
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+            if courses_dir.exists():
+                shutil.rmtree(courses_dir, ignore_errors=True)
+            if old_dir.exists():
+                old_dir.rename(courses_dir)
+            raise
 
         self.store.write_log(
             job_id,
@@ -493,13 +576,31 @@ class CourseGenerationPipeline:
                 {
                     "sourceDir": str(source_dir),
                     "targetDir": str(courses_dir),
+                    "oldDir": str(old_dir) if old_dir_kept else "",
                     "validation": post_validation,
                 },
                 ensure_ascii=False,
                 indent=2,
             ),
         )
-        return {"sourceDir": str(source_dir), "targetDir": str(courses_dir)}
+        return {"sourceDir": str(source_dir), "targetDir": str(courses_dir), "oldDir": str(old_dir) if old_dir_kept else ""}
+
+    def _rollback_promote(self, promote_result: dict[str, str]) -> None:
+        target_dir = Path(promote_result["targetDir"])
+        old_dir_value = promote_result.get("oldDir") or ""
+        if target_dir.exists():
+            shutil.rmtree(target_dir, ignore_errors=True)
+        if old_dir_value:
+            old_dir = Path(old_dir_value)
+            if old_dir.exists():
+                old_dir.rename(target_dir)
+
+    def _finalize_promote_backup(self, promote_result: dict[str, str]) -> None:
+        old_dir_value = promote_result.get("oldDir") or ""
+        if old_dir_value:
+            old_dir = Path(old_dir_value)
+            if old_dir.exists():
+                shutil.rmtree(old_dir, ignore_errors=True)
 
     def _run_plan(self, job_id: str, request_payload: dict[str, Any], *, client: OpenAICompatibleClient | None = None) -> dict[str, Any]:
         client = client or self.client
@@ -514,10 +615,19 @@ class CourseGenerationPipeline:
             "plan",
             json.dumps(
                 {
-                    "systemPrompt": system_prompt,
-                    "userPrompt": user_prompt,
-                    "response": response["content"],
                     "usage": response["usage"],
+                    "model": response.get("model"),
+                    "title": (response.get("content") or {}).get("title"),
+                    "chapterCount": len((response.get("content") or {}).get("chapters") or []),
+                    **(
+                        {
+                            "systemPrompt": system_prompt,
+                            "userPrompt": user_prompt,
+                            "response": response["content"],
+                        }
+                        if os.environ.get("AGENT_DEBUG_LOG_PROMPTS", "").strip().lower() in {"1", "true", "yes", "on"}
+                        else {}
+                    ),
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -642,6 +752,7 @@ class CourseGenerationPipeline:
             {
                 **(payload if isinstance(payload, dict) else {}),
                 "register": register,
+                "writingMode": (payload if isinstance(payload, dict) else {}).get("writingMode"),
                 "knowledgeType": contract["knowledgeType"],
                 "drivingQuestion": contract["drivingQuestion"],
                 "centralTension": contract["centralTension"],
@@ -662,6 +773,7 @@ class CourseGenerationPipeline:
             for item in raw_fact_spine
             if str(item).strip()
         ][:5]
+        normalized["contract"] = contract
         normalized["chapterPlans"] = chapter_plans
         return normalized
 
@@ -704,16 +816,21 @@ class CourseGenerationPipeline:
                 chapter["role"] = chapter_plan["role"]
             if chapter_index == len(plan_artifact["chapterPlans"]):
                 chapter["bridge"] = None
-            judgement = self._judge_chapter(chapter, plan_artifact["register"], client=client)
-            local_logs.append({
+            judgement = self._judge_chapter(chapter, plan_artifact, chapter_plan, client=client)
+            log_entry = {
                 "chapterId": chapter["id"],
-                "systemPrompt": system_prompt,
-                "userPrompt": user_prompt,
-                "response": response["content"],
                 "usage": response["usage"],
                 "attempt": attempt + 1,
                 "judgement": judgement,
-            })
+                "model": response.get("model"),
+            }
+            if os.environ.get("AGENT_DEBUG_LOG_PROMPTS", "").strip().lower() in {"1", "true", "yes", "on"}:
+                log_entry.update({
+                    "systemPrompt": system_prompt,
+                    "userPrompt": user_prompt,
+                    "response": response["content"],
+                })
+            local_logs.append(log_entry)
             last_chapter = chapter
             last_judgement = judgement
             if judgement.get("pass"):
@@ -724,12 +841,32 @@ class CourseGenerationPipeline:
             f"{(last_judgement or {}).get('issues') or (last_chapter or {}).get('title')}"
         )
 
-    def _judge_chapter(self, chapter: dict[str, Any], register: str, *, client: OpenAICompatibleClient) -> dict[str, Any]:
-        local = evaluate_chapter_quality(chapter, register=register)
+    def _judge_chapter(
+        self,
+        chapter: dict[str, Any],
+        plan_artifact: dict[str, Any],
+        chapter_plan: dict[str, Any],
+        *,
+        client: OpenAICompatibleClient,
+    ) -> dict[str, Any]:
+        register = plan_artifact["register"]
+        writing_mode = plan_artifact.get("writingMode") or "mechanism-explainer"
+        local = evaluate_chapter_quality(
+            chapter,
+            register=register,
+            writing_mode=writing_mode,
+            chapter_plan=chapter_plan,
+        )
         if not local.get("pass"):
             return local
         try:
-            system_prompt, user_prompt = build_judge_prompts(chapter, register=register)
+            system_prompt, user_prompt = build_judge_prompts(
+                chapter,
+                register=register,
+                writing_mode=writing_mode,
+                chapter_plan=chapter_plan,
+                plan_artifact=plan_artifact,
+            )
             response = client.generate_json(
                 schema_name=f"{chapter['id']}_quality_judge",
                 system_prompt=system_prompt,
@@ -744,8 +881,8 @@ class CourseGenerationPipeline:
                 "issues": content.get("issues") if isinstance(content.get("issues"), list) else [],
                 "rewriteHint": str(content.get("rewriteHint") or ""),
             }
-        except Exception:
-            return local
+        except Exception as exc:
+            raise ProviderError(f"chapter quality judge failed for {chapter.get('id')}: {exc}") from exc
 
     def _last_chapter_ending(self, chapter: dict[str, Any] | None) -> str | None:
         if not chapter:
@@ -757,27 +894,9 @@ class CourseGenerationPipeline:
         ]
         return "\n\n".join(text_blocks[-2:]) or None
 
-    def _run_next_build(self, job_id: str) -> None:
+    def _run_next_build(self, job_id: str) -> dict[str, Any]:
         """Run npm run build to regenerate static pages with the new course."""
-        import subprocess, sys
-        if not _build_lock.acquire(timeout=0):
-            print("[pipeline] Build already in progress, skipping", file=sys.stderr)
-            return
-        try:
-            print("[pipeline] Running npm run build...", file=sys.stderr)
-            result = subprocess.run(
-                ["npm", "run", "build"],
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True,
-                timeout=600,
-            )
-            if result.returncode != 0:
-                print(f"[pipeline] Build failed (non-blocking): {result.stderr[-500:]}", file=sys.stderr)
-            else:
-                print("[pipeline] Build completed successfully", file=sys.stderr)
-        finally:
-            _build_lock.release()
+        return run_static_build(self.repo_root, log_prefix=f"[pipeline:{job_id}]")
 
     def _generate_interaction_data(
         self,
@@ -903,9 +1022,12 @@ class CourseGenerationPipeline:
             "language": plan_artifact.get("language") or "zh",
             "status": "draft",
             "register": plan_artifact["register"],
+            "writingMode": plan_artifact.get("writingMode"),
             "knowledgeType": plan_artifact["knowledgeType"],
             "drivingQuestion": plan_artifact["drivingQuestion"],
             "centralTension": plan_artifact["centralTension"],
+            "contract": plan_artifact.get("contract"),
+            "problemFraming": (plan_artifact.get("contract") or {}).get("problemFraming"),
             "overview": plan_artifact["overview"],
             "chapters": [chapter["id"] for chapter in chapters],
         }

@@ -1,6 +1,8 @@
 """Tests for provider config hot-swap and client snapshot isolation."""
 
+import stat
 import sys
+import tempfile
 import threading
 import unittest
 from pathlib import Path
@@ -79,6 +81,17 @@ class TestClientSnapshotIsolation(unittest.TestCase):
         # Each snapshot got a valid client (either original or swapped, but not corrupted)
         for s in snapshots:
             self.assertIn(s.config.model, ("original", "swapped"))
+
+    def test_runtime_config_is_written_private(self):
+        original_path = ProviderConfig._RUNTIME_CONFIG_PATH
+        with tempfile.TemporaryDirectory() as tmp:
+            ProviderConfig._RUNTIME_CONFIG_PATH = Path(tmp) / "runtime-config.json"
+            try:
+                ProviderConfig.save_runtime_config({"api_key": "sk-test"})
+                mode = stat.S_IMODE(ProviderConfig._RUNTIME_CONFIG_PATH.stat().st_mode)
+                self.assertEqual(mode, 0o600)
+            finally:
+                ProviderConfig._RUNTIME_CONFIG_PATH = original_path
 
 
 if __name__ == "__main__":

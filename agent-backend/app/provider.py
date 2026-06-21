@@ -50,10 +50,19 @@ class ProviderConfig:
     _RUNTIME_CONFIG_PATH = Path(__file__).resolve().parent.parent / "runtime-config.json"
 
     @classmethod
+    def _harden_runtime_config_permissions(cls) -> None:
+        try:
+            if cls._RUNTIME_CONFIG_PATH.exists():
+                os.chmod(cls._RUNTIME_CONFIG_PATH, 0o600)
+        except OSError:
+            pass
+
+    @classmethod
     def _load_runtime_overrides(cls) -> dict[str, str]:
         """Load runtime-config.json if it exists. Returns a dict of overrides."""
         try:
             if cls._RUNTIME_CONFIG_PATH.exists():
+                cls._harden_runtime_config_permissions()
                 return json.loads(cls._RUNTIME_CONFIG_PATH.read_text("utf-8"))
         except (json.JSONDecodeError, OSError):
             pass
@@ -64,7 +73,9 @@ class ProviderConfig:
         """Write runtime overrides to runtime-config.json atomically."""
         tmp = cls._RUNTIME_CONFIG_PATH.with_suffix(".tmp")
         tmp.write_text(json.dumps(overrides, indent=2, ensure_ascii=False), encoding="utf-8")
+        os.chmod(tmp, 0o600)
         tmp.replace(cls._RUNTIME_CONFIG_PATH)
+        cls._harden_runtime_config_permissions()
 
     @classmethod
     def from_env(cls) -> "ProviderConfig":

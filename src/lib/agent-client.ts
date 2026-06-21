@@ -3,23 +3,14 @@
 export const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || '/api/agent';
 
-const ADMIN_TOKEN_STORAGE_KEY = 'agent-admin-token';
+let adminToken = '';
 
 function getAdminToken(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    return localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || '';
-  } catch {
-    return '';
-  }
+  return adminToken;
 }
 
 function saveAdminToken(token: string) {
-  try {
-    localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
-  } catch {
-    // localStorage can be unavailable in private contexts; the current request still uses the token.
-  }
+  adminToken = token;
 }
 
 function withAdminHeader(init: RequestInit, token: string): RequestInit {

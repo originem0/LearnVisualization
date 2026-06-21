@@ -158,6 +158,17 @@ Agent 在生成每个 Chapter 时接收：
 - 代码示例充数（用代码替代论证）
 - API 文档搬运
 
+### 3.3 Writing Mode（写作/评审模式）
+
+`register` 是大语域，`writingMode` 是生成 prompt 和 judge prompt 共用的内部评审尺子。不要把 `register: essay` 理解成“必须写人物、情节、场景的记叙文”。
+
+默认规则：
+- `conceptual`、`strategic`、`metacognitive` → `conceptual-essay`
+- `factual`、`procedural`、未知类型 → `mechanism-explainer`
+- `case-narrative` 只在 plan 阶段明确选择具体情境/案例轨迹时使用，无效值回退到默认规则
+
+**conceptual-essay** 要完成概念论证：章节 role、概念关系链、事实/文本/经验锚点、受控比较对象。judge 不得因为缺少人物、情节、场景或个人经历而判不合格。
+
 ---
 
 ## 五、防八股（四道闸）

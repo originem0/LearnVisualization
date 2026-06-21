@@ -5,8 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || '/api/agent';
 
-const SESSION_KEY = 'settings-panel-password';
-
 interface ProviderConfigMasked {
   base_url: string;
   model: string;
@@ -46,16 +44,14 @@ export default function SettingsPanel({ locale }: { locale: string }) {
     }
   }, []);
 
-  // On open: check sessionStorage for saved password, try auto-verify
+  // On open: reuse only in-memory password state; never persist the settings password in browser storage.
   useEffect(() => {
     if (!open) return;
     setError('');
     setSuccess('');
 
-    const saved = sessionStorage.getItem(SESSION_KEY);
-    if (saved) {
-      setPassword(saved);
-      verifyPassword(saved);
+    if (password) {
+      verifyPassword(password);
     } else {
       setPhase('password');
     }
@@ -74,12 +70,10 @@ export default function SettingsPanel({ locale }: { locale: string }) {
       });
       const data = await res.json();
       if (data.ok) {
-        sessionStorage.setItem(SESSION_KEY, pw);
         setPhase('form');
       } else if (data.error === 'settings panel disabled') {
         setPhase('disabled');
       } else {
-        sessionStorage.removeItem(SESSION_KEY);
         setError(isZh ? '密码错误' : 'Invalid password');
         setPhase('password');
       }
@@ -94,7 +88,7 @@ export default function SettingsPanel({ locale }: { locale: string }) {
     setLoading(true);
     setError('');
     setSuccess('');
-    const pw = sessionStorage.getItem(SESSION_KEY) || password;
+    const pw = password;
     try {
       const res = await fetch(`${AGENT_BACKEND_URL}/provider-config`, {
         method: 'POST',
@@ -111,7 +105,6 @@ export default function SettingsPanel({ locale }: { locale: string }) {
         const data = await res.json();
         setError(data.error || 'Failed');
         if (data.error === 'invalid password') {
-          sessionStorage.removeItem(SESSION_KEY);
           setPhase('password');
         }
         return;
@@ -134,7 +127,7 @@ export default function SettingsPanel({ locale }: { locale: string }) {
   async function handleTest() {
     setTesting(true);
     setTestResult(null);
-    const pw = sessionStorage.getItem(SESSION_KEY) || password;
+    const pw = password;
     try {
       const res = await fetch(`${AGENT_BACKEND_URL}/provider-config/test`, {
         method: 'POST',

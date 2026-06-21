@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 REGISTERS = {"explainer", "essay"}
+WRITING_MODES = {"conceptual-essay", "case-narrative", "mechanism-explainer"}
 BLOCK_TYPES = {"text", "heading", "callout", "code", "quote"}
 HIGHLIGHT_KINDS = {"bespoke", "trace"}
 ESSAY_KNOWLEDGE_TYPES = {"conceptual", "strategic", "metacognitive"}
+CONCEPTUAL_WRITING_TYPES = {"conceptual", "strategic", "metacognitive"}
 
 
 def _s(value: Any) -> str:
@@ -20,12 +22,25 @@ def register_for_knowledge_type(knowledge_type: str) -> str:
     return "essay" if _s(knowledge_type).lower() in ESSAY_KNOWLEDGE_TYPES else "explainer"
 
 
+def writing_mode_for_knowledge_type(knowledge_type: str) -> str:
+    return "conceptual-essay" if _s(knowledge_type).lower() in CONCEPTUAL_WRITING_TYPES else "mechanism-explainer"
+
+
+def normalize_writing_mode(value: Any, knowledge_type: str) -> str:
+    mode = _s(value)
+    if mode in WRITING_MODES:
+        return mode
+    return writing_mode_for_knowledge_type(knowledge_type)
+
+
 def normalize_essay_plan_payload(payload: dict[str, Any] | None, *, topic: str, slug: str) -> dict[str, Any]:
     p = payload or {}
     overview = p.get("overview") or {}
-    register = _s(p.get("register")) or register_for_knowledge_type(_s(p.get("knowledgeType")))
+    knowledge_type = _s(p.get("knowledgeType")) or "factual"
+    register = _s(p.get("register")) or register_for_knowledge_type(knowledge_type)
     if register not in REGISTERS:
         register = "explainer"
+    writing_mode = normalize_writing_mode(p.get("writingMode"), knowledge_type)
     return {
         "id": slug,
         "slug": slug,
@@ -35,7 +50,8 @@ def normalize_essay_plan_payload(payload: dict[str, Any] | None, *, topic: str, 
         "language": "zh",
         "status": "draft",
         "register": register,
-        "knowledgeType": _s(p.get("knowledgeType")) or "factual",
+        "writingMode": writing_mode,
+        "knowledgeType": knowledge_type,
         "drivingQuestion": _s(p.get("drivingQuestion")),
         "centralTension": _s(p.get("centralTension")),
         "overview": {

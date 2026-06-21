@@ -19,6 +19,23 @@ DESIGN_PATH = REPO_ROOT / "DESIGN.md"
 NARRATIVE_BLOCK_SPEC_PATH = REPO_ROOT / "src" / "data" / "narrative-block-spec.json"
 MODULE_REGISTRY_PATH = REPO_ROOT / "src" / "lib" / "module-registry.ts"
 
+_SAFE_SLUG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,78}[a-z0-9])?$")
+_SAFE_JOB_ID_RE = re.compile(r"^[a-f0-9]{12}$")
+
+
+def safe_slug(slug: str, label: str = "slug") -> str:
+    value = str(slug or "").strip()
+    if not _SAFE_SLUG_RE.fullmatch(value):
+        raise ValueError(f"invalid {label}: {value!r}")
+    return value
+
+
+def safe_job_id(job_id: str) -> str:
+    value = str(job_id or "").strip()
+    if not _SAFE_JOB_ID_RE.fullmatch(value):
+        raise ValueError(f"invalid job id: {value!r}")
+    return value
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")

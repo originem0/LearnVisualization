@@ -44,11 +44,11 @@ design/                设计规范（5 份文件）
 ```txt
 用户输入 topic
     ↓
-[Clarification] LLM 多轮澄清，产出 contract（固定问卷不能替代）
+[Clarification] LLM 多轮澄清，提出候选 contract（固定问卷不能替代）
     ├─ 收束差异现象：相比什么不同、哪种条件下失效、直觉与现实哪里冲突
     └─ 标注问题框定：gap / model_mismatch / system_paradox + 系统目标 + 模型缺口
     ↓
-[Contract Gate] /jobs/course-generation 必须提交 contract
+[User Confirmation] 用户确认候选 contract 后，/jobs/course-generation 才能提交
     ↓
 [输入门控] 规则校验 + LLM 主题验证/规范化/语义去重
     ↓
@@ -60,7 +60,7 @@ design/                设计规范（5 份文件）
     ↓
 [Export] 写入 generated/，等待人工 review
     ↓
-[Review approved] promote 到 courses/ → npm run build
+[Review approved] promote 到 courses/ → npm run build 成功后才完成
 ```
 
 核心设计：**新生成课程是 contract-first narrative essay**。生成结果只包含 `course.json`、`chapters/cNN.json`、`review/approval.json`；不再生成 `modules/`、`visuals/`、`interactions/`。旧 legacy 课程仍可渲染，但公开路由只保留精选课程。
@@ -68,9 +68,10 @@ design/                设计规范（5 份文件）
 ## 资源限制
 
 - 每日生成上限：10 次
+- 单一调用方每日生成上限：5 次（按管理员 token hash / client identity 计）
 - 课程总数上限：50 门（courses/ + generated/）
 - 章节生成并发度：1（保证叙事连续）
-- 输入校验：最少 2 字符、不接受乱码/聊天语句、LLM 验证有效性
+- 输入校验：最少 2 字符、不接受乱码/聊天语句；LLM 主题验证不可用时不跳过门控
 
 ## 开发
 
@@ -97,18 +98,18 @@ cd agent-backend
 python3 -m app.main   # http://127.0.0.1:8081
 ```
 
-危险 POST 接口默认需要管理员 token。设置 `AGENT_ADMIN_TOKEN`（或复用 `AGENT_SETTINGS_PASSWORD`）后，前端会在首次需要时提示输入，并通过 `X-Agent-Admin-Token` 发送。
+危险 POST 接口默认需要独立管理员 token。必须设置 `AGENT_ADMIN_TOKEN`，`AGENT_SETTINGS_PASSWORD` 只用于 LLM 设置面板，不能复用为管理员 token。前端会在首次需要时提示输入，并通过 `X-Agent-Admin-Token` 发送；token 只保存在当前页面内存中。
 
 主要端点：
 
-- `POST /clarify/start` — 开始澄清
-- `POST /clarify/respond` — 继续澄清；完成时返回 `contract`
+- `POST /api/clarify/start` — 开始澄清
+- `POST /api/clarify/respond` — 继续澄清；服务端 gate 通过后返回候选 `contract`，用户确认后才进入生成
 - `POST /jobs/course-generation` — 创建课程生成任务
 - `GET /jobs` — 列出所有任务
 - `GET /jobs/{id}` — 查询任务状态
 - `POST /jobs/{id}/cancel` — 取消任务
 - `POST /jobs/{id}/retry` — 重试失败任务
-- `POST /jobs/{id}/review` — 审核；批准后发布课程并重新构建静态站
+- `POST /jobs/{id}/review` — 审核；批准后发布课程并同步构建静态站，构建失败会回滚发布
 - `GET /courses` — 列出已有课程
 - `POST /courses/{slug}/delete` — 删除课程
 

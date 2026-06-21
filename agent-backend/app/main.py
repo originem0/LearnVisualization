@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import hmac
+import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import time
@@ -11,15 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,78}[a-z0-9]$|^[a-z0-9]$")
 MAX_REQUEST_BODY = 1 * 1024 * 1024  # 1 MB
-
-
-def _safe_slug(slug: str, label: str = "slug") -> str:
-    """Validate slug is safe for path construction. Raises ValueError."""
-    if not _SLUG_RE.match(slug):
-        raise ValueError(f"invalid {label}: {slug!r}")
-    return slug
 
 try:
     from .common import (
@@ -29,6 +21,8 @@ try:
         REPO_ROOT as DEFAULT_REPO_ROOT,
         issue_messages,
         load_env_file,
+        safe_job_id,
+        safe_slug,
         validate_package_dir,
     )
     from .models import (
@@ -39,7 +33,7 @@ try:
         normalize_review_request,
         normalize_validate_request,
     )
-    from .pipeline import CourseGenerationPipeline
+    from .pipeline import CourseGenerationPipeline, run_static_build
     from .provider import OpenAICompatibleClient, ProviderConfig
     from .workflow import WORKFLOW_V1, retry_policy
     from .clarification_store import get_store as get_clarification_store
@@ -55,6 +49,8 @@ except ImportError:
         REPO_ROOT as DEFAULT_REPO_ROOT,
         issue_messages,
         load_env_file,
+        safe_job_id,
+        safe_slug,
         validate_package_dir,
     )
     from models import (
@@ -65,7 +61,7 @@ except ImportError:
         normalize_review_request,
         normalize_validate_request,
     )
-    from pipeline import CourseGenerationPipeline
+    from pipeline import CourseGenerationPipeline, run_static_build
     from provider import OpenAICompatibleClient, ProviderConfig
     from workflow import WORKFLOW_V1, retry_policy
     from clarification_store import get_store as get_clarification_store
@@ -138,6 +134,64 @@ def _clarification_gate_question(error: str) -> str:
     if "scope" in error:
         return "范围还不够清楚。为了让课程有取舍，这门课必须讲什么、明确不讲什么、讲到什么深度？"
     return "我还不能把它收束成课程契约。请补充一个具体例子：你观察到了什么现象，它和你的预期哪里不一致？"
+
+
+_DIFFERENCE_MARKERS = (
+    "相比", "不同", "差异", "反而", "却", "但是", "同样", "换到", "条件", "场景",
+    "A", "B", "vs", "versus", "contrast", "whereas", "but",
+)
+
+
+def _has_difference_signal(text: str) -> bool:
+    return any(marker in text for marker in _DIFFERENCE_MARKERS)
+
+
+def _clarification_readiness_issue(contract: dict, history: list[dict]) -> str | None:
+    bot_turns = len([turn for turn in history if turn.get("role") == "bot"])
+    user_turns = len([turn for turn in history if turn.get("role") == "user"])
+    if bot_turns < 3 or user_turns < 3:
+        return "澄清轮次不足，至少需要 3 轮围绕差异现象的追问"
+
+    framing = contract.get("problemFraming") or {}
+    phenomenon = str(framing.get("phenomenon") or "").strip()
+    contrast = str(framing.get("contrast") or "").strip()
+    system_goal = str(framing.get("systemGoal") or "").strip()
+    model_gap = str(framing.get("modelGap") or "").strip()
+    driving_question = str(contract.get("drivingQuestion") or "").strip()
+
+    if len(phenomenon) < 12:
+        return "problemFraming.phenomenon 还不是具体现象"
+    if len(contrast) < 12 or not _has_difference_signal(contrast):
+        return "problemFraming.contrast 必须写出 A/B 差异、条件变化或直觉与现实冲突"
+    if len(system_goal) < 12:
+        return "problemFraming.systemGoal 还没有写出真实系统目标"
+    if len(model_gap) < 12:
+        return "problemFraming.modelGap 还没有写出缺少的对象、关系、条件或边界模型"
+    if (
+        driving_question.startswith(("如何学习", "如何理解", "什么是", "介绍", "学习"))
+        and not _has_difference_signal(driving_question + contrast)
+    ):
+        return "drivingQuestion 仍然是泛化学习题目，不是面向差异现象的问题"
+    return None
+
+
+def _clarification_gate_followup(issue: str) -> str:
+    return (
+        f"还不能完成澄清：{issue}。请补一个具体差异现象："
+        "在哪个场景 A 会发生，换到哪个场景 B 就不发生，或者你的直觉和实际观察哪里冲突？"
+    )
+
+
+def _clarification_candidate_summary(contract: dict) -> str:
+    framing = contract.get("problemFraming") or {}
+    return "\n".join([
+        "我整理出一版候选学习契约。",
+        f"驱动问题：{contract['drivingQuestion']}",
+        f"核心张力：{contract['centralTension']}",
+        f"差异现象：{framing.get('phenomenon', '')}",
+        f"对比关系：{framing.get('contrast', '')}",
+        f"模型缺口：{framing.get('modelGap', '')}",
+    ])
 
 
 def handle_clarify_start(payload: dict) -> dict:
@@ -266,20 +320,28 @@ def handle_clarify_respond(payload: dict) -> dict:
                     "needsMoreEvidence": True
                 }
 
-            # Store synthesis
-            store.set_synthesis(
-                conversation_id,
-                contract["drivingQuestion"],
-                contract["centralTension"],
-                contract["knowledgeType"]
-            )
+            readiness_issue = _clarification_readiness_issue(contract, history)
+            if readiness_issue:
+                question = _clarification_gate_followup(readiness_issue)
+                next_round = len([t for t in history if t["role"] == "bot"]) + 1
+                store.add_turn(conversation_id, "bot", question)
+                return {
+                    "question": question,
+                    "roundNumber": next_round,
+                    "needsMoreEvidence": True,
+                    "gateIssue": readiness_issue,
+                }
+
+            candidate_summary = _clarification_candidate_summary(contract)
+            store.add_turn(conversation_id, "bot", candidate_summary)
 
             return {
-                "complete": True,
+                "readyForConfirmation": True,
                 "contract": contract,
                 "drivingQuestion": contract["drivingQuestion"],
                 "centralTension": contract["centralTension"],
                 "knowledgeType": contract["knowledgeType"],
+                "message": candidate_summary,
                 "roundNumber": len([t for t in history if t["role"] == "bot"])
             }
 
@@ -349,18 +411,17 @@ def _configured_cors_origins() -> list[str]:
 
 
 def _expected_admin_token() -> str:
-    return os.environ.get("AGENT_ADMIN_TOKEN", "") or os.environ.get("AGENT_SETTINGS_PASSWORD", "")
+    return os.environ.get("AGENT_ADMIN_TOKEN", "")
 
 
 def _allow_unauthenticated_admin() -> bool:
     return os.environ.get("AGENT_ALLOW_UNAUTHENTICATED", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _extract_admin_token(headers, payload: dict) -> str:
+def _extract_admin_token(headers) -> str:
     return (
         headers.get("X-Agent-Admin-Token", "")
         or headers.get("Authorization", "").removeprefix("Bearer ").strip()
-        or str(payload.get("adminToken") or "").strip()
     )
 
 
@@ -399,7 +460,7 @@ def list_courses() -> dict:
 
 
 def delete_course(slug: str) -> dict:
-    _safe_slug(slug)
+    slug = safe_slug(slug)
     course_dir = COURSES_ROOT / slug
     generated_dir = GENERATED_ROOT / slug
     if not course_dir.is_dir() and not generated_dir.is_dir():
@@ -414,55 +475,50 @@ def delete_course(slug: str) -> dict:
             title = meta.get("title", "")
             topic = meta.get("topic", "")
             break
-    if course_dir.is_dir():
-        shutil.rmtree(course_dir)
-    if generated_dir.is_dir():
-        shutil.rmtree(generated_dir)
-    _rebuild_static_site()
-    return {"deleted": True, "slug": slug, "title": title, "topic": topic}
-
-
-def _rebuild_static_site() -> None:
-    """Run npm run build in background to regenerate static pages."""
-    import sys, threading
-
-    if not (REPO_ROOT / "package.json").exists():
-        print(f"[rebuild] Skipping build; package.json not found in {REPO_ROOT}", file=sys.stderr)
-        return
-
-    # Import the shared build lock from pipeline to prevent concurrent builds
+    course_backup = _move_dir_to_backup(course_dir, ".delete-old")
+    generated_backup = _move_dir_to_backup(generated_dir, ".delete-old")
     try:
-        from pipeline import _build_lock
-    except ImportError:
-        from .pipeline import _build_lock
+        build_result = _rebuild_static_site()
+    except Exception:
+        _restore_backup(course_dir, course_backup)
+        _restore_backup(generated_dir, generated_backup)
+        raise
+    _discard_backup(course_backup)
+    _discard_backup(generated_backup)
+    return {"deleted": True, "slug": slug, "title": title, "topic": topic, "buildSkipped": bool(build_result.get("skipped"))}
 
-    def _build():
-        if not _build_lock.acquire(timeout=0):
-            print("[rebuild] Build already in progress, skipping", file=sys.stderr)
-            return
-        try:
-            result = subprocess.run(
-                ["npm", "run", "build"],
-                cwd=REPO_ROOT,
-                capture_output=True,
-                text=True,
-                timeout=600,
-            )
-            if result.returncode != 0:
-                print(f"[rebuild] Build failed: {result.stderr[-500:]}", file=sys.stderr)
-            else:
-                print("[rebuild] Build completed", file=sys.stderr)
-        except Exception as exc:
-            print(f"[rebuild] Build error: {exc}", file=sys.stderr)
-        finally:
-            _build_lock.release()
 
-    threading.Thread(target=_build, daemon=True).start()
+def _move_dir_to_backup(path: Path, suffix: str) -> Path | None:
+    if not path.is_dir():
+        return None
+    backup = path.with_name(path.name + suffix)
+    if backup.exists():
+        shutil.rmtree(backup)
+    path.rename(backup)
+    return backup
+
+
+def _restore_backup(path: Path, backup: Path | None) -> None:
+    if not backup or not backup.exists():
+        return
+    if path.exists():
+        shutil.rmtree(path, ignore_errors=True)
+    backup.rename(path)
+
+
+def _discard_backup(backup: Path | None) -> None:
+    if backup and backup.exists():
+        shutil.rmtree(backup, ignore_errors=True)
+
+
+def _rebuild_static_site() -> dict:
+    """Run npm run build synchronously so file-system changes match static output."""
+    return run_static_build(REPO_ROOT, log_prefix="[rebuild]")
 
 
 def promote_dry_run(req: dict) -> dict:
-    _safe_slug(req["source_slug"], "source_slug")
-    _safe_slug(req["target_slug"], "target_slug")
+    safe_slug(req["source_slug"], "source_slug")
+    safe_slug(req["target_slug"], "target_slug")
     source_dir = GENERATED_ROOT / req["source_slug"]
     target_dir = COURSES_ROOT / req["target_slug"]
     validation = validate_package_dir(source_dir, repo_root=REPO_ROOT, require_review_approval=True)
@@ -491,8 +547,8 @@ def promote_dry_run(req: dict) -> dict:
 
 
 def promote_generated_course_package(req: dict) -> dict:
-    _safe_slug(req["source_slug"], "source_slug")
-    _safe_slug(req["target_slug"], "target_slug")
+    safe_slug(req["source_slug"], "source_slug")
+    safe_slug(req["target_slug"], "target_slug")
     source_dir = GENERATED_ROOT / req["source_slug"]
     target_dir = COURSES_ROOT / req["target_slug"]
 
@@ -506,17 +562,32 @@ def promote_generated_course_package(req: dict) -> dict:
 
     tmp_dir = target_dir.with_name(target_dir.name + ".tmp")
     old_dir = target_dir.with_name(target_dir.name + ".old")
-    if tmp_dir.exists():
-        shutil.rmtree(tmp_dir)
-    if old_dir.exists():
-        shutil.rmtree(old_dir)
-    shutil.copytree(source_dir, tmp_dir)
-    if target_dir.exists():
-        target_dir.rename(old_dir)
-    tmp_dir.rename(target_dir)
-    if old_dir.exists():
+    old_dir_kept = False
+    post_validation = None
+    try:
+        if tmp_dir.exists():
+            shutil.rmtree(tmp_dir)
+        if old_dir.exists():
+            shutil.rmtree(old_dir)
+        shutil.copytree(source_dir, tmp_dir)
+        if target_dir.exists():
+            target_dir.rename(old_dir)
+            old_dir_kept = True
+        tmp_dir.rename(target_dir)
+        post_validation = validate_package_dir(target_dir, repo_root=REPO_ROOT, require_review_approval=True)
+        if not post_validation.get("promoteReady"):
+            raise ValueError(f"promoted package failed validation: {issue_messages(post_validation)}")
+        build_result = _rebuild_static_site()
+    except Exception:
+        if tmp_dir.exists():
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        if target_dir.exists():
+            shutil.rmtree(target_dir, ignore_errors=True)
+        if old_dir.exists():
+            old_dir.rename(target_dir)
+        raise
+    if old_dir_kept and old_dir.exists():
         shutil.rmtree(old_dir, ignore_errors=True)
-    post_validation = validate_package_dir(target_dir, repo_root=REPO_ROOT, require_review_approval=True)
     return {
         "promoted": True,
         "source_dir": str(source_dir.resolve()),
@@ -526,6 +597,7 @@ def promote_generated_course_package(req: dict) -> dict:
         "post_promote_valid": post_validation["ok"],
         "post_promote_ready": post_validation.get("promoteReady", False),
         "post_promote_issues": issue_messages(post_validation),
+        "build_skipped": bool(build_result.get("skipped")),
     }
 
 
@@ -684,9 +756,16 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 return
             raise PermissionError("admin token is not configured")
 
-        supplied = _extract_admin_token(self.headers, payload)
+        supplied = _extract_admin_token(self.headers)
         if not supplied or not hmac.compare_digest(supplied.encode(), expected.encode()):
             raise PermissionError("admin token required")
+
+    def _request_identity(self) -> str:
+        supplied = _extract_admin_token(self.headers)
+        if supplied:
+            digest = hashlib.sha256(supplied.encode("utf-8")).hexdigest()[:16]
+            return f"admin:{digest}"
+        return f"client:{self.client_address[0]}"
 
     def log_message(self, fmt, *args):
         import sys
@@ -720,9 +799,10 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 jobs.sort(key=lambda j: j.get("createdAt", ""), reverse=True)
                 return self._send_json({"jobs": jobs})
             if len(parts) == 2 and parts[0] == "jobs":
-                return self._send_json(pipeline.get_job(parts[1]))
+                return self._send_json(pipeline.get_job(safe_job_id(parts[1])))
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "artifacts":
-                return self._send_json({"job_id": parts[1], "artifacts": pipeline.get_artifacts(parts[1])})
+                job_id = safe_job_id(parts[1])
+                return self._send_json({"job_id": job_id, "artifacts": pipeline.get_artifacts(job_id)})
             return self._send_json({"error": f"Unknown route: {path}"}, status=404)
         except FileNotFoundError as exc:
             return self._send_json({"error": str(exc)}, status=404)
@@ -770,7 +850,9 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
 
             if path == "/jobs/course-generation":
                 pipeline = get_pipeline()
-                return self._send_json(pipeline.create_job(normalize_job_create_request(payload)), status=202)
+                request_payload = normalize_job_create_request(payload)
+                request_payload["_request_identity"] = self._request_identity()
+                return self._send_json(pipeline.create_job(request_payload), status=202)
 
             if path == "/validate-build/dry-run":
                 return self._send_json(validate_build_dry_run(normalize_validate_request(payload)))
@@ -783,19 +865,19 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
 
             parts = [part for part in path.split("/") if part]
             if len(parts) == 3 and parts[0] == "courses" and parts[2] == "delete":
-                return self._send_json(delete_course(_safe_slug(parts[1])))
+                return self._send_json(delete_course(safe_slug(parts[1])))
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "cancel":
                 pipeline = get_pipeline()
-                return self._send_json(pipeline.cancel_job(parts[1]))
+                return self._send_json(pipeline.cancel_job(safe_job_id(parts[1])))
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "delete":
                 pipeline = get_pipeline()
-                return self._send_json(pipeline.delete_job(parts[1]))
+                return self._send_json(pipeline.delete_job(safe_job_id(parts[1])))
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "retry":
                 pipeline = get_pipeline()
-                return self._send_json(pipeline.retry_job(parts[1], **normalize_job_retry_request(payload)), status=202)
+                return self._send_json(pipeline.retry_job(safe_job_id(parts[1]), **normalize_job_retry_request(payload)), status=202)
             if len(parts) == 3 and parts[0] == "jobs" and parts[2] == "review":
                 pipeline = get_pipeline()
-                return self._send_json(pipeline.review_job(parts[1], **normalize_review_request(payload)))
+                return self._send_json(pipeline.review_job(safe_job_id(parts[1]), **normalize_review_request(payload)))
 
             return self._send_json({"error": f"Unknown route: {path}"}, status=404)
         except ValueError as exc:

@@ -5,6 +5,7 @@ import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -138,6 +139,10 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.assertTrue((exported_dir / "chapters" / "c01.json").exists())
         self.assertFalse((exported_dir / "modules").exists())
         self.assertEqual(job["resultSummary"]["chapterCount"], 4)
+        course_record = json.loads((exported_dir / "course.json").read_text("utf-8"))
+        self.assertEqual(course_record["writingMode"], "mechanism-explainer")
+        self.assertEqual(course_record["contract"]["problemFraming"]["problemNature"], "model_mismatch")
+        self.assertEqual(course_record["problemFraming"]["modelGap"], contract()["problemFraming"]["modelGap"])
 
     def test_chapter_prompt_receives_previous_chapter_ending(self):
         pipeline, temp_dir, client = self.create_pipeline()
@@ -177,6 +182,45 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         incomplete_contract.pop("problemFraming")
         with self.assertRaises(ValueError):
             pipeline.create_job({"topic": "缓存系统 internals", "contract": incomplete_contract}, run_async=False)
+
+    def test_rejects_unsafe_output_slug(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        with self.assertRaises(ValueError):
+            pipeline.create_job({"topic": "缓存系统 internals", "output_slug": "../escape", "contract": contract()}, run_async=False)
+
+    def test_cleanup_keeps_waiting_review_output(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-waiting-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        output_dir = pipeline.generated_root / slug
+        output_dir.mkdir(parents=True)
+        (output_dir / "course.json").write_text("{}", encoding="utf-8")
+        pipeline.store.mark_waiting_review(job["id"], output_dir=output_dir, summary={"outputSlug": slug})
+
+        pipeline.cleanup_stale_data()
+
+        self.assertTrue(output_dir.exists())
+
+    def test_review_publish_rolls_back_when_build_fails(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-publish-rollback-{uuid.uuid4().hex[:8]}"
+        target_dir = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(target_dir, ignore_errors=True))
+
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        job = pipeline.run_job(job["id"])
+
+        with patch.object(pipeline, "_run_next_build", side_effect=RuntimeError("build failed")):
+            with self.assertRaises(RuntimeError):
+                pipeline.review_job(job["id"], approved=True, reviewed_by="tester", notes="ok")
+
+        self.assertFalse(target_dir.exists())
+        failed_job = pipeline.get_job(job["id"])
+        self.assertEqual(failed_job["status"], "waiting_review")
+        self.assertEqual(failed_job["review"]["status"], "publish_failed")
 
 
 if __name__ == "__main__":

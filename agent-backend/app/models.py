@@ -1,6 +1,11 @@
 import re
 from typing import Any
 
+try:
+    from .common import safe_slug
+except ImportError:
+    from common import safe_slug
+
 KNOWLEDGE_TYPES = {"factual", "conceptual", "procedural", "strategic", "metacognitive", "situational"}
 PROBLEM_NATURES = {"gap", "model_mismatch", "system_paradox"}
 
@@ -21,6 +26,11 @@ def _to_bool(value: Any, default: bool = False) -> bool:
         if lowered in {"0", "false", "no", "off"}:
             return False
     return default
+
+
+def _optional_slug(value: Any, label: str) -> str | None:
+    raw = str(value or "").strip()
+    return safe_slug(raw, label) if raw else None
 
 
 def _to_contract_scope(value: Any) -> dict[str, Any]:
@@ -136,7 +146,7 @@ def normalize_export_request(payload: dict[str, Any] | None) -> dict[str, Any]:
     topic_req = normalize_topic_request(payload)
     return {
         **topic_req,
-        "output_slug": str(payload.get("output_slug") or "").strip() or None,
+        "output_slug": _optional_slug(payload.get("output_slug"), "output_slug"),
         "output_root": str(payload.get("output_root") or "").strip() or None,
     }
 
@@ -152,12 +162,12 @@ def normalize_validate_request(payload: dict[str, Any] | None) -> dict[str, Any]
 
 def normalize_promote_request(payload: dict[str, Any] | None) -> dict[str, Any]:
     payload = payload or {}
-    source_slug = str(payload.get("source_slug") or "").strip()
+    source_slug = _optional_slug(payload.get("source_slug"), "source_slug")
     if not source_slug:
         raise ValueError("source_slug is required")
     return {
         "source_slug": source_slug,
-        "target_slug": str(payload.get("target_slug") or "").strip() or source_slug,
+        "target_slug": _optional_slug(payload.get("target_slug"), "target_slug") or source_slug,
         "overwrite": _to_bool(payload.get("overwrite"), default=False),
     }
 
@@ -171,7 +181,7 @@ def normalize_job_create_request(payload: dict[str, Any] | None) -> dict[str, An
     contract = normalize_generation_contract(payload)
     return {
         **topic_req,
-        "output_slug": str(payload.get("output_slug") or "").strip() or None,
+        "output_slug": _optional_slug(payload.get("output_slug"), "output_slug"),
         "overwrite": _to_bool(payload.get("overwrite"), default=False),
         "contract": contract,
         "background": contract["audience"],

@@ -10,8 +10,10 @@ if str(APP_DIR) not in sys.path:
 from essay_schema import (
     normalize_chapter_payload,
     normalize_essay_plan_payload,
+    normalize_writing_mode,
     register_for_knowledge_type,
     validate_essay_narrative_block,
+    writing_mode_for_knowledge_type,
 )
 
 
@@ -25,6 +27,18 @@ class TestRegisterMapping(unittest.TestCase):
         self.assertEqual(register_for_knowledge_type("factual"), "explainer")
         self.assertEqual(register_for_knowledge_type("anything-else"), "explainer")
 
+    def test_writing_mode_defaults(self):
+        self.assertEqual(writing_mode_for_knowledge_type("conceptual"), "conceptual-essay")
+        self.assertEqual(writing_mode_for_knowledge_type("strategic"), "conceptual-essay")
+        self.assertEqual(writing_mode_for_knowledge_type("metacognitive"), "conceptual-essay")
+        self.assertEqual(writing_mode_for_knowledge_type("procedural"), "mechanism-explainer")
+        self.assertEqual(writing_mode_for_knowledge_type("factual"), "mechanism-explainer")
+        self.assertEqual(writing_mode_for_knowledge_type("unknown"), "mechanism-explainer")
+
+    def test_valid_case_narrative_is_preserved(self):
+        self.assertEqual(normalize_writing_mode("case-narrative", "conceptual"), "case-narrative")
+        self.assertEqual(normalize_writing_mode("story", "conceptual"), "conceptual-essay")
+
 
 class TestPlanNormalization(unittest.TestCase):
     def test_fills_register_from_knowledge_type(self):
@@ -32,6 +46,7 @@ class TestPlanNormalization(unittest.TestCase):
                 "centralTension": "X", "chapters": ["c01", "c02", "c03", "c04"]}
         result = normalize_essay_plan_payload(plan, topic="哲学", slug="phil")
         self.assertEqual(result["register"], "essay")
+        self.assertEqual(result["writingMode"], "conceptual-essay")
         self.assertEqual(result["slug"], "phil")
         self.assertEqual(result["language"], "zh")
         self.assertEqual(result["chapters"], ["c01", "c02", "c03", "c04"])
@@ -42,6 +57,7 @@ class TestPlanNormalization(unittest.TestCase):
                 "drivingQuestion": "Q?", "centralTension": "X"}
         result = normalize_essay_plan_payload(plan, topic="t", slug="s")
         self.assertEqual(result["register"], "explainer")
+        self.assertEqual(result["writingMode"], "conceptual-essay")
 
 
 class TestChapterNormalization(unittest.TestCase):

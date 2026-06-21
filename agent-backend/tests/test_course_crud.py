@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 def load_main_module():
@@ -112,6 +113,13 @@ class TestDeleteCourse(unittest.TestCase):
     def test_delete_nonexistent_raises(self):
         with self.assertRaises(FileNotFoundError):
             MAIN.delete_course("nonexistent")
+
+    def test_delete_rolls_back_when_build_fails(self):
+        write_json(self.courses_root / "rollback" / "course.json", {"title": "Rollback"})
+        with patch.object(MAIN, "_rebuild_static_site", side_effect=RuntimeError("build failed")):
+            with self.assertRaises(RuntimeError):
+                MAIN.delete_course("rollback")
+        self.assertTrue((self.courses_root / "rollback" / "course.json").exists())
 
 
 if __name__ == "__main__":

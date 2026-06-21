@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Any, Iterator
 
 try:
-    from .common import ensure_dir, now_iso, read_json, write_json_atomic, write_text_atomic
+    from .common import ensure_dir, now_iso, read_json, safe_job_id, write_json_atomic, write_text_atomic
 except ImportError:
-    from common import ensure_dir, now_iso, read_json, write_json_atomic, write_text_atomic
+    from common import ensure_dir, now_iso, read_json, safe_job_id, write_json_atomic, write_text_atomic
 
 PIPELINE_STAGES = ["plan", "compose", "validate", "export"]
 
@@ -70,7 +70,7 @@ class JobStore:
         return job
 
     def job_dir(self, job_id: str) -> Path:
-        return self.root / job_id
+        return self.root / safe_job_id(job_id)
 
     def job_file(self, job_id: str) -> Path:
         return self.job_dir(job_id) / "job.json"
@@ -155,6 +155,21 @@ class JobStore:
             job["status"] = "completed"
             job["currentStage"] = None
             job["error"] = None
+            return self.write_job(job)
+
+    def mark_publish_failed(self, job_id: str, error_message: str) -> dict[str, Any]:
+        with self.job_lock(job_id):
+            job = self.load_job(job_id)
+            job["status"] = "waiting_review"
+            job["currentStage"] = "export"
+            job["error"] = {"stage": "publish", "message": error_message, "failedAt": now_iso()}
+            job["review"]["status"] = "publish_failed"
+            job["resultSummary"] = {
+                **(job.get("resultSummary") or {}),
+                "published": False,
+                "reviewStatus": "publish_failed",
+                "readyForPromote": True,
+            }
             return self.write_job(job)
 
     def mark_cancelled(self, job_id: str) -> dict[str, Any]:

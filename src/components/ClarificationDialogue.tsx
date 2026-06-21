@@ -54,7 +54,10 @@ export default function ClarificationDialogue({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [roundNumber, setRoundNumber] = useState(0);
+  const [candidateResult, setCandidateResult] = useState<ClarificationResult | null>(null);
+  const [answerMode, setAnswerMode] = useState<'answer' | 'continue' | 'adjust'>('answer');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -92,6 +95,8 @@ export default function ClarificationDialogue({
       setConversationId(data.conversationId);
       setCurrentQuestion(data.question);
       setRoundNumber(data.roundNumber);
+      setCandidateResult(null);
+      setAnswerMode('answer');
       setMessages([{ role: 'bot', text: data.question }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -108,6 +113,8 @@ export default function ClarificationDialogue({
     // Add user message to UI immediately
     setMessages((prev) => [...prev, { role: 'user', text: userAnswer }]);
     setAnswer('');
+    setCandidateResult(null);
+    setAnswerMode('answer');
     setIsLoading(true);
     setError('');
 
@@ -133,26 +140,23 @@ export default function ClarificationDialogue({
           : 'AI clarification is unavailable. Fixed templates cannot continue the contract dialogue.');
       }
 
-      // Check if complete
-      if (data.complete) {
-        const contract = data.contract || {
-          drivingQuestion: data.drivingQuestion,
-          centralTension: data.centralTension,
-          knowledgeType: data.knowledgeType,
-          audience: '',
-          desiredOutcome: '',
-          scope: { include: [], exclude: [], depth: '' },
-        };
-        onComplete({
-          drivingQuestion: contract.drivingQuestion,
-          centralTension: contract.centralTension,
-          knowledgeType: contract.knowledgeType,
-          contract,
-        });
+      // AI can propose closure, but only the user can end clarification.
+      if (data.readyForConfirmation || data.complete) {
+        const result = toClarificationResult(data);
+        setCandidateResult(result);
+        setCurrentQuestion('');
+        setRoundNumber(data.roundNumber || roundNumber);
+        setMessages((prev) => [...prev, {
+          role: 'bot',
+          text: data.message || (isZh
+            ? '我整理出一版候选学习契约。'
+            : 'I drafted a candidate learning contract.'),
+        }]);
       } else {
         // Continue dialogue
         setCurrentQuestion(data.question);
         setRoundNumber(data.roundNumber);
+        setCandidateResult(null);
         setMessages((prev) => [...prev, { role: 'bot', text: data.question }]);
       }
     } catch (err) {
@@ -160,6 +164,22 @@ export default function ClarificationDialogue({
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function confirmCandidate() {
+    if (!candidateResult) return;
+    onComplete(candidateResult);
+  }
+
+  function focusForContinue() {
+    setAnswerMode('continue');
+    inputRef.current?.focus();
+  }
+
+  function focusForAdjustment(prefix?: string) {
+    setAnswerMode('adjust');
+    if (prefix) setAnswer(prefix);
+    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   return (
@@ -205,14 +225,26 @@ export default function ClarificationDialogue({
         <div ref={messagesEndRef} />
       </div>
 
+      {candidateResult && (
+        <CandidateContractCard
+          result={candidateResult}
+          isZh={isZh}
+          onConfirm={confirmCandidate}
+          onContinue={focusForContinue}
+          onAdjust={() => focusForAdjustment()}
+          onAdjustField={focusForAdjustment}
+        />
+      )}
+
       {/* Input */}
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
+          ref={inputRef}
           type="text"
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
           disabled={isLoading}
-          placeholder={isZh ? '输入你的回答...' : 'Type your answer...'}
+          placeholder={inputPlaceholder(isZh, Boolean(candidateResult), answerMode)}
           className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] px-4 py-2.5 text-sm text-[color:var(--color-text)] placeholder:text-[color:var(--color-muted)]/60 focus:border-[color:var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]/20 disabled:opacity-50"
         />
         <button
@@ -231,6 +263,129 @@ export default function ClarificationDialogue({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+function toClarificationResult(data: any): ClarificationResult {
+  const contract = data.contract || {
+    drivingQuestion: data.drivingQuestion,
+    centralTension: data.centralTension,
+    knowledgeType: data.knowledgeType,
+    audience: '',
+    desiredOutcome: '',
+    scope: { include: [], exclude: [], depth: '' },
+  };
+  return {
+    drivingQuestion: contract.drivingQuestion,
+    centralTension: contract.centralTension,
+    knowledgeType: contract.knowledgeType,
+    contract,
+  };
+}
+
+function inputPlaceholder(isZh: boolean, hasCandidate: boolean, mode: 'answer' | 'continue' | 'adjust') {
+  if (!hasCandidate) return isZh ? '输入你的回答...' : 'Type your answer...';
+  if (mode === 'adjust') return isZh ? '说明你想调整哪一项...' : 'Describe what should change...';
+  return isZh ? '继续补充你的差异现象、边界或目标...' : 'Add more contrast, boundaries, or goals...';
+}
+
+function CandidateContractCard({
+  result,
+  isZh,
+  onConfirm,
+  onContinue,
+  onAdjust,
+  onAdjustField,
+}: {
+  result: ClarificationResult;
+  isZh: boolean;
+  onConfirm: () => void;
+  onContinue: () => void;
+  onAdjust: () => void;
+  onAdjustField: (prefix: string) => void;
+}) {
+  const framing = result.contract.problemFraming;
+  const adjustFields = isZh
+    ? [
+        ['差异现象', '我想调整差异现象：'],
+        ['对比关系', '我想调整对比关系：'],
+        ['模型缺口', '我想调整模型缺口：'],
+        ['范围取舍', '我想调整范围取舍：'],
+      ]
+    : [
+        ['Phenomenon', 'I want to adjust the phenomenon: '],
+        ['Contrast', 'I want to adjust the contrast: '],
+        ['Model gap', 'I want to adjust the model gap: '],
+        ['Scope', 'I want to adjust the scope: '],
+      ];
+
+  return (
+    <div className="rounded-lg border border-[color:var(--color-accent)]/25 bg-[color:var(--color-accent)]/5 p-4 text-sm">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="font-medium text-[color:var(--color-text)]">
+          {isZh ? '候选学习契约' : 'Candidate Learning Contract'}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-md bg-[color:var(--color-text)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-bg)] transition-opacity hover:opacity-90"
+          >
+            {isZh ? '确认，用这个生成' : 'Confirm'}
+          </button>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text)] transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            {isZh ? '继续澄清' : 'Continue'}
+          </button>
+          <button
+            type="button"
+            onClick={onAdjust}
+            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text)] transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            {isZh ? '调整契约' : 'Adjust'}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2 text-[color:var(--color-muted)]">
+        <ContractLine label={isZh ? '驱动问题' : 'Driving question'} value={result.contract.drivingQuestion} />
+        <ContractLine label={isZh ? '核心张力' : 'Central tension'} value={result.contract.centralTension} />
+        {framing && (
+          <>
+            <ContractLine label={isZh ? '差异现象' : 'Phenomenon'} value={framing.phenomenon} />
+            <ContractLine label={isZh ? '对比关系' : 'Contrast'} value={framing.contrast} />
+            <ContractLine label={isZh ? '模型缺口' : 'Model gap'} value={framing.modelGap} />
+          </>
+        )}
+        <ContractLine label={isZh ? '范围' : 'Scope'} value={result.contract.scope.include.join(' / ')} />
+        <ContractLine label={isZh ? '不讲' : 'Excluded'} value={result.contract.scope.exclude.join(' / ')} />
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {adjustFields.map(([label, prefix]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onAdjustField(prefix)}
+            className="rounded-md bg-[color:var(--color-panel)] px-2.5 py-1 text-xs text-[color:var(--color-muted)] ring-1 ring-[color:var(--color-border)] transition-colors hover:text-[color:var(--color-text)]"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContractLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="font-medium text-[color:var(--color-text)]">{label}：</span>
+      {value}
     </div>
   );
 }
