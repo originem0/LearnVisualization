@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import Link from 'next/link';
+import ClarificationDialogue from './ClarificationDialogue';
 
 const AGENT_BACKEND_URL =
   process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || '/api/agent';
@@ -33,6 +34,12 @@ interface JobState {
   error?: { stage?: string; message?: string } | null;
   stages: JobStage[];
   resultSummary?: Record<string, unknown>;
+}
+
+interface ClarificationResult {
+  drivingQuestion: string;
+  centralTension: string;
+  knowledgeType: string;
 }
 
 // --- Question options ---
@@ -192,6 +199,8 @@ export default function GenerateForm({ locale }: { locale: string }) {
 
   // Input state
   const [topic, setTopic] = useState('');
+  const [showClarification, setShowClarification] = useState(false);
+  const [clarificationResult, setClarificationResult] = useState<ClarificationResult | null>(null);
   const [showQuestions, setShowQuestions] = useState(false);
   const [level, setLevel] = useState('');
   const [goals, setGoals] = useState<string[]>([]);
@@ -281,8 +290,44 @@ export default function GenerateForm({ locale }: { locale: string }) {
       setSubmitError(isZh ? '请输入有效的学习主题' : 'Please enter a valid learning topic');
       return;
     }
-    setShowQuestions(true);
+    setShowClarification(true);
     setSubmitError('');
+  }
+
+  function handleClarificationComplete(result: ClarificationResult) {
+    setClarificationResult(result);
+    setShowClarification(false);
+    setShowQuestions(true);
+    // Pre-fill form based on clarification result (task #3)
+    prefillFormFromClarification(result);
+  }
+
+  function handleClarificationSkip() {
+    setShowClarification(false);
+    setShowQuestions(true);
+  }
+
+  function prefillFormFromClarification(result: ClarificationResult) {
+    // Infer level from knowledgeType
+    if (result.knowledgeType === 'procedural') {
+      setLevel('beginner');
+      setGoals(['hands-on']);
+    } else if (result.knowledgeType === 'conceptual') {
+      setLevel('used-not-understood');
+      setGoals(['framework', 'understand-mechanism']);
+    } else if (result.knowledgeType === 'strategic' || result.knowledgeType === 'metacognitive') {
+      setLevel('intermediate');
+      setGoals(['framework', 'teach-others']);
+    }
+
+    // Infer depth from tension complexity (simple heuristic)
+    if (result.centralTension.length > 100) {
+      setDepth('deep-dive');
+    } else if (result.centralTension.length > 50) {
+      setDepth('systematic');
+    } else {
+      setDepth('overview');
+    }
   }
 
   async function handleGenerate() {
@@ -298,6 +343,13 @@ export default function GenerateForm({ locale }: { locale: string }) {
         background: BACKGROUND_MAP[background] || undefined,
         learning_style: learningStyle.map((s) => STYLE_MAP[s] || s),
       };
+
+      // Include clarification result if available
+      if (clarificationResult) {
+        body.drivingQuestion = clarificationResult.drivingQuestion;
+        body.centralTension = clarificationResult.centralTension;
+        body.knowledgeType = clarificationResult.knowledgeType;
+      }
 
       const res = await fetch(`${AGENT_BACKEND_URL}/jobs/course-generation`, {
         method: 'POST',
@@ -320,6 +372,7 @@ export default function GenerateForm({ locale }: { locale: string }) {
       setDepth('');
       setBackground('');
       setLearningStyle([]);
+      setClarificationResult(null);
       setShowQuestions(false);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : String(err));
@@ -520,7 +573,7 @@ export default function GenerateForm({ locale }: { locale: string }) {
   return (
     <>
       {/* ---- Input form ---- */}
-      {!showQuestions ? (
+      {!showClarification && !showQuestions ? (
         <form onSubmit={handleTopicSubmit} className="mt-8 space-y-3 text-left">
           <div className="flex gap-2">
             <input
@@ -543,14 +596,37 @@ export default function GenerateForm({ locale }: { locale: string }) {
             <p className="text-sm text-[color:var(--color-danger)]">{submitError}</p>
           )}
         </form>
+      ) : showClarification ? (
+        <ClarificationDialogue
+          topic={topic}
+          locale={locale}
+          onComplete={handleClarificationComplete}
+          onSkip={handleClarificationSkip}
+        />
       ) : (
         <div className="mt-8 space-y-6 text-left">
           <div className="text-sm text-[color:var(--color-muted)]">
             {isZh ? `主题：${topic}` : `Topic: ${topic}`}
-            <button type="button" onClick={() => setShowQuestions(false)} className="ml-2 text-[color:var(--color-accent)] hover:underline">
+            <button type="button" onClick={() => { setShowQuestions(false); setShowClarification(false); }} className="ml-2 text-[color:var(--color-accent)] hover:underline">
               {isZh ? '修改' : 'Change'}
             </button>
           </div>
+
+          {clarificationResult && (
+            <div className="rounded-lg border border-[color:var(--color-accent)]/20 bg-[color:var(--color-accent)]/5 p-3 space-y-1.5 text-sm">
+              <div className="font-medium text-[color:var(--color-text)]">
+                {isZh ? '💡 澄清结果' : '💡 Clarification'}
+              </div>
+              <div className="text-[color:var(--color-muted)]">
+                <strong>{isZh ? '驱动问题：' : 'Driving Question: '}</strong>
+                {clarificationResult.drivingQuestion}
+              </div>
+              <div className="text-[color:var(--color-muted)]">
+                <strong>{isZh ? '核心张力：' : 'Central Tension: '}</strong>
+                {clarificationResult.centralTension}
+              </div>
+            </div>
+          )}
 
           <RadioGroup
             question={isZh ? '你对这个主题了解多少？' : 'How familiar are you with this topic?'}
