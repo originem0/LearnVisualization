@@ -1,10 +1,15 @@
 import Link from 'next/link';
-import { getCoursePackage } from '@/lib/data';
+import { getCourseKind, getCoursePackage, getEssayCoursePackage } from '@/lib/data';
 import { getModuleSlug } from '@/lib/module-slug';
 import { categoryStyles } from '@/lib/palette';
 import type { Locale } from '@/lib/i18n';
 
 export default function CourseHomePage({ params }: { params: { locale: Locale; courseSlug: string } }) {
+  const kind = getCourseKind(params.locale, params.courseSlug);
+  if (kind === 'essay') {
+    return <EssayCourseHomePage params={params} />;
+  }
+
   const pkg = getCoursePackage(params.locale, params.courseSlug);
   const isZh = params.locale === 'zh';
   const firstModule = pkg.modules[0];
@@ -137,6 +142,71 @@ export default function CourseHomePage({ params }: { params: { locale: Locale; c
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+function EssayCourseHomePage({ params }: { params: { locale: Locale; courseSlug: string } }) {
+  const pkg = getEssayCoursePackage(params.locale, params.courseSlug);
+  const isZh = params.locale === 'zh';
+  const basePath = `/${params.locale}/courses/${params.courseSlug}`;
+  const firstChapter = pkg.chapters[0];
+
+  return (
+    <div className="mx-auto max-w-[64rem] space-y-12 stagger-in">
+      <section className="border-b border-[color:var(--color-border)] pb-8">
+        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
+          {pkg.register === 'essay' ? (isZh ? '叙事随笔课' : 'Narrative essay') : (isZh ? '技术解说课' : 'Explainer course')}
+        </div>
+        <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-[color:var(--color-text)] sm:text-5xl">
+          {pkg.drivingQuestion}
+        </h1>
+        <p className="mt-5 max-w-3xl text-base leading-8 text-[color:var(--color-muted)]">
+          {pkg.centralTension}
+        </p>
+        {firstChapter ? (
+          <Link
+            href={`${basePath}/${firstChapter.id}/`}
+            className="mt-7 inline-flex rounded-lg bg-[color:var(--color-text)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-bg)] transition-opacity hover:opacity-90"
+          >
+            {isZh ? '开始第一章' : 'Start chapter 1'}
+          </Link>
+        ) : null}
+      </section>
+
+      <section className="grid gap-6 md:grid-cols-2">
+        <div>
+          <h2 className="text-sm font-semibold text-[color:var(--color-text)]">{isZh ? '为什么存在' : 'Why it exists'}</h2>
+          <p className="mt-2 text-sm leading-7 text-[color:var(--color-muted)]">{pkg.overview.whyExists}</p>
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-[color:var(--color-text)]">{isZh ? '指向哪里' : 'Where it points'}</h2>
+          <p className="mt-2 text-sm leading-7 text-[color:var(--color-muted)]">{pkg.overview.wherePoints}</p>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
+          {isZh ? '旅程' : 'Arc'}
+        </h2>
+        <div className="mt-5 space-y-3">
+          {pkg.chapters.map((chapter, index) => (
+            <Link
+              key={chapter.id}
+              href={`${basePath}/${chapter.id}/`}
+              className="grid gap-3 rounded-lg border border-[color:var(--color-border)] p-4 transition-colors hover:bg-zinc-50 dark:hover:bg-[#0b3a45] sm:grid-cols-[4rem_1fr]"
+            >
+              <span className="font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--color-muted)]">{chapter.id}</span>
+              <span>
+                <span className="block font-medium text-[color:var(--color-text)]">{chapter.title}</span>
+                <span className="mt-1 block text-sm leading-6 text-[color:var(--color-muted)]">
+                  {chapter.role || pkg.overview.arc[index] || ''}
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

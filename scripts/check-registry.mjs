@@ -4,7 +4,7 @@
  * Draft courses keep non-structural registry gaps as warnings.
  */
 
-import { getCourseSummary, loadAllCourses, validateCoursePackage } from './lib/course-package-source.mjs';
+import { compileEssayCourse, getCourseSummary, loadAllCourses, loadAllEssayCourses, validateCoursePackage } from './lib/course-package-source.mjs';
 
 function groupRegistryIssues(issues) {
   const byModule = new Map();
@@ -23,6 +23,11 @@ function groupRegistryIssues(issues) {
   }
 
   return { byModule, courseLevel };
+}
+
+for (const source of loadAllEssayCourses()) {
+  const summary = compileEssayCourse(source).summary;
+  console.log(`\n=== Checking registry: ${summary.slug} (essay — no registry) ===`);
 }
 
 let hasError = false;

@@ -171,6 +171,10 @@ function isNonEmptyString(value) {
   return typeof value === 'string' && value.trim() !== '';
 }
 
+function hasStructuredInteractionData(value) {
+  return isRecord(value?.interactionData) && isNonEmptyString(value.interactionData.type);
+}
+
 function getDeclaredPrimaryVisual(module) {
   if (!Array.isArray(module?.visuals) || module.visuals.length === 0) {
     return null;
@@ -265,11 +269,11 @@ function compileInteractionRuntime(module, rawInteractionRegistry) {
         ?? (registryEntries.length === 1 && isNonEmptyString(registryEntries[0].entry.componentHint) ? registryEntries[0] : null);
     const componentHint = requirement.componentHint ?? registryMatch?.entry.componentHint ?? null;
 
-    if (!isNonEmptyString(componentHint)) {
+    if (!isNonEmptyString(componentHint) && !hasStructuredInteractionData(requirement)) {
       warnings.push(
         createRuntimeWarning(
           'interaction-component-hint-missing',
-          'This interaction is declared without a frontend component hint. Rendering a placeholder card instead.',
+          'This interaction is declared without a frontend component hint or structured interaction data. Rendering a placeholder card instead.',
           { moduleId: module.id, priority: requirement.priority },
         ),
       );
@@ -656,14 +660,16 @@ export function validateCoursePackage(input, options = {}) {
 
     for (const requirement of requirements) {
       if (!requirement.componentHint) {
-        issues.push(
-          createIssue(
-            'registry',
-            registrySeverity,
-            `[${bindingKey}]: ${requirement.priority} interaction requirement missing componentHint`,
-            { moduleId: module.id },
-          ),
-        );
+        if (!hasStructuredInteractionData(requirement)) {
+          issues.push(
+            createIssue(
+              'registry',
+              registrySeverity,
+              `[${bindingKey}]: ${requirement.priority} interaction requirement missing componentHint or interactionData`,
+              { moduleId: module.id },
+            ),
+          );
+        }
         continue;
       }
 
@@ -694,7 +700,16 @@ export function validateCoursePackage(input, options = {}) {
 
     for (const entry of registeredEntries) {
       if (!entry.componentHint) {
-        issues.push(createIssue('registry', registrySeverity, `[${bindingKey}]: registered interaction missing componentHint`, { moduleId: module.id }));
+        const matchedDataRequirement = requirements.find(
+          (requirement) =>
+            !requirement.componentHint &&
+            hasStructuredInteractionData(requirement) &&
+            requirement.priority === entry.priority &&
+            requirement.capability === entry.capability,
+        );
+        if (!matchedDataRequirement) {
+          issues.push(createIssue('registry', registrySeverity, `[${bindingKey}]: registered interaction missing componentHint`, { moduleId: module.id }));
+        }
         continue;
       }
 

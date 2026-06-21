@@ -9,9 +9,10 @@ interface HeaderProps {
   project: { title: string; goal: string };
   locale: Locale;
   basePath?: string;
+  showCourseNav?: boolean;
 }
 
-export default function Header({ project, locale, basePath = `/${locale}` }: HeaderProps) {
+export default function Header({ project, locale, basePath = `/${locale}`, showCourseNav = true }: HeaderProps) {
   const labels = getLabels(locale);
   const isCoursePage = basePath !== `/${locale}`;
   const containerWidth = isCoursePage ? 'max-w-[1440px]' : 'max-w-6xl';
@@ -39,7 +40,7 @@ export default function Header({ project, locale, basePath = `/${locale}` }: Hea
               <div className="hidden text-xs text-[color:var(--color-muted)] line-clamp-1 sm:block">{project.goal}</div>
             </div>
           </Link>
-          {isCoursePage && (
+          {isCoursePage && showCourseNav && (
             <nav className="hidden items-center gap-4 text-sm text-[color:var(--color-muted)] lg:flex">
               <Link href={`${basePath}/timeline/`} className="hover:text-[color:var(--color-text)]">{labels.nav.timeline}</Link>
               <Link href={`${basePath}/layers/`} className="hover:text-[color:var(--color-text)]">{labels.nav.layers}</Link>

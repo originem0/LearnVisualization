@@ -1,22 +1,18 @@
-import { listMirroredCourseSlugs } from '@/lib/course-package-adapter';
+import { listMirroredCourseSummaries } from '@/lib/course-package-adapter';
 import type { Locale } from '@/lib/i18n';
-import { getCoursePackage } from '@/lib/data';
-import { getModuleSlug } from '@/lib/module-slug';
 import { siteProject } from '@/lib/site-config';
 import GenerateForm from '@/components/GenerateForm';
 import CourseList from '@/components/CourseList';
 
 export default function LocaleHome({ params }: { params: { locale: Locale } }) {
-  const courses = listMirroredCourseSlugs().map((slug) => {
-    const pkg = getCoursePackage(params.locale, slug);
-    return {
-      slug,
-      title: pkg.title,
-      topic: (pkg as any).topic || '',
-      moduleCount: pkg.modules.length,
-      firstModuleSlug: getModuleSlug(pkg.modules[0].id),
-    };
-  });
+  const courses = listMirroredCourseSummaries().map((summary) => ({
+    slug: summary.slug,
+    title: summary.title,
+    topic: '',
+    moduleCount: summary.chapterCount,
+    chapterCount: summary.chapterCount,
+    kind: summary.kind,
+  }));
   const isZh = params.locale === 'zh';
 
   return (

@@ -12,7 +12,8 @@ interface CourseEntry {
   title: string;
   topic: string;
   moduleCount: number;
-  firstModuleSlug: string;
+  chapterCount?: number;
+  kind?: 'legacy' | 'essay';
 }
 
 interface CourseListProps {
@@ -50,21 +51,6 @@ export default function CourseList({ initialCourses, locale }: CourseListProps) 
     }
   };
 
-  const handleRegenerate = async (course: CourseEntry) => {
-    if (!confirm(isZh ? `重新生成「${course.title}」？将先删除再重新生成。` : `Regenerate "${course.title}"? Will delete and recreate.`)) return;
-    try {
-      await fetch(`${AGENT_BACKEND_URL}/courses/${course.slug}/delete`, { method: 'POST' });
-      setCourses((prev) => prev.filter((c) => c.slug !== course.slug));
-      await fetch(`${AGENT_BACKEND_URL}/jobs/course-generation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: course.topic || course.title }),
-      });
-    } catch {
-      // silent fail
-    }
-  };
-
   return (
     <section>
       <h2 className="text-sm font-semibold uppercase tracking-wide text-[color:var(--color-muted)]">
@@ -80,15 +66,8 @@ export default function CourseList({ initialCourses, locale }: CourseListProps) 
               {course.title}
             </Link>
             <span className="text-xs text-[color:var(--color-muted)] shrink-0">
-              {course.moduleCount} {isZh ? '章' : 'ch'}
+              {course.chapterCount ?? course.moduleCount} {isZh ? '章' : 'ch'}
             </span>
-            <button
-              onClick={() => handleRegenerate(course)}
-              className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] transition-colors shrink-0"
-              title={isZh ? '重新生成' : 'Regenerate'}
-            >
-              ↻
-            </button>
             <button
               onClick={() => handleDelete(course.slug)}
               className="text-xs text-[color:var(--color-muted)] hover:text-red-500 transition-colors shrink-0"

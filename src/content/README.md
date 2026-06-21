@@ -4,6 +4,19 @@
 
 所有课程内容以 **course package** 格式存放：
 
+Essay-course（新生成课程）：
+
+```txt
+courses/<slug>/
+  course.json
+  chapters/
+    c01.json
+    ...
+  review/approval.json
+```
+
+Legacy module-course（精选旧课）：
+
 ```txt
 courses/<slug>/
   course.json
@@ -18,13 +31,16 @@ Legacy `src/content/zh/` 已移除。
 
 ## Narrative blocks
 
-Block spec source of truth:
+Essay block source of truth:
 
-- `src/data/narrative-block-spec.json`
+- `src/lib/types.ts` 的 `EssayNarrativeBlock`
+- `engine/essay-course-engine.mjs`
 
 Validated in `npm run check`.
 
 ## Create a new module scaffold
+
+模块脚手架只适用于 legacy module-course。新课程应通过 agent-backend 的 AI clarification → contract → essay generation 链路创建。
 
 ```bash
 node scripts/new-module.mjs --id 13 --category frontier --title "你的标题" --subtitle "你的副标题"
@@ -54,6 +70,6 @@ node scripts/new-module.mjs --id 13 --category frontier --title "你的标题" -
 `npm run check` 验证所有 `courses/` 下的课程包：
 
 1. content completeness（字段齐全）
-2. concept-map + interaction registry integrity
-3. structure integrity（模块序号、graph 一致性）
+2. essay 或 legacy 结构完整性
+3. legacy concept-map + interaction registry integrity
 4. authoring rules（narrative block 类型规范）

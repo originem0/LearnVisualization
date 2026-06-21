@@ -3,7 +3,14 @@
  * Structural integrity checks for all course packages.
  */
 
-import { getCourseSummary, loadAllCourses, validateCoursePackage } from './lib/course-package-source.mjs';
+import {
+  compileEssayCourse,
+  getCourseSummary,
+  loadAllCourses,
+  loadAllEssayCourses,
+  validateCoursePackage,
+  validateEssayCoursePackage,
+} from './lib/course-package-source.mjs';
 
 let bad = false;
 
@@ -20,6 +27,19 @@ for (const source of loadAllCourses()) {
     if (issue.severity === 'error') {
       bad = true;
     }
+  }
+}
+
+for (const source of loadAllEssayCourses()) {
+  const summary = compileEssayCourse(source).summary;
+  const result = validateEssayCoursePackage(source);
+  console.log(`\n=== Checking structure: ${summary.slug} ===`);
+  for (const message of result.errors) {
+    console.log(`❌ ${message}`);
+    bad = true;
+  }
+  for (const message of result.warnings) {
+    console.log(`⚠️ ${message}`);
   }
 }
 

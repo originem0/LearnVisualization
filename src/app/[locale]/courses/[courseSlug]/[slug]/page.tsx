@@ -1,9 +1,13 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ModuleRenderer } from '@/components/module';
+import EssayChapterRenderer from '@/components/essay/EssayChapterRenderer';
 import {
+  getChapterBySlug,
   getCategoriesById,
+  getCompiledEssayCoursePackage,
   getCompiledCoursePackage,
+  getCourseKind,
   getModuleBySlug,
   getModuleRuntime,
 } from '@/lib/data';
@@ -15,6 +19,11 @@ export const dynamicParams = false;
 export function generateStaticParams() {
   return enabledLocales.flatMap((locale) =>
     listMirroredCourseSlugs().flatMap((courseSlug) => {
+      const kind = getCourseKind(locale, courseSlug);
+      if (kind === 'essay') {
+        const pkg = getCompiledEssayCoursePackage(locale, courseSlug).coursePackage;
+        return pkg.chapters.map((chapter) => ({ locale, courseSlug, slug: chapter.id }));
+      }
       const pkg = getCompiledCoursePackage(locale, courseSlug).coursePackage;
       return pkg.modules.map((module) => ({ locale, courseSlug, slug: module.id }));
     })
@@ -27,6 +36,28 @@ interface ModulePageProps {
 
 export function generateMetadata({ params }: ModulePageProps): Metadata {
   const { locale, courseSlug, slug } = params;
+  if (getCourseKind(locale, courseSlug) === 'essay') {
+    const pkg = getCompiledEssayCoursePackage(locale, courseSlug).coursePackage;
+    const chapter = getChapterBySlug(pkg, slug);
+    if (!chapter) return {};
+    const title = `${chapter.id} ${chapter.title} — ${pkg.title}`;
+    return {
+      title,
+      description: chapter.role,
+      openGraph: {
+        title,
+        description: chapter.role,
+        type: 'article',
+        locale: locale === 'zh' ? 'zh_CN' : 'en_US',
+      },
+      twitter: {
+        card: 'summary',
+        title,
+        description: chapter.role,
+      },
+    };
+  }
+
   const pkg = getCompiledCoursePackage(locale, courseSlug).coursePackage;
   const mod = getModuleBySlug(pkg, slug);
   if (!mod) return {};
@@ -59,6 +90,26 @@ export function generateMetadata({ params }: ModulePageProps): Metadata {
 export default function CourseModulePage({ params }: ModulePageProps) {
   const { locale, courseSlug, slug } = params;
   if (!listMirroredCourseSlugs().includes(courseSlug)) notFound();
+
+  if (getCourseKind(locale, courseSlug) === 'essay') {
+    const compiled = getCompiledEssayCoursePackage(locale, courseSlug);
+    const pkg = compiled.coursePackage;
+    const chapter = getChapterBySlug(pkg, slug);
+    if (!chapter) notFound();
+    const index = pkg.chapters.findIndex((candidate) => candidate.id === chapter.id);
+    const prev = index > 0 ? pkg.chapters[index - 1] : undefined;
+    const next = index < pkg.chapters.length - 1 ? pkg.chapters[index + 1] : undefined;
+    const basePath = `/${locale}/courses/${courseSlug}`;
+    return (
+      <EssayChapterRenderer
+        chapter={chapter}
+        prev={prev}
+        next={next}
+        locale={locale}
+        basePath={basePath}
+      />
+    );
+  }
 
   const compiled = getCompiledCoursePackage(locale, courseSlug);
   const pkg = compiled.coursePackage;

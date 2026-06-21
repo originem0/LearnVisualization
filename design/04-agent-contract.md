@@ -8,15 +8,48 @@
 
 Agent 不是写手，不是百科搬运工。它是**叙事生成助手**：
 
+- 先通过 AI 澄清对话理解真实学习需求
 - 负责将课程计划展开为连续的散文叙事
 - 产出必须通过引擎校验 + LLM 评审 + 人工审核
 - 生成的内容是教学叙事，不是教材摘要
 
 ---
 
-## 二、叙事生成规则
+## 二、澄清契约
 
-### 2.1 Plan 阶段输出
+生成前必须先产出 `contract`。这个 contract 必须来自 AI 参与的多轮澄清，不允许用固定问卷模板代替。
+
+澄清助手的任务不是收集表单字段，而是识别用户真正卡住的地方：
+
+- 用户的具体困惑是什么
+- 用户已有背景是什么
+- 这个困惑为什么重要
+- 课程应该讲什么、不讲什么、讲到什么深度
+
+澄清完成后输出：
+
+```json
+{
+  "drivingQuestion": "贯穿全课的具体问题",
+  "centralTension": "直觉与真实结构之间的矛盾",
+  "knowledgeType": "conceptual | procedural | factual | strategic | metacognitive | situational",
+  "audience": "明确受众",
+  "desiredOutcome": "学完后可检验的解释/判断/行动能力",
+  "scope": {
+    "include": ["必须讲的核心对象"],
+    "exclude": ["明确不讲的内容"],
+    "depth": "深度取舍"
+  }
+}
+```
+
+`POST /jobs/course-generation` 没有 contract 时必须拒绝生成。固定 fallback question 只能用于错误提示或临时兜底，不能合成课程契约。
+
+---
+
+## 三、叙事生成规则
+
+### 3.1 Plan 阶段输出
 
 Agent 在 Plan 阶段必须产出：
 
@@ -34,7 +67,7 @@ Agent 在 Plan 阶段必须产出：
   - 不是知识点列表（"第一章：基础概念"）
   - 必须是论证步骤（"为什么存快照不存增量"）
 
-### 2.2 Chapter 生成输入
+### 3.2 Chapter 生成输入
 
 Agent 在生成每个 Chapter 时接收：
 
@@ -45,11 +78,11 @@ Agent 在生成每个 Chapter 时接收：
   - `pivot`：转折点，关键洞察
   - `conclude`：解决张力，回应 drivingQuestion
 
-### 2.3 Narrative 要求
+### 3.3 Narrative 要求
 
 生成的 Chapter 必须：
 
-- **100+ 段连续散文**，一条主线
+- **10-18 个 narrative block**，一条主线
   - 不是教材式的"章节 → 小节 → 要点"结构
   - 段落之间有逻辑依赖（不能打乱顺序）
 
@@ -67,7 +100,7 @@ Agent 在生成每个 Chapter 时接收：
 
 ---
 
-## 三、Register（语域）
+## 四、Register（语域）
 
 根据课程的 `knowledgeType` 自动选择叙事语域：
 
@@ -109,7 +142,7 @@ Agent 在生成每个 Chapter 时接收：
 
 ---
 
-## 四、防八股（四道闸）
+## 五、防八股（四道闸）
 
 ### 4.1 事实脊柱
 
@@ -169,7 +202,7 @@ Prompt 必须注入反例：
 
 ---
 
-## 五、知识类型与认知层级
+## 六、知识类型与认知层级
 
 ### 5.1 知识类型声明
 - 每门课必须标注 `knowledgeType`（单一类型）

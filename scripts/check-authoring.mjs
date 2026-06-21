@@ -6,7 +6,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { loadAllCourses, root } from './lib/course-package-source.mjs';
+import { loadAllCourses, loadAllEssayCourses, root } from './lib/course-package-source.mjs';
 
 const spec = JSON.parse(readFileSync(resolve(root, 'src/data/narrative-block-spec.json'), 'utf-8'));
 
@@ -51,6 +51,25 @@ for (const { slug: courseSlug, modules } of loadAllCourses()) {
         const lines = block.content.split('\n').filter(Boolean);
         if (lines.length !== 2) {
           console.warn(`⚠  [${courseSlug}] ${name}: narrative[${idx}] comparison prefers exactly 2 lines, got ${lines.length}`);
+        }
+      }
+    });
+  }
+}
+
+for (const { slug: courseSlug, chapters } of loadAllEssayCourses()) {
+  console.log(`\n=== Checking authoring: ${courseSlug} ===`);
+
+  for (const { name, data: chapter } of chapters) {
+    const blocks = chapter.narrative || [];
+
+    blocks.forEach((block, idx) => {
+      const rule = spec[block.type];
+      if (!rule) return;
+      for (const field of rule.required || []) {
+        if (field === 'steps') continue;
+        if (typeof block[field] !== 'string') {
+          fail(`[${courseSlug}] ${name}: narrative[${idx}] missing string field '${field}'`);
         }
       }
     });

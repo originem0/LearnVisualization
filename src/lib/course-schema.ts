@@ -1,5 +1,7 @@
 import type { Category, ConceptItem, DialogTurn, EssayNarrativeBlock, Exercise, NarrativeBlock, PitfallItem } from '@/lib/types';
 
+export type { EssayNarrativeBlock } from '@/lib/types';
+
 export type CourseStatus = 'draft' | 'review' | 'published';
 export type CourseLanguage = 'zh';
 

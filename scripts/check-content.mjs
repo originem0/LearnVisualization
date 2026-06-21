@@ -3,7 +3,14 @@
  * Content completeness checker for all course packages.
  */
 
-import { getCourseSummary, loadAllCourses, validateCoursePackage } from './lib/course-package-source.mjs';
+import {
+  compileEssayCourse,
+  getCourseSummary,
+  loadAllCourses,
+  loadAllEssayCourses,
+  validateCoursePackage,
+  validateEssayCoursePackage,
+} from './lib/course-package-source.mjs';
 
 function buildModuleIssueMap(issues, moduleIds) {
   const byModule = new Map(moduleIds.map((moduleId) => [moduleId, { errors: [], warnings: [] }]));
@@ -45,6 +52,19 @@ try {
       if (entry.errors.length > 0) {
         hasFailures = true;
       }
+    }
+  }
+
+  for (const source of loadAllEssayCourses()) {
+    const compiled = compileEssayCourse(source);
+    const result = validateEssayCoursePackage(source);
+    console.log(`\n=== Checking content: ${compiled.summary.slug} (${compiled.summary.chapterCount} chapters) ===\n`);
+    for (const chapterId of compiled.summary.chapterIds) {
+      console.log(`  ✅ ${chapterId}`);
+    }
+    for (const message of result.errors) {
+      console.error(`  ❌ ${message}`);
+      hasFailures = true;
     }
   }
 

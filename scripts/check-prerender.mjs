@@ -7,7 +7,16 @@
 import { readFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { PRIMARY_COURSE, listCourseSlugs, loadCourse } from './lib/course-package-source.mjs';
+import {
+  PUBLIC_LEGACY_COURSES,
+  PRIMARY_COURSE,
+  compileEssayCourse,
+  isEssayCourse,
+  listCourseSlugs,
+  listPublicCourseSlugs,
+  loadCourse,
+  loadEssayCourse,
+} from './lib/course-package-source.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -28,14 +37,21 @@ for (const { data: module } of primaryCourse.modules) {
   required.push(`/zh/${module.id}`);
 }
 
-for (const courseSlug of listCourseSlugs()) {
-  const course = loadCourse(courseSlug);
+for (const courseSlug of listPublicCourseSlugs()) {
   required.push(`/zh/courses/${courseSlug}`);
   required.push(`/zh/courses/${courseSlug}/layers`);
   required.push(`/zh/courses/${courseSlug}/timeline`);
 
-  for (const { data: module } of course.modules) {
-    required.push(`/zh/courses/${courseSlug}/${module.id}`);
+  if (isEssayCourse(courseSlug)) {
+    const course = compileEssayCourse(loadEssayCourse(courseSlug)).coursePackage;
+    for (const chapter of course.chapters) {
+      required.push(`/zh/courses/${courseSlug}/${chapter.id}`);
+    }
+  } else {
+    const course = loadCourse(courseSlug);
+    for (const { data: module } of course.modules) {
+      required.push(`/zh/courses/${courseSlug}/${module.id}`);
+    }
   }
 }
 
@@ -51,6 +67,12 @@ for (const route of routes) {
   }
   if (route.includes('/compare')) {
     fail(`unexpected compare route still prerendered: ${route}`);
+  }
+}
+
+for (const courseSlug of listCourseSlugs()) {
+  if (!PUBLIC_LEGACY_COURSES.has(courseSlug) && routes.has(`/zh/courses/${courseSlug}`)) {
+    fail(`hidden legacy course was prerendered: /zh/courses/${courseSlug}`);
   }
 }
 

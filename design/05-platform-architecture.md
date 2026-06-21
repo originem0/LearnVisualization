@@ -9,7 +9,8 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │                  课程数据层                        │
-│  courses/{slug}/course.json + modules/ + visuals/ │
+│  essay: course.json + chapters/ + review/         │
+│  legacy: course.json + modules/ + visuals/        │
 │  纯 JSON，无逻辑，可版本控制                        │
 └────────────────────┬────────────────────────────┘
                      │ 读取
@@ -40,11 +41,11 @@
 
 - **旧引擎**：`engine/course-package-engine.mjs` — 12-module 模型（遗留课程）
 - **新引擎**：`engine/essay-course-engine.mjs` — essay-course 模型（新课程）
-- **路由判断**：前端通过 `course.register` 字段判断走哪条渲染路径
-  - `register: "essay-course"` → 调用新引擎 + EssayCourseRenderer
-  - 无 register 或其他值 → 调用旧引擎 + ModuleRenderer
+- **路由判断**：前端通过包形状判断走哪条渲染路径
+  - 存在 `chapters/` 且 `course.json.chapters` 为数组 → 调用新引擎 + EssayChapterRenderer
+  - 否则调用旧引擎 + ModuleRenderer
 - **数据隔离**：两类课程的数据 schema 互不干扰，可独立演进
-- **退出策略**：迁移完成后删除旧引擎及相关适配代码
+- **公开策略**：essay 课程默认公开；legacy 只公开精选课程
 
 ---
 
@@ -76,11 +77,11 @@
 
 ### Agent 后端
 - **是什么**：Python HTTP 服务，零外部依赖（标准库 + urllib）
-- **管线**：plan → compose → validate → export → auto-promote → auto-build
+- **管线**：clarify → contract gate → plan → compose → validate → export → review → promote/build
 - **LLM 接入**：OpenAI 兼容 API（base_url + api_key），支持运行时热切换（runtime-config.json + 设置面板）
 - **约束来源**：学习科学理论编码进 prompt（Merrill、Bloom、Sweller、Bjork、Mayer、Novak），不依赖 quality check 阻断
 - **垃圾清理**：启动时自动清理 staging 残留、过期 failed/cancelled job、已 promote 的 generated 副本
-- **并发控制**：npm build 全局锁防止并发写坏 out/；compose 阶段线程池并发生成模块
+- **并发控制**：npm build 全局锁防止并发写坏 out/；compose 阶段串行生成章节，保证叙事连续
 - **不做**：前端渲染、静态构建（但触发构建）
 
 ---
@@ -89,21 +90,12 @@
 
 ### 生成流（Agent → 课程）
 
-**旧模型（12-module）：**
 ```
-POST /jobs/course-generation {topic: "..."}
-  → plan 阶段: LLM 生成 12 个模块大纲 → normalize → 保存 artifact
-  → compose 阶段: 逐模块 LLM 生成 → normalize → checkpoint
-  → validate 阶段: 引擎校验（仅结构性 error 阻断）
-  → export 阶段: 写入 generated/{slug}/
-  → 等待人工审核
-  → POST /jobs/{id}/review {approved: true}
-  → promote: 复制到 courses/{slug}/
-```
-
-**新模型（essay-course）：**
-```
-POST /jobs/course-generation {topic: "...", register: "essay-course"}
+POST /clarify/start {topic: "..."}
+  → LLM 生成第一问
+POST /clarify/respond {conversationId, answer}
+  → LLM 追问或合成 contract
+POST /jobs/course-generation {topic: "...", contract: {...}}
   → plan 阶段: LLM 生成 spine（核心论点）+ 4-6 章标题 → normalize → 保存 artifact
   → compose 阶段: 串行生成各章（后章引用前章摘要） → essay_schema.py normalize → checkpoint
   → validate 阶段: 新引擎校验 + LLM judge 质量打分
@@ -117,15 +109,16 @@ POST /jobs/course-generation {topic: "...", register: "essay-course"}
 ```
 npm run check     — 引擎校验所有课程包
 npm run build     — Next.js 静态构建
-  → generateStaticParams() 遍历所有课程 × 模块
-  → 每个模块页调用引擎获取 CompiledCoursePackage
-  → ModuleRenderer 根据 moduleKind + knowledgeTypes 选择布局
+  → generateStaticParams() 遍历公开课程
+  → essay 课程生成 chapter 路由
+  → legacy 课程生成 module 路由
+  → 按包形状选择 EssayChapterRenderer 或 ModuleRenderer
   → 输出 out/ 静态文件
 ```
 
 ### 学习流（用户 → 客户端）
 ```
-用户访问 /zh/courses/{slug}/{moduleId}
+用户访问 /zh/courses/{slug}/{chapterOrModuleId}
   → 加载静态 HTML + JS bundle
   → 渲染课程内容（所有用户相同）
   → 无个人状态跟踪
@@ -140,8 +133,9 @@ npm run build     — Next.js 静态构建
 | LLM 返回非法 JSON | provider.py 抛出 ProviderError，compose 阶段标记失败，可重试 |
 | LLM 输出缺少非核心字段 | normalize 层填充 fallback 默认值，不拒绝 |
 | LLM 输出包含未知字段/类型 | normalize 层透传保留，前端 fallback 渲染 |
-| 单模块生成失败 | 模块级 checkpoint 保存已完成模块，错误信息聚合所有失败模块 ID |
-| 引擎校验失败 | 仅 title 缺失和 narrative 为空阻止 export，其余降级为 warning |
+| clarification LLM 不可用 | 前端不得用固定问卷替代 contract；提示配置/重试 |
+| 单章节生成失败 | chapter checkpoint 保存已完成章节，错误信息指向失败 chapter |
+| 引擎校验失败 | essay schema error 阻止 export，warning 进入 review |
 | 并发 npm build | 全局 _build_lock 串行化，后到的 build 跳过 |
 | 进程崩溃留下锁文件 | job_store 文件锁检测残留 PID，进程已死则清除 |
 | staging 目录泄漏 | validate 异常时清理；启动时 cleanup_stale_data 全量扫描 |
@@ -165,12 +159,12 @@ npm run build     — Next.js 静态构建
 ### 短期（不改架构）
 - ~~Agent 后端换用 FastAPI~~ 当前手写路由 + 全局异常捕获已基本够用
 - ~~文件锁换 SQLite~~ 已实现 PID 检测的死锁防护
-- v3 叙事块专用渲染组件（reflection 黄色卡片、analogy 双栏映射等，当前用 fallback）
-- 基于 knowledgeTypes 的差异化布局（当前所有模块同一套布局）
+- essay 章节阅读体验继续打磨（目录、长文排版、少量高光）
+- 公开课程治理：legacy 白名单、essay publish 审核
 
 ### 中期（小改架构）
-- 概念图从装饰升级为可交互导航
-- 练习系统前端渲染（exercises 数据已通过 pipeline 透传，需前端组件）
+- review UI 独立化
+- seed examples 按 register 扩充
 
 ### 长期（重构架构）
 - 从纯静态导出升级为 ISR（增量静态再生成），支持动态课程

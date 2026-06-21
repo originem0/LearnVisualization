@@ -18,6 +18,9 @@ def build_clarification_system_prompt() -> str:
 1. drivingQuestion: 一个具体的、值得回答的问题
 2. centralTension: 这个问题为什么难/重要的认知冲突
 3. knowledgeType: 知识类型 (conceptual/procedural/factual/strategic/metacognitive)
+4. audience: 这门课为谁写
+5. desiredOutcome: 学完后能解释、判断或完成什么
+6. scope: include/exclude/depth，用来明确取舍，不允许“既全面又细节”
 
 ## 规则
 
@@ -35,7 +38,22 @@ def build_clarification_system_prompt() -> str:
 
 **输出格式：**
 - 如果需要继续：{"question": "下一个问题的文本"}
-- 如果完成：{"complete": true, "drivingQuestion": "具体问题", "centralTension": "核心矛盾", "knowledgeType": "类型"}
+- 如果完成：
+{
+  "complete": true,
+  "contract": {
+    "drivingQuestion": "具体问题",
+    "centralTension": "核心矛盾",
+    "knowledgeType": "类型",
+    "audience": "明确受众",
+    "desiredOutcome": "可检验结果",
+    "scope": {
+      "include": ["本课必须讲的 3-5 个核心对象"],
+      "exclude": ["本课明确不讲的东西"],
+      "depth": "取舍说明：概览/机制深挖/判断框架等"
+    }
+  }
+}
 
 **知识类型判断：**
 - procedural: "如何做X" / "X如何工作" (how-to, mechanisms)
@@ -93,7 +111,7 @@ def build_clarification_user_prompt(topic: str, history: list) -> str:
 
 输出 JSON（只输出 JSON，不要其他文字）：
 - 如果继续对话：{{"question": "你的问题"}}
-- 如果准备好合成：{{"complete": true, "drivingQuestion": "...", "centralTension": "...", "knowledgeType": "..."}}
+- 如果准备好合成：{{"complete": true, "contract": {{"drivingQuestion": "...", "centralTension": "...", "knowledgeType": "...", "audience": "...", "desiredOutcome": "...", "scope": {{"include": ["..."], "exclude": ["..."], "depth": "..."}}}}}}
 """
 
 

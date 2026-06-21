@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { getCoursePackage } from '@/lib/data';
+import EssaySidebar from '@/components/essay/EssaySidebar';
+import { getCourseKind, getCoursePackage, getEssayCoursePackage } from '@/lib/data';
 import { listMirroredCourseSlugs } from '@/lib/course-package-adapter';
 import { enabledLocales, type Locale } from '@/lib/i18n';
 
@@ -22,8 +23,27 @@ export default function CourseLayout({
     notFound();
   }
 
-  const pkg = getCoursePackage(params.locale, params.courseSlug);
+  const kind = getCourseKind(params.locale, params.courseSlug);
   const basePath = `/${params.locale}/courses/${params.courseSlug}`;
+  if (kind === 'essay') {
+    const pkg = getEssayCoursePackage(params.locale, params.courseSlug);
+    return (
+      <div className="min-h-screen bg-[color:var(--color-bg)] text-[color:var(--color-text)]">
+        <Header
+          project={{ title: pkg.title, goal: pkg.drivingQuestion }}
+          locale={params.locale}
+          basePath={basePath}
+          showCourseNav={false}
+        />
+        <div className="mx-auto flex max-w-[1240px] gap-5 px-4 pb-12 pt-6 xl:gap-8">
+          <EssaySidebar chapters={pkg.chapters} locale={params.locale} basePath={basePath} />
+          <main id="main-content" className="min-w-0 flex-1">{children}</main>
+        </div>
+      </div>
+    );
+  }
+
+  const pkg = getCoursePackage(params.locale, params.courseSlug);
 
   return (
     <div className="min-h-screen bg-[color:var(--color-bg)] text-[color:var(--color-text)]">

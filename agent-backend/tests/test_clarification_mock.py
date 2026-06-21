@@ -111,9 +111,18 @@ def test_handle_clarify_respond_complete():
     # Mock LLM to return synthesis
     mock_response = {
         "complete": True,
-        "drivingQuestion": "Python装饰器中的闭包作用域如何工作？",
-        "centralTension": "多层函数嵌套使变量捕获机制不直观",
-        "knowledgeType": "conceptual"
+        "contract": {
+            "drivingQuestion": "Python装饰器中的闭包作用域如何工作？",
+            "centralTension": "多层函数嵌套使变量捕获机制不直观",
+            "knowledgeType": "conceptual",
+            "audience": "写过 Python 函数但不理解闭包的新手",
+            "desiredOutcome": "能解释装饰器里变量如何被捕获",
+            "scope": {
+                "include": ["闭包", "作用域", "装饰器调用时机"],
+                "exclude": ["元类", "完整 descriptor 协议"],
+                "depth": "围绕机制深挖，4-6章"
+            }
+        }
     }
 
     with patch('main.get_pipeline') as mock_pipeline:
@@ -128,9 +137,10 @@ def test_handle_clarify_respond_complete():
         })
 
         assert result["complete"] == True
-        assert result["drivingQuestion"] == mock_response["drivingQuestion"]
-        assert result["centralTension"] == mock_response["centralTension"]
-        assert result["knowledgeType"] == mock_response["knowledgeType"]
+        assert result["contract"]["drivingQuestion"] == mock_response["contract"]["drivingQuestion"]
+        assert result["drivingQuestion"] == mock_response["contract"]["drivingQuestion"]
+        assert result["centralTension"] == mock_response["contract"]["centralTension"]
+        assert result["knowledgeType"] == mock_response["contract"]["knowledgeType"]
 
         # Verify synthesis was stored
         conv = store.get_conversation(conv_id)

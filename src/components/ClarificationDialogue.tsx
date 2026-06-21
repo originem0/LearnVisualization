@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, type FormEvent } from 'react';
-
-const AGENT_BACKEND_URL =
-  process.env.NEXT_PUBLIC_AGENT_BACKEND_URL || '/api/agent';
+import { agentFetch } from '@/lib/agent-client';
 
 interface Message {
   role: 'bot' | 'user';
@@ -14,20 +12,32 @@ interface ClarificationResult {
   drivingQuestion: string;
   centralTension: string;
   knowledgeType: string;
+  contract: CourseContract;
+}
+
+interface CourseContract {
+  drivingQuestion: string;
+  centralTension: string;
+  knowledgeType: string;
+  audience: string;
+  desiredOutcome: string;
+  scope: {
+    include: string[];
+    exclude: string[];
+    depth: string;
+  };
 }
 
 interface ClarificationDialogueProps {
   topic: string;
   locale: string;
   onComplete: (result: ClarificationResult) => void;
-  onSkip: () => void;
 }
 
 export default function ClarificationDialogue({
   topic,
   locale,
   onComplete,
-  onSkip,
 }: ClarificationDialogueProps) {
   const isZh = locale === 'zh';
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -55,11 +65,11 @@ export default function ClarificationDialogue({
     setError('');
 
     try {
-      const res = await fetch(`${AGENT_BACKEND_URL}/api/clarify/start`, {
+      const res = await agentFetch('/api/clarify/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic }),
-      });
+      }, isZh);
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -67,6 +77,11 @@ export default function ClarificationDialogue({
       }
 
       const data = await res.json();
+      if (data.fallback) {
+        throw new Error(isZh
+          ? 'AI 澄清暂时不可用，不能用固定模板替代。请检查课程生成后台的模型配置后重试。'
+          : 'AI clarification is unavailable. Fixed templates cannot replace the contract dialogue.');
+      }
       setConversationId(data.conversationId);
       setCurrentQuestion(data.question);
       setRoundNumber(data.roundNumber);
@@ -90,14 +105,14 @@ export default function ClarificationDialogue({
     setError('');
 
     try {
-      const res = await fetch(`${AGENT_BACKEND_URL}/api/clarify/respond`, {
+      const res = await agentFetch('/api/clarify/respond', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversationId,
           answer: userAnswer,
         }),
-      });
+      }, isZh);
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -105,13 +120,27 @@ export default function ClarificationDialogue({
       }
 
       const data = await res.json();
+      if (data.fallback) {
+        throw new Error(isZh
+          ? 'AI 澄清暂时不可用，不能用固定模板继续。请稍后重试或检查模型配置。'
+          : 'AI clarification is unavailable. Fixed templates cannot continue the contract dialogue.');
+      }
 
       // Check if complete
       if (data.complete) {
-        onComplete({
+        const contract = data.contract || {
           drivingQuestion: data.drivingQuestion,
           centralTension: data.centralTension,
           knowledgeType: data.knowledgeType,
+          audience: '',
+          desiredOutcome: '',
+          scope: { include: [], exclude: [], depth: '' },
+        };
+        onComplete({
+          drivingQuestion: contract.drivingQuestion,
+          centralTension: contract.centralTension,
+          knowledgeType: contract.knowledgeType,
+          contract,
         });
       } else {
         // Continue dialogue
@@ -128,25 +157,15 @@ export default function ClarificationDialogue({
 
   return (
     <div className="mt-8 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium text-[color:var(--color-text)]">
-            {isZh ? '理清学习需求' : 'Clarify your learning needs'}
-          </h3>
-          <p className="text-xs text-[color:var(--color-muted)] mt-0.5">
-            {isZh
-              ? `主题：${topic} • 第 ${roundNumber} 轮`
-              : `Topic: ${topic} • Round ${roundNumber}`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onSkip}
-          className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-text)] underline"
-        >
-          {isZh ? '跳过，直接填表' : 'Skip to form'}
-        </button>
+      <div>
+        <h3 className="text-sm font-medium text-[color:var(--color-text)]">
+          {isZh ? '理清学习需求' : 'Clarify your learning needs'}
+        </h3>
+        <p className="text-xs text-[color:var(--color-muted)] mt-0.5">
+          {isZh
+            ? `主题：${topic} • 第 ${roundNumber} 轮`
+            : `Topic: ${topic} • Round ${roundNumber}`}
+        </p>
       </div>
 
       {/* Messages */}

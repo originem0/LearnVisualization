@@ -33,6 +33,7 @@ try:
     )
     from .models import (
         normalize_job_create_request,
+        normalize_generation_contract,
         normalize_job_retry_request,
         normalize_promote_request,
         normalize_review_request,
@@ -59,6 +60,7 @@ except ImportError:
     )
     from models import (
         normalize_job_create_request,
+        normalize_generation_contract,
         normalize_job_retry_request,
         normalize_promote_request,
         normalize_review_request,
@@ -88,6 +90,15 @@ LEGACY_GENERATION_ENDPOINTS = {
     "/export-course-package/dry-run",
     "/export-course-package/write",
 }
+
+AUTH_EXEMPT_POST_PATHS = {
+    "/provider-config/verify",
+    "/provider-config",
+    "/provider-config/test",
+}
+
+DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
+PUBLIC_LEGACY_COURSES = {"llm-fundamentals", "postgresql-internals", "git-internals", "claude-code"}
 
 load_env_file(REPO_ROOT / "agent-backend" / ".env")
 
@@ -172,7 +183,7 @@ def handle_clarify_respond(payload: dict) -> dict:
 
     Expects: {conversationId: string, answer: string}
     Returns: {question: string, roundNumber: int}
-          OR {complete: true, drivingQuestion: string, centralTension: string, knowledgeType: string}
+          OR {complete: true, contract: {...}}
     """
     conversation_id = payload.get("conversationId", "").strip()
     answer = payload.get("answer", "").strip()
@@ -211,27 +222,32 @@ def handle_clarify_respond(payload: dict) -> dict:
 
         # Check if complete
         if response.get("complete"):
-            # Synthesis ready
-            driving_question = response.get("drivingQuestion", "")
-            central_tension = response.get("centralTension", "")
-            knowledge_type = response.get("knowledgeType", "conceptual")
-
-            if not driving_question or not central_tension:
-                raise ValueError("LLM synthesis missing required fields")
+            raw_contract = response.get("contract")
+            if not isinstance(raw_contract, dict):
+                raw_contract = {
+                    "drivingQuestion": response.get("drivingQuestion", ""),
+                    "centralTension": response.get("centralTension", ""),
+                    "knowledgeType": response.get("knowledgeType", "conceptual"),
+                    "audience": response.get("audience", ""),
+                    "desiredOutcome": response.get("desiredOutcome", ""),
+                    "scope": response.get("scope") or {},
+                }
+            contract = normalize_generation_contract({"topic": conv["topic"], "contract": raw_contract})
 
             # Store synthesis
             store.set_synthesis(
                 conversation_id,
-                driving_question,
-                central_tension,
-                knowledge_type
+                contract["drivingQuestion"],
+                contract["centralTension"],
+                contract["knowledgeType"]
             )
 
             return {
                 "complete": True,
-                "drivingQuestion": driving_question,
-                "centralTension": central_tension,
-                "knowledgeType": knowledge_type,
+                "contract": contract,
+                "drivingQuestion": contract["drivingQuestion"],
+                "centralTension": contract["centralTension"],
+                "knowledgeType": contract["knowledgeType"],
                 "roundNumber": len([t for t in history if t["role"] == "bot"])
             }
 
@@ -297,8 +313,30 @@ def deprecated_generation_response(path: str) -> tuple[dict, int]:
     )
 
 
+def _configured_cors_origins() -> list[str]:
+    raw = os.environ.get("AGENT_CORS_ORIGIN") or os.environ.get("AGENT_CORS_ORIGINS") or DEFAULT_CORS_ORIGINS
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def _expected_admin_token() -> str:
+    return os.environ.get("AGENT_ADMIN_TOKEN", "") or os.environ.get("AGENT_SETTINGS_PASSWORD", "")
+
+
+def _allow_unauthenticated_admin() -> bool:
+    return os.environ.get("AGENT_ALLOW_UNAUTHENTICATED", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _extract_admin_token(headers, payload: dict) -> str:
+    return (
+        headers.get("X-Agent-Admin-Token", "")
+        or headers.get("Authorization", "").removeprefix("Bearer ").strip()
+        or str(payload.get("adminToken") or "").strip()
+    )
+
+
 def list_courses() -> dict:
     courses = []
+    filter_public_legacy = COURSES_ROOT == DEFAULT_COURSES_ROOT
     if COURSES_ROOT.is_dir():
         for entry in sorted(COURSES_ROOT.iterdir()):
             if not entry.is_dir():
@@ -309,13 +347,23 @@ def list_courses() -> dict:
             if not meta_path.exists():
                 continue
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            modules_dir = entry / "modules"
-            module_count = len(list(modules_dir.glob("*.json"))) if modules_dir.is_dir() else 0
+            is_essay = (entry / "chapters").is_dir() and isinstance(meta.get("chapters"), list)
+            if filter_public_legacy and not is_essay and entry.name not in PUBLIC_LEGACY_COURSES:
+                continue
+            if is_essay:
+                count = len([x for x in meta.get("chapters", []) if isinstance(x, str)])
+                kind = "essay"
+            else:
+                modules_dir = entry / "modules"
+                count = len(list(modules_dir.glob("*.json"))) if modules_dir.is_dir() else 0
+                kind = "legacy"
             courses.append({
                 "slug": entry.name,
                 "title": meta.get("title", entry.name),
                 "topic": meta.get("topic", ""),
-                "moduleCount": module_count,
+                "moduleCount": count,
+                "chapterCount": count,
+                "kind": kind,
             })
     return {"courses": courses}
 
@@ -347,6 +395,10 @@ def delete_course(slug: str) -> dict:
 def _rebuild_static_site() -> None:
     """Run npm run build in background to regenerate static pages."""
     import sys, threading
+
+    if not (REPO_ROOT / "package.json").exists():
+        print(f"[rebuild] Skipping build; package.json not found in {REPO_ROOT}", file=sys.stderr)
+        return
 
     # Import the shared build lock from pipeline to prevent concurrent builds
     try:
@@ -567,9 +619,17 @@ def test_provider_connection() -> dict:
 
 class AgentBackendHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origins = _configured_cors_origins()
+        request_origin = self.headers.get("Origin")
+        if "*" in origins:
+            self.send_header("Access-Control-Allow-Origin", "*")
+        elif request_origin and request_origin in origins:
+            self.send_header("Access-Control-Allow-Origin", request_origin)
+            self.send_header("Vary", "Origin")
+        elif origins:
+            self.send_header("Access-Control-Allow-Origin", origins[0])
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Agent-Admin-Token")
 
     def _send_json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -586,6 +646,17 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
             raise ValueError(f"request body too large ({length} bytes, max {MAX_REQUEST_BODY})")
         raw = self.rfile.read(length) if length else b"{}"
         return json.loads(raw.decode("utf-8") or "{}")
+
+    def _require_admin(self, payload: dict) -> None:
+        expected = _expected_admin_token()
+        if not expected:
+            if _allow_unauthenticated_admin():
+                return
+            raise PermissionError("admin token is not configured")
+
+        supplied = _extract_admin_token(self.headers, payload)
+        if not supplied or not hmac.compare_digest(supplied.encode(), expected.encode()):
+            raise PermissionError("admin token required")
 
     def log_message(self, fmt, *args):
         import sys
@@ -609,8 +680,11 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
             if path == "/provider-config":
                 return self._send_json(get_provider_config())
 
-            pipeline = get_pipeline()
             parts = [part for part in path.split("/") if part]
+            if parts and parts[0] == "jobs":
+                self._require_admin({})
+
+            pipeline = get_pipeline()
             if len(parts) == 1 and parts[0] == "jobs":
                 jobs = pipeline.store.list_jobs()
                 jobs.sort(key=lambda j: j.get("createdAt", ""), reverse=True)
@@ -622,6 +696,8 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"Unknown route: {path}"}, status=404)
         except FileNotFoundError as exc:
             return self._send_json({"error": str(exc)}, status=404)
+        except PermissionError as exc:
+            return self._send_json({"error": str(exc)}, status=401)
         except Exception as exc:
             return self._send_json({"error": f"internal_error: {exc}"}, status=500)
 
@@ -633,6 +709,9 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
             if path in LEGACY_GENERATION_ENDPOINTS:
                 body, status = deprecated_generation_response(path)
                 return self._send_json(body, status=status)
+
+            if path not in AUTH_EXEMPT_POST_PATHS:
+                self._require_admin(payload)
 
             if path == "/provider-config/verify":
                 ok, err = _verify_settings_password(payload.get("password", ""))
@@ -691,6 +770,8 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
             return self._send_json({"error": f"Unknown route: {path}"}, status=404)
         except ValueError as exc:
             return self._send_json({"error": str(exc)}, status=400)
+        except PermissionError as exc:
+            return self._send_json({"error": str(exc)}, status=401)
         except FileNotFoundError as exc:
             return self._send_json({"error": str(exc)}, status=404)
         except subprocess.TimeoutExpired as exc:
@@ -701,7 +782,7 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
 
 def serve() -> None:
     port = int(os.environ.get("AGENT_BACKEND_PORT", "8081"))
-    host = os.environ.get("AGENT_BACKEND_HOST", "0.0.0.0")
+    host = os.environ.get("AGENT_BACKEND_HOST", "127.0.0.1")
     server = ThreadingHTTPServer((host, port), AgentBackendHandler)
     print(f"agent-backend listening on http://{host}:{port}")
     server.serve_forever()

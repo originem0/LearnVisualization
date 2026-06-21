@@ -137,6 +137,19 @@ export function NarrativeCallout({ content }: { content: string }) {
   );
 }
 
+export function NarrativeQuote({ content, cite }: { content: string; cite?: string }) {
+  return (
+    <figure className="my-6 border-l-[3px] border-[color:var(--color-border)] pl-4 sm:my-8">
+      <blockquote className="text-lg leading-8 text-[color:var(--color-text)]">
+        {parseInlineMarkdown(content)}
+      </blockquote>
+      {cite ? (
+        <figcaption className="mt-2 text-sm text-[color:var(--color-muted)]">{cite}</figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
 export function NarrativeSteps({ label, steps }: { label?: string; steps: StepItem[] }) {
   return (
     <div className="my-5 sm:my-7">
@@ -195,13 +208,15 @@ export function NarrativeBlockRenderer({ block }: { block: NarrativeBlock }) {
     case 'text':
       return <NarrativeText content={block.content} />;
     case 'code':
-      return <NarrativeCode content={block.content} label={block.label} />;
+      return <NarrativeCode content={block.content} label={(block.label || block.lang) as string | undefined} />;
     case 'diagram':
       return <NarrativeDiagram content={block.content} label={block.label} />;
     case 'comparison':
       return <NarrativeComparison content={block.content} label={block.label} />;
     case 'callout':
       return <NarrativeCallout content={block.content} />;
+    case 'quote':
+      return <NarrativeQuote content={block.content} cite={block.cite as string | undefined} />;
     case 'steps':
       return block.steps ? <NarrativeSteps label={block.label} steps={block.steps} /> : null;
     default:

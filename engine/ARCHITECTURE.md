@@ -6,10 +6,11 @@
 
 ```txt
 [ Agent Backend ]
-  主题输入 / research / 生成 / critique / review workflow
+  AI clarification / contract / generation / critique / review workflow
           ↓
 [ Course Package ]
-  course.json / modules / visuals / interactions
+  essay: course.json / chapters / review
+  legacy: course.json / modules / visuals / interactions
           ↓
 [ Engine / Build Layer ]
   validate / transform / compile / export
@@ -28,10 +29,25 @@
 ### Engine
 - 负责编译、校验、转换
 - 负责 course package → runtime data 的适配
+- 根据包形状选择 essay-course 或 legacy module-course 引擎
 
 ### Agent Backend
-- 负责 research / planning / generation / critique
+- 负责 AI 澄清 / contract gate / planning / generation / critique
 - 必须独立于 frontend runtime
+
+## 当前主链
+
+新课程只走 essay-course：
+
+```txt
+topic
+  → AI clarification contract
+  → essay spine plan
+  → chapters/cNN.json
+  → review/approval.json
+```
+
+legacy module-course 仍可读取和校验，但不是新的生成目标。
 
 ## 当前建议技术栈
 - Frontend：TypeScript / Next.js

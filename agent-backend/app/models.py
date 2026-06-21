@@ -1,6 +1,8 @@
 import re
 from typing import Any
 
+KNOWLEDGE_TYPES = {"factual", "conceptual", "procedural", "strategic", "metacognitive", "situational"}
+
 
 def _to_str_list(value: Any) -> list[str]:
     if isinstance(value, list):
@@ -18,6 +20,47 @@ def _to_bool(value: Any, default: bool = False) -> bool:
         if lowered in {"0", "false", "no", "off"}:
             return False
     return default
+
+
+def _to_contract_scope(value: Any) -> dict[str, Any]:
+    raw = value if isinstance(value, dict) else {}
+    return {
+        "include": _to_str_list(raw.get("include")),
+        "exclude": _to_str_list(raw.get("exclude")),
+        "depth": str(raw.get("depth") or "").strip(),
+    }
+
+
+def normalize_generation_contract(payload: dict[str, Any] | None) -> dict[str, Any]:
+    payload = payload or {}
+    raw = payload.get("contract")
+    if not isinstance(raw, dict):
+        raise ValueError("生成前必须先完成澄清，并提交 contract")
+
+    contract = {
+        "drivingQuestion": str(raw.get("drivingQuestion") or "").strip(),
+        "centralTension": str(raw.get("centralTension") or "").strip(),
+        "knowledgeType": str(raw.get("knowledgeType") or "").strip(),
+        "audience": str(raw.get("audience") or "").strip(),
+        "desiredOutcome": str(raw.get("desiredOutcome") or "").strip(),
+        "scope": _to_contract_scope(raw.get("scope")),
+    }
+
+    missing = [
+        key for key in ("drivingQuestion", "centralTension", "knowledgeType", "audience", "desiredOutcome")
+        if not contract[key]
+    ]
+    if missing:
+        raise ValueError(f"生成前必须先澄清学习契约，缺少字段: {', '.join(missing)}")
+    if contract["knowledgeType"] not in KNOWLEDGE_TYPES:
+        raise ValueError(f"knowledgeType must be one of: {', '.join(sorted(KNOWLEDGE_TYPES))}")
+    if not contract["scope"]["include"]:
+        raise ValueError("生成前必须明确 scope.include，不能一边追求全面一边追求细节")
+    if not contract["scope"]["exclude"]:
+        raise ValueError("生成前必须明确 scope.exclude，用来约束本课不讲什么")
+    if not contract["scope"]["depth"]:
+        raise ValueError("生成前必须明确 scope.depth")
+    return contract
 
 
 def validate_topic_text(topic: str) -> str | None:
@@ -103,12 +146,14 @@ def normalize_job_create_request(payload: dict[str, Any] | None) -> dict[str, An
     topic_error = validate_topic_text(topic_req["topic"])
     if topic_error:
         raise ValueError(topic_error)
+    contract = normalize_generation_contract(payload)
     return {
         **topic_req,
         "output_slug": str(payload.get("output_slug") or "").strip() or None,
         "overwrite": _to_bool(payload.get("overwrite"), default=False),
-        "background": str(payload.get("background") or "").strip() or None,
-        "learning_style": _to_str_list(payload.get("learning_style")),
+        "contract": contract,
+        "background": contract["audience"],
+        "learning_style": [],
     }
 
 

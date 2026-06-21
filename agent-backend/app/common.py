@@ -83,9 +83,11 @@ def validate_package_dir(
     repo_root: Path = REPO_ROOT,
     require_review_approval: bool = False,
 ) -> dict[str, Any]:
+    is_essay_package = (package_dir / "chapters").is_dir()
+    script = "scripts/validate-essay-course.mjs" if is_essay_package else "scripts/validate-course-package.mjs"
     command = [
         "node",
-        "scripts/validate-course-package.mjs",
+        script,
         "--dir",
         str(package_dir),
         "--json",
@@ -151,7 +153,51 @@ def validate_package_dir(
             },
         }
 
-    return parsed
+    if not is_essay_package:
+        return parsed
+
+    errors = [
+        {"category": "structure", "severity": "error", "message": str(message)}
+        for message in parsed.get("errors", [])
+    ]
+    warnings = [
+        {"category": "content", "severity": "warning", "message": str(message)}
+        for message in parsed.get("warnings", [])
+    ]
+    summary = parsed.get("summary") or {}
+    review_approval = parsed.get("reviewApproval") or {
+        "exists": False,
+        "approved": False,
+        "reviewedBy": None,
+        "reviewedAt": None,
+        "notes": None,
+    }
+    return {
+        "ok": bool(parsed.get("ok")),
+        "promoteReady": bool(parsed.get("promoteReady")),
+        "publishReady": bool(parsed.get("publishReady")),
+        "errors": errors,
+        "warnings": warnings,
+        "issuesByCategory": {
+            "structure": {"errors": errors, "warnings": []},
+            "content": {"errors": [], "warnings": warnings},
+            "registry": {"errors": [], "warnings": []},
+            "scaffold": {"errors": [], "warnings": []},
+            "review": {"errors": [], "warnings": []},
+        },
+        "summary": {
+            "slug": summary.get("slug") or package_dir.name,
+            "title": summary.get("title"),
+            "subtitle": summary.get("subtitle"),
+            "status": summary.get("status"),
+            "moduleCount": summary.get("chapterCount", 0),
+            "moduleIds": summary.get("chapterIds", []),
+            "chapterCount": summary.get("chapterCount", 0),
+            "chapterIds": summary.get("chapterIds", []),
+            "register": summary.get("register"),
+        },
+        "reviewApproval": review_approval,
+    }
 
 
 def load_env_file(path: Path) -> None:

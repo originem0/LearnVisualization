@@ -11,28 +11,22 @@ from typing import Any
 
 try:
     from .common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
+    from .essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
+    from .essay_quality import evaluate_chapter_quality
+    from .essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from .job_store import JobStore
-    from .prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_data_prompt, build_topic_validation_prompt
+    from .models import normalize_generation_contract
+    from .prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
     from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError
-    from .quality import (
-        build_concept_map,
-        build_interaction_registry,
-        normalize_module_payload,
-        normalize_plan_payload,
-    )
-    from .workflow import planning_seed_for_topic
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, slugify, validate_package_dir, write_json_atomic
+    from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
+    from essay_quality import evaluate_chapter_quality
+    from essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from job_store import JobStore
-    from prompt_assets import PROMPT_VERSION, build_module_prompts, build_plan_prompts, build_interaction_data_prompt
+    from models import normalize_generation_contract
+    from prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
     from provider import OpenAICompatibleClient, ProviderConfig, ProviderError
-    from quality import (
-        build_concept_map,
-        build_interaction_registry,
-        normalize_module_payload,
-        normalize_plan_payload,
-    )
-    from workflow import planning_seed_for_topic
 
 MAX_CONCURRENT_JOBS = 3
 COMPOSE_CONCURRENCY = 1
@@ -158,6 +152,7 @@ class CourseGenerationPipeline:
     def create_job(self, request_payload: dict[str, Any], *, run_async: bool = True) -> dict[str, Any]:
         if not request_payload.get("topic"):
             raise ValueError("topic is required")
+        request_payload["contract"] = normalize_generation_contract(request_payload)
 
         # --- Rate limiting ---
         today = date.today().isoformat()
@@ -312,7 +307,11 @@ class CourseGenerationPipeline:
                     job_id,
                     "plan",
                     artifact_path=plan_path,
-                    summary={"moduleCount": len(plan_artifact["moduleOutlines"]), "categoryCount": len(plan_artifact["categories"])},
+                    summary={
+                        "chapterCount": len(plan_artifact["chapters"]),
+                        "moduleCount": len(plan_artifact["chapters"]),
+                        "register": plan_artifact["register"],
+                    },
                 )
 
             self._check_cancelled(job_id)
@@ -328,7 +327,11 @@ class CourseGenerationPipeline:
                     job_id,
                     "compose",
                     artifact_path=compose_path,
-                    summary={"moduleCount": len(composed_artifact["modules"]), "outputSlug": composed_artifact["course"]["slug"]},
+                    summary={
+                        "chapterCount": len(composed_artifact["chapters"]),
+                        "moduleCount": len(composed_artifact["chapters"]),
+                        "outputSlug": composed_artifact["course"]["slug"],
+                    },
                 )
 
             self._check_cancelled(job_id)
@@ -370,37 +373,16 @@ class CourseGenerationPipeline:
 
             self._check_cancelled(job_id)
 
-            # --- AUTO-PROMOTE to courses/ ---
-            courses_dir = self.repo_root / "courses" / request_payload["output_slug"]
-            tmp_dir = courses_dir.with_name(courses_dir.name + ".tmp")
-            old_dir = courses_dir.with_name(courses_dir.name + ".old")
-            if tmp_dir.exists():
-                shutil.rmtree(tmp_dir)
-            if old_dir.exists():
-                shutil.rmtree(old_dir)
-            shutil.copytree(Path(export_artifact["outputDir"]), tmp_dir)
-            if courses_dir.exists():
-                courses_dir.rename(old_dir)
-            tmp_dir.rename(courses_dir)
-            if old_dir.exists():
-                shutil.rmtree(old_dir, ignore_errors=True)
-
-            # Clean up generated/ copy — courses/ now has the authoritative version
-            generated_dir = self.generated_root / request_payload["output_slug"]
-            if generated_dir.is_dir():
-                shutil.rmtree(generated_dir, ignore_errors=True)
-
-            # --- AUTO-BUILD (so static pages include the new course) ---
-            self._run_next_build(job_id)
-
             self.store.mark_waiting_review(
                 job_id,
                 output_dir=Path(export_artifact["outputDir"]),
                 summary={
                     "outputSlug": export_artifact["outputSlug"],
-                    "moduleCount": export_artifact["moduleCount"],
-                    "readyForPromote": False,
+                    "chapterCount": export_artifact["chapterCount"],
+                    "moduleCount": export_artifact["chapterCount"],
+                    "readyForPromote": True,
                     "reviewStatus": "pending",
+                    "published": False,
                 },
             )
             return self.store.load_job(job_id)
@@ -437,7 +419,7 @@ class CourseGenerationPipeline:
     ) -> dict[str, Any]:
         job = self.store.load_job(job_id)
         output_dir = Path((job.get("artifacts") or {}).get("output") or "")
-        if not output_dir:
+        if not output_dir or not output_dir.exists():
             raise ValueError("job has no exported output to review")
         approval_path = output_dir / "review" / "approval.json"
         approval_payload = {
@@ -449,16 +431,81 @@ class CourseGenerationPipeline:
         write_json_atomic(approval_path, approval_payload)
         updated_job = self.store.update_review(job_id, approved=approved, reviewed_by=reviewed_by, notes=notes)
         if approved:
+            promote_result = self._promote_reviewed_output(
+                job_id,
+                source_dir=output_dir,
+                target_slug=(job.get("request") or {}).get("output_slug") or output_dir.name,
+                overwrite=bool((job.get("request") or {}).get("overwrite", False)),
+            )
+            self._run_next_build(job_id)
+            with self.store.job_lock(job_id):
+                promoted_job = self.store.load_job(job_id)
+                promoted_job["artifacts"]["output"] = promote_result["targetDir"]
+                promoted_job["artifacts"]["reviewedOutput"] = str(output_dir)
+                promoted_job["resultSummary"] = {
+                    **(promoted_job.get("resultSummary") or {}),
+                    "published": True,
+                    "reviewStatus": "approved",
+                    "promotedTo": promote_result["targetDir"],
+                    "readyForPromote": False,
+                }
+                self.store.write_job(promoted_job)
             self.store.mark_completed(job_id)
             updated_job = self.store.load_job(job_id)
         return updated_job
 
+    def _promote_reviewed_output(
+        self,
+        job_id: str,
+        *,
+        source_dir: Path,
+        target_slug: str,
+        overwrite: bool,
+    ) -> dict[str, str]:
+        validation = validate_package_dir(source_dir, repo_root=self.repo_root, require_review_approval=True)
+        if not validation.get("promoteReady"):
+            raise ValueError(f"reviewed package is not promote-ready: {issue_messages(validation)}")
+
+        courses_dir = self.repo_root / "courses" / target_slug
+        tmp_dir = courses_dir.with_name(courses_dir.name + ".tmp")
+        old_dir = courses_dir.with_name(courses_dir.name + ".old")
+        if courses_dir.exists() and not overwrite:
+            raise ValueError(f"target course already exists: {courses_dir}")
+        if tmp_dir.exists():
+            shutil.rmtree(tmp_dir)
+        if old_dir.exists():
+            shutil.rmtree(old_dir)
+        shutil.copytree(source_dir, tmp_dir)
+        if courses_dir.exists():
+            courses_dir.rename(old_dir)
+        tmp_dir.rename(courses_dir)
+        if old_dir.exists():
+            shutil.rmtree(old_dir, ignore_errors=True)
+
+        post_validation = validate_package_dir(courses_dir, repo_root=self.repo_root, require_review_approval=True)
+        if not post_validation.get("promoteReady"):
+            raise ValueError(f"promoted package failed validation: {issue_messages(post_validation)}")
+
+        self.store.write_log(
+            job_id,
+            "promote",
+            json.dumps(
+                {
+                    "sourceDir": str(source_dir),
+                    "targetDir": str(courses_dir),
+                    "validation": post_validation,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+        return {"sourceDir": str(source_dir), "targetDir": str(courses_dir)}
+
     def _run_plan(self, job_id: str, request_payload: dict[str, Any], *, client: OpenAICompatibleClient | None = None) -> dict[str, Any]:
         client = client or self.client
-        seed = planning_seed_for_topic(request_payload["topic"])
-        system_prompt, user_prompt = build_plan_prompts(request_payload, seed)
+        system_prompt, user_prompt = build_essay_plan_prompts(request_payload)
         response = client.generate_json(
-            schema_name="course_plan",
+            schema_name="essay_course_plan",
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
@@ -476,11 +523,7 @@ class CourseGenerationPipeline:
                 indent=2,
             ),
         )
-        return normalize_plan_payload(
-            response["content"],
-            topic=request_payload["topic"],
-            slug=request_payload["output_slug"],
-        )
+        return self._normalize_essay_plan(response["content"], request_payload)
 
     def _run_compose(
         self,
@@ -491,11 +534,9 @@ class CourseGenerationPipeline:
         client: OpenAICompatibleClient | None = None,
     ) -> dict[str, Any]:
         client = client or self.client
-        modules: list[dict[str, Any]] = []
-        concept_maps: dict[str, Any] = {}
-        interaction_registry: dict[str, Any] = {}
+        chapters: list[dict[str, Any]] = []
         compose_logs: list[dict[str, Any]] = []
-        outlines = plan_artifact["moduleOutlines"]
+        chapter_plans = plan_artifact["chapterPlans"]
 
         # Load checkpoint if previous compose attempt partially completed
         checkpoint_path = self.store.job_dir(job_id) / "stages" / "compose_checkpoint.json"
@@ -505,156 +546,216 @@ class CourseGenerationPipeline:
             except ImportError:
                 from common import read_json
             checkpoint = read_json(checkpoint_path)
-            modules = checkpoint.get("modules", [])
-            concept_maps = checkpoint.get("concept_maps", {})
-            interaction_registry = checkpoint.get("interaction_registry", {})
+            chapters = checkpoint.get("chapters", [])
             compose_logs = checkpoint.get("compose_logs", [])
 
-        completed_ids = {m["id"] for m in modules}
+        completed_ids = {chapter["id"] for chapter in chapters}
+        prev_chapter_ending = self._last_chapter_ending(chapters[-1]) if chapters else None
 
-        # Collect remaining outlines to generate
-        remaining: list[tuple[int, dict[str, Any]]] = []
-        for index, outline in enumerate(outlines, start=1):
-            if outline["id"] not in completed_ids:
-                remaining.append((index, outline))
-
-        if not remaining:
-            # All modules already checkpointed
-            self.store.write_log(job_id, "compose", json.dumps(compose_logs, ensure_ascii=False, indent=2))
-            course = self._build_course_record(plan_artifact, modules)
-            return {"course": course, "modules": modules, "concept_maps": concept_maps,
-                    "interaction_registry": interaction_registry,
-                    "review_approval": {"approved": False, "reviewedBy": "", "reviewedAt": "",
-                                        "notes": "Generated by course pipeline. Human review approval is required before promote."}}
-
-        checkpoint_lock = threading.Lock()
-        errors: dict[str, Exception] = {}
-        concurrency = min(COMPOSE_CONCURRENCY, len(remaining))
-
-        def compose_one(index: int, outline: dict[str, Any]) -> tuple[int, dict[str, Any], dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+        for index, chapter_plan in enumerate(chapter_plans, start=1):
             self._check_cancelled(job_id)
-            next_module_id = outlines[index]["id"] if index < len(outlines) else None
-            system_prompt, user_prompt = build_module_prompts(
+            if chapter_plan["id"] in completed_ids:
+                continue
+
+            chapter, local_logs = self._compose_chapter_with_rewrites(
+                job_id=job_id,
                 request_payload=request_payload,
-                course_plan=plan_artifact,
-                module_outline=outline,
-                module_index=index,
-                module_count=len(outlines),
+                plan_artifact=plan_artifact,
+                chapter_plan=chapter_plan,
+                chapter_index=index,
+                client=client,
+                prev_chapter_ending=prev_chapter_ending,
             )
-            module_retries = int(client.config.max_retries) + 1
-            last_error: Exception | None = None
-            for attempt in range(module_retries):
-                try:
-                    response = client.generate_json(
-                        schema_name=f"{outline['id']}_module",
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                    )
-                    module = normalize_module_payload(
-                        response["content"],
-                        module_outline=outline,
-                        next_module_id=next_module_id,
-                    )
-                    cmap = build_concept_map(module)
-                    registry = build_interaction_registry(module)
+            chapters.append(chapter)
+            prev_chapter_ending = self._last_chapter_ending(chapter)
+            compose_logs.extend(local_logs)
 
-                    local_logs: list[dict[str, Any]] = []
-                    self._generate_interaction_data(module, job_id, local_logs, client=client)
+            write_json_atomic(checkpoint_path, {
+                "chapters": chapters,
+                "compose_logs": compose_logs,
+            })
 
-                    local_logs.append({
-                        "moduleId": module["id"],
-                        "systemPrompt": system_prompt,
-                        "userPrompt": user_prompt,
-                        "response": response["content"],
-                        "usage": response["usage"],
-                        "attempt": attempt + 1,
-                    })
-                    # Pace requests to avoid overwhelming the provider
-                    import time as _time
-                    _time.sleep(2)
-                    return (index, module, cmap, registry, local_logs)
-                except CancelledError:
-                    raise
-                except Exception as exc:
-                    last_error = exc
-                    import time, random
-                    time.sleep(3.0 * (2 ** attempt) + random.uniform(0, 1))
-            raise type(last_error)(f"模块 {outline['id']}（{outline['title']}）生成失败: {last_error}") if last_error else RuntimeError("unknown error")
-
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        with ThreadPoolExecutor(max_workers=concurrency, thread_name_prefix="compose") as executor:
-            future_to_index = {
-                executor.submit(compose_one, idx, outline): idx
-                for idx, outline in remaining
+            job = self.store.load_job(job_id)
+            compose_stage = next(s for s in job["stages"] if s["name"] == "compose")
+            compose_stage["summary"] = {
+                "chaptersCompleted": len(chapters),
+                "chaptersTotal": len(chapter_plans),
+                "modulesCompleted": len(chapters),
+                "modulesTotal": len(chapter_plans),
+                "currentChapter": chapter["id"],
             }
+            self.store.write_job(job)
 
-            for future in as_completed(future_to_index):
-                try:
-                    self._check_cancelled(job_id)
-                except CancelledError:
-                    executor.shutdown(wait=False, cancel_futures=True)
-                    raise
-
-                idx = future_to_index[future]
-                try:
-                    _, module, cmap, registry, local_logs = future.result()
-                except CancelledError:
-                    executor.shutdown(wait=False, cancel_futures=True)
-                    raise
-                except Exception as exc:
-                    errors[outlines[idx - 1]["id"]] = exc
-                    continue
-
-                # Thread-safe checkpoint update
-                with checkpoint_lock:
-                    modules.append(module)
-                    concept_maps[module["id"]] = cmap
-                    interaction_registry[module["id"]] = registry
-                    compose_logs.extend(local_logs)
-
-                    write_json_atomic(checkpoint_path, {
-                        "modules": modules,
-                        "concept_maps": concept_maps,
-                        "interaction_registry": interaction_registry,
-                        "compose_logs": compose_logs,
-                    })
-
-                    # Update progress
-                    job = self.store.load_job(job_id)
-                    compose_stage = next(s for s in job["stages"] if s["name"] == "compose")
-                    compose_stage["summary"] = {
-                        "modulesCompleted": len(modules),
-                        "modulesTotal": len(outlines),
-                    }
-                    self.store.write_job(job)
-
-        # Propagate errors — aggregate all failed module IDs into the message
-        if errors:
-            failed_ids = list(errors.keys())
-            first_error = next(iter(errors.values()))
-            if len(errors) == 1:
-                raise first_error
-            summary = "; ".join(f"{mid}" for mid in failed_ids)
-            raise type(first_error)(f"{len(errors)} 个模块生成失败（{summary}）: {first_error}")
-
-        # Sort modules by id to ensure consistent ordering
-        modules.sort(key=lambda m: m["id"])
-
+        chapters.sort(key=lambda chapter: chapter["number"])
         self.store.write_log(job_id, "compose", json.dumps(compose_logs, ensure_ascii=False, indent=2))
-        course = self._build_course_record(plan_artifact, modules)
+        course = self._build_course_record(plan_artifact, chapters)
         return {
             "course": course,
-            "modules": modules,
-            "concept_maps": concept_maps,
-            "interaction_registry": interaction_registry,
+            "chapters": chapters,
             "review_approval": {
                 "approved": False,
                 "reviewedBy": "",
                 "reviewedAt": "",
-                "notes": "Generated by course pipeline. Human review approval is required before promote.",
+                "notes": "Generated by essay-course pipeline. Human review approval is required before promote.",
             },
         }
+
+    def _normalize_essay_plan(self, payload: dict[str, Any], request_payload: dict[str, Any]) -> dict[str, Any]:
+        contract = request_payload["contract"]
+        raw_chapters = payload.get("chapters") if isinstance(payload, dict) else []
+        chapter_plans: list[dict[str, Any]] = []
+        if isinstance(raw_chapters, list):
+            for index, item in enumerate(raw_chapters[:6], start=1):
+                if isinstance(item, dict):
+                    chapter_id = str(item.get("id") or f"c{index:02d}").strip()
+                    title = str(item.get("title") or f"第 {index} 章").strip()
+                    role = str(item.get("role") or item.get("arc") or "").strip()
+                else:
+                    chapter_id = f"c{index:02d}"
+                    title = str(item).strip() or f"第 {index} 章"
+                    role = ""
+                if not chapter_id.startswith("c"):
+                    chapter_id = f"c{index:02d}"
+                chapter_plans.append({
+                    "id": f"c{index:02d}",
+                    "number": index,
+                    "title": title,
+                    "role": role or title,
+                })
+        if len(chapter_plans) < 4:
+            defaults = [
+                "立题：为什么这个问题值得回答",
+                "展开：先建立能工作的解释模型",
+                "转折：旧直觉在哪里失效",
+                "收束：回到问题给出可迁移判断",
+            ]
+            for index in range(len(chapter_plans) + 1, 5):
+                chapter_plans.append({
+                    "id": f"c{index:02d}",
+                    "number": index,
+                    "title": defaults[index - 1],
+                    "role": defaults[index - 1],
+                })
+
+        register = register_for_knowledge_type(contract["knowledgeType"])
+        normalized = normalize_essay_plan_payload(
+            {
+                **(payload if isinstance(payload, dict) else {}),
+                "register": register,
+                "knowledgeType": contract["knowledgeType"],
+                "drivingQuestion": contract["drivingQuestion"],
+                "centralTension": contract["centralTension"],
+                "chapters": [chapter["id"] for chapter in chapter_plans],
+            },
+            topic=request_payload["topic"],
+            slug=request_payload["output_slug"],
+        )
+        if not normalized["overview"]["arc"]:
+            normalized["overview"]["arc"] = [chapter["role"] for chapter in chapter_plans]
+        if not normalized["overview"]["whyExists"]:
+            normalized["overview"]["whyExists"] = contract["centralTension"]
+        if not normalized["overview"]["wherePoints"]:
+            normalized["overview"]["wherePoints"] = contract["desiredOutcome"]
+        raw_fact_spine = (payload.get("factSpine") if isinstance(payload, dict) else []) or []
+        normalized["factSpine"] = [
+            str(item).strip()
+            for item in raw_fact_spine
+            if str(item).strip()
+        ][:5]
+        normalized["chapterPlans"] = chapter_plans
+        return normalized
+
+    def _compose_chapter_with_rewrites(
+        self,
+        *,
+        job_id: str,
+        request_payload: dict[str, Any],
+        plan_artifact: dict[str, Any],
+        chapter_plan: dict[str, Any],
+        chapter_index: int,
+        client: OpenAICompatibleClient,
+        prev_chapter_ending: str | None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        local_logs: list[dict[str, Any]] = []
+        revision_feedback: str | None = None
+        attempts = 3
+        last_chapter: dict[str, Any] | None = None
+        last_judgement: dict[str, Any] | None = None
+        for attempt in range(attempts):
+            self._check_cancelled(job_id)
+            system_prompt, user_prompt = build_chapter_prompts(
+                request_payload=request_payload,
+                plan_artifact=plan_artifact,
+                chapter_plan=chapter_plan,
+                prev_chapter_ending=prev_chapter_ending,
+                revision_feedback=revision_feedback,
+            )
+            response = client.generate_json(
+                schema_name=f"{chapter_plan['id']}_chapter",
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+            chapter = normalize_chapter_payload(
+                response["content"],
+                chapter_id=chapter_plan["id"],
+                number=chapter_index,
+            )
+            if not chapter["role"]:
+                chapter["role"] = chapter_plan["role"]
+            if chapter_index == len(plan_artifact["chapterPlans"]):
+                chapter["bridge"] = None
+            judgement = self._judge_chapter(chapter, plan_artifact["register"], client=client)
+            local_logs.append({
+                "chapterId": chapter["id"],
+                "systemPrompt": system_prompt,
+                "userPrompt": user_prompt,
+                "response": response["content"],
+                "usage": response["usage"],
+                "attempt": attempt + 1,
+                "judgement": judgement,
+            })
+            last_chapter = chapter
+            last_judgement = judgement
+            if judgement.get("pass"):
+                return chapter, local_logs
+            revision_feedback = str(judgement.get("rewriteHint") or "; ".join(judgement.get("issues") or []))
+        raise ValueError(
+            f"章节 {chapter_plan['id']} 质量评审未通过: "
+            f"{(last_judgement or {}).get('issues') or (last_chapter or {}).get('title')}"
+        )
+
+    def _judge_chapter(self, chapter: dict[str, Any], register: str, *, client: OpenAICompatibleClient) -> dict[str, Any]:
+        local = evaluate_chapter_quality(chapter, register=register)
+        if not local.get("pass"):
+            return local
+        try:
+            system_prompt, user_prompt = build_judge_prompts(chapter, register=register)
+            response = client.generate_json(
+                schema_name=f"{chapter['id']}_quality_judge",
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=0.1,
+                max_tokens=800,
+            )
+            content = response.get("content") or {}
+            return {
+                "pass": bool(content.get("pass")),
+                "score": int(content.get("score") or 0),
+                "issues": content.get("issues") if isinstance(content.get("issues"), list) else [],
+                "rewriteHint": str(content.get("rewriteHint") or ""),
+            }
+        except Exception:
+            return local
+
+    def _last_chapter_ending(self, chapter: dict[str, Any] | None) -> str | None:
+        if not chapter:
+            return None
+        text_blocks = [
+            str(block.get("content") or "").strip()
+            for block in chapter.get("narrative", [])
+            if isinstance(block, dict) and block.get("type") == "text" and str(block.get("content") or "").strip()
+        ]
+        return "\n\n".join(text_blocks[-2:]) or None
 
     def _run_next_build(self, job_id: str) -> None:
         """Run npm run build to regenerate static pages with the new course."""
@@ -780,8 +881,10 @@ class CourseGenerationPipeline:
         export_artifact = {
             "outputSlug": request_payload["output_slug"],
             "outputDir": str(output_dir),
-            "moduleCount": len(composed_artifact["modules"]),
-            "moduleIds": [module["id"] for module in composed_artifact["modules"]],
+            "chapterCount": len(composed_artifact["chapters"]),
+            "chapterIds": [chapter["id"] for chapter in composed_artifact["chapters"]],
+            "moduleCount": len(composed_artifact["chapters"]),
+            "moduleIds": [chapter["id"] for chapter in composed_artifact["chapters"]],
             "postExportValidation": {
                 "ok": post_export_validation["ok"],
                 "warningCount": len(post_export_validation.get("warnings", [])),
@@ -790,37 +893,27 @@ class CourseGenerationPipeline:
         self.store.write_log(job_id, "export", json.dumps(export_artifact, ensure_ascii=False, indent=2))
         return export_artifact
 
-    def _build_course_record(self, plan_artifact: dict[str, Any], modules: list[dict[str, Any]]) -> dict[str, Any]:
+    def _build_course_record(self, plan_artifact: dict[str, Any], chapters: list[dict[str, Any]]) -> dict[str, Any]:
         return {
             "id": plan_artifact["id"],
             "slug": plan_artifact["slug"],
             "title": plan_artifact["title"],
             "subtitle": plan_artifact["subtitle"],
-            "goal": plan_artifact["goal"],
-            "projectType": plan_artifact.get("projectType") or "mixed",
-            "startDate": plan_artifact.get("startDate") or date.today().isoformat(),
             "topic": plan_artifact["topic"],
             "language": plan_artifact.get("language") or "zh",
             "status": "draft",
-            "categories": plan_artifact["categories"],
-            "audience": plan_artifact["audience"],
-            "learningGoals": plan_artifact["learningGoals"],
-            "nonGoals": plan_artifact.get("nonGoals") or [],
-            "assumptions": plan_artifact.get("assumptions") or [],
-            "philosophy": plan_artifact.get("philosophy") or {},
-            "paths": plan_artifact.get("paths") or [],
-            "moduleGraph": plan_artifact["moduleGraph"],
-            "modules": [module["id"] for module in modules],
+            "register": plan_artifact["register"],
+            "knowledgeType": plan_artifact["knowledgeType"],
+            "drivingQuestion": plan_artifact["drivingQuestion"],
+            "centralTension": plan_artifact["centralTension"],
+            "overview": plan_artifact["overview"],
+            "chapters": [chapter["id"] for chapter in chapters],
         }
 
     def _write_course_package(self, output_dir: Path, artifact: dict[str, Any]) -> None:
-        ensure_dir(output_dir / "modules")
-        ensure_dir(output_dir / "visuals")
-        ensure_dir(output_dir / "interactions")
+        ensure_dir(output_dir / "chapters")
         ensure_dir(output_dir / "review")
         write_json_atomic(output_dir / "course.json", artifact["course"])
-        for module in artifact["modules"]:
-            write_json_atomic(output_dir / "modules" / f"{module['id']}.json", module)
-        write_json_atomic(output_dir / "visuals" / "concept-maps.json", artifact["concept_maps"])
-        write_json_atomic(output_dir / "interactions" / "registry.json", artifact["interaction_registry"])
+        for chapter in artifact["chapters"]:
+            write_json_atomic(output_dir / "chapters" / f"{chapter['id']}.json", chapter)
         write_json_atomic(output_dir / "review" / "approval.json", artifact["review_approval"])

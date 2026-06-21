@@ -15,21 +15,26 @@
 
 ```txt
 courses/               课程包（主内容源）
-  llm-fundamentals/    LLM 原理课程（published，含手写交互组件）
-  postgresql-internals/  PostgreSQL 原理（draft，含手写交互组件）
-  git-internals/       Git 内部原理（AI 生成）
-  ...                  更多 AI 生成课程
+  llm-fundamentals/    精选 legacy 课程（published，含手写交互组件）
+  postgresql-internals/  精选 legacy 课程（draft，含手写交互组件）
+  git-internals/       精选 legacy 课程
+  claude-code/         精选 legacy 课程
+  course-*/            旧 AI 生成 legacy 课程（保留校验，默认不公开路由）
 agent-backend/         课程生成后端
-  app/pipeline.py      生成管线（plan → compose → validate → export → build）
-  app/prompt_assets.py 提示词工程
-  app/quality.py       内容规范化 + 质量检查
+  app/pipeline.py      essay 生成管线（plan → compose → validate → export）
+  app/essay_prompts.py contract-first essay prompt
+  app/essay_quality.py 本地章节质量门槛
   app/provider.py      LLM API 客户端
 engine/                课程包编译引擎
+  course-package-engine.mjs  legacy module-course 引擎
+  essay-course-engine.mjs    essay-course 引擎
+fixtures/              生成种子与测试夹具
 src/
   app/                 路由与页面
   components/          页面组件
     interactive/       27 个手写交互组件（llm/pg 课程专用）
-    InteractionRenderer.tsx  数据驱动通用交互渲染器（AI 生成课程用）
+    essay/             essay 课程目录与章节渲染
+    InteractionRenderer.tsx  trace 等少量通用高光渲染器
   lib/module-registry.ts  交互组件白名单
 design/                设计规范（5 份文件）
 ```
@@ -39,24 +44,30 @@ design/                设计规范（5 份文件）
 ```txt
 用户输入 topic
     ↓
+[Clarification] LLM 多轮澄清，产出 contract（固定问卷不能替代）
+    ↓
+[Contract Gate] /jobs/course-generation 必须提交 contract
+    ↓
 [输入门控] 规则校验 + LLM 主题验证/规范化/语义去重
     ↓
-[Plan] LLM 生成课程计划（模块大纲、知识类型、认知层级）
+[Plan] LLM 生成 essay spine + 4-6 章章节弧线
     ↓
-[Compose] 并发生成模块内容（3 worker 线程）+ 交互数据（JSON）
+[Compose] 串行生成 chapter，后章接收前章结尾，judge 不过则重写
     ↓
-[Validate] 引擎校验 + 质量检查
+[Validate] essay 引擎校验 + 本地质量检查
     ↓
-[Export] 写入 generated/ → 自动 promote 到 courses/ → npm run build
+[Export] 写入 generated/，等待人工 review
+    ↓
+[Review approved] promote 到 courses/ → npm run build
 ```
 
-核心设计：**交互组件不生成代码，生成数据**。5 种通用渲染器（compare/trace/simulate/classify/rebuild）根据 JSON 数据渲染交互 UI。
+核心设计：**新生成课程是 contract-first narrative essay**。生成结果只包含 `course.json`、`chapters/cNN.json`、`review/approval.json`；不再生成 `modules/`、`visuals/`、`interactions/`。旧 legacy 课程仍可渲染，但公开路由只保留精选课程。
 
 ## 资源限制
 
 - 每日生成上限：10 次
 - 课程总数上限：50 门（courses/ + generated/）
-- 模块并发度：3
+- 章节生成并发度：1（保证叙事连续）
 - 输入校验：最少 2 字符、不接受乱码/聊天语句、LLM 验证有效性
 
 ## 开发
@@ -84,13 +95,18 @@ cd agent-backend
 python3 -m app.main   # http://127.0.0.1:8081
 ```
 
+危险 POST 接口默认需要管理员 token。设置 `AGENT_ADMIN_TOKEN`（或复用 `AGENT_SETTINGS_PASSWORD`）后，前端会在首次需要时提示输入，并通过 `X-Agent-Admin-Token` 发送。
+
 主要端点：
 
+- `POST /clarify/start` — 开始澄清
+- `POST /clarify/respond` — 继续澄清；完成时返回 `contract`
 - `POST /jobs/course-generation` — 创建课程生成任务
 - `GET /jobs` — 列出所有任务
 - `GET /jobs/{id}` — 查询任务状态
 - `POST /jobs/{id}/cancel` — 取消任务
 - `POST /jobs/{id}/retry` — 重试失败任务
+- `POST /jobs/{id}/review` — 审核；批准后发布课程并重新构建静态站
 - `GET /courses` — 列出已有课程
 - `POST /courses/{slug}/delete` — 删除课程
 
@@ -109,6 +125,7 @@ npm run build
 
 - 学习科学驱动（Merrill 五原则、认知负荷理论、必要难度）
 - AI 辅助生成，人类把关质量
-- 焦点问题驱动，概念关系可视化
-- 数据驱动交互（不生成代码，生成结构化数据）
+- contract-first：没有澄清契约就不生成
+- 主线问题驱动，章节之间必须有连续叙事
+- 交互只作为必要高光，不再为每章强制生成
 - 静态导出，客户端自适应

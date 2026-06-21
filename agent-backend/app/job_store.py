@@ -189,7 +189,8 @@ class JobStore:
                 "reviewedAt": now_iso(),
                 "notes": notes,
             }
-            job["status"] = "completed" if approved else "waiting_review"
+            if not approved:
+                job["status"] = "waiting_review"
             return self.write_job(job)
 
     def prepare_retry(self, job_id: str, stage: str | None = None) -> dict[str, Any]:

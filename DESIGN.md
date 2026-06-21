@@ -15,7 +15,7 @@
 | 文件 | 回答什么问题 | 谁读 |
 |------|-------------|------|
 | `design/01-learning-principles.md` | 学习科学对系统设计提出了哪些硬约束？ | 产品设计者、课程作者、Agent prompt 工程 |
-| `design/02-content-model.md` | 课程、模块、叙事块、练习的数据结构是什么？ | 前端工程师、引擎开发者、Agent 输出校验 |
+| `design/02-content-model.md` | essay 课程、legacy 模块、叙事块的数据结构是什么？ | 前端工程师、引擎开发者、Agent 输出校验 |
 | `design/03-rendering-contract.md` | 不同知识类型、不同教学模式怎么渲染？ | 前端工程师、UI 设计师 |
 | `design/04-agent-contract.md` | Agent 生成课程时必须遵守什么规则？ | Agent prompt 工程、质量检查系统 |
 | `design/05-platform-architecture.md` | 引擎、前端、后端怎么分工？ | 全栈工程师、架构决策 |
@@ -54,7 +54,7 @@
 
 ## 快速导航
 
-开始新课程？读 `01` → `02` → `04`。
+开始新课程？读 `01` → `02` → `04`，先走 AI 澄清生成 contract。
 做前端？读 `02` → `03`。
 改 Agent？读 `01` → `02` → `04`。
 架构决策？读 `05`。
