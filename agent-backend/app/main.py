@@ -41,6 +41,12 @@ try:
     from .pipeline import CourseGenerationPipeline
     from .provider import OpenAICompatibleClient, ProviderConfig
     from .workflow import WORKFLOW_V1, retry_policy
+    from .clarification_store import get_store as get_clarification_store
+    from .clarification_prompts import (
+        build_clarification_system_prompt,
+        build_clarification_user_prompt,
+        build_fallback_questions,
+    )
 except ImportError:
     from common import (
         COURSES_ROOT as DEFAULT_COURSES_ROOT,
@@ -61,6 +67,12 @@ except ImportError:
     from pipeline import CourseGenerationPipeline
     from provider import OpenAICompatibleClient, ProviderConfig
     from workflow import WORKFLOW_V1, retry_policy
+    from clarification_store import get_store as get_clarification_store
+    from clarification_prompts import (
+        build_clarification_system_prompt,
+        build_clarification_user_prompt,
+        build_fallback_questions,
+    )
 
 REPO_ROOT = DEFAULT_REPO_ROOT
 COURSES_ROOT = DEFAULT_COURSES_ROOT
@@ -96,6 +108,160 @@ def get_pipeline() -> CourseGenerationPipeline:
         _pipeline.cleanup_stale_data()
         _pipeline.enqueue_pending_jobs()
     return _pipeline
+
+
+def handle_clarify_start(payload: dict) -> dict:
+    """
+    Start a new clarification dialogue.
+
+    Expects: {topic: string}
+    Returns: {conversationId: string, question: string}
+    """
+    topic = payload.get("topic", "").strip()
+    if not topic or len(topic) < 2:
+        raise ValueError("topic must be at least 2 characters")
+
+    # Create conversation
+    store = get_clarification_store()
+    conversation_id = store.create_conversation(topic)
+
+    # Generate first question using LLM
+    try:
+        pipeline = get_pipeline()
+        client = pipeline.provider_config.create_client()
+
+        system_prompt = build_clarification_system_prompt()
+        user_prompt = build_clarification_user_prompt(topic, [])
+
+        response = client.generate_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            max_tokens=500
+        )
+
+        question = response.get("question")
+        if not question:
+            # LLM returned complete (shouldn't happen on first turn, but handle it)
+            question = "请描述一下你想了解这个主题的哪个方面？"
+
+        # Store bot question
+        store.add_turn(conversation_id, "bot", question)
+
+        return {
+            "conversationId": conversation_id,
+            "question": question,
+            "roundNumber": 1
+        }
+
+    except Exception as e:
+        # Fallback to pre-defined question if LLM fails
+        fallback = build_fallback_questions()[0]
+        store.add_turn(conversation_id, "bot", fallback)
+        return {
+            "conversationId": conversation_id,
+            "question": fallback,
+            "roundNumber": 1,
+            "fallback": True
+        }
+
+
+def handle_clarify_respond(payload: dict) -> dict:
+    """
+    Respond to a clarification question.
+
+    Expects: {conversationId: string, answer: string}
+    Returns: {question: string, roundNumber: int}
+          OR {complete: true, drivingQuestion: string, centralTension: string, knowledgeType: string}
+    """
+    conversation_id = payload.get("conversationId", "").strip()
+    answer = payload.get("answer", "").strip()
+
+    if not conversation_id:
+        raise ValueError("conversationId is required")
+    if not answer or len(answer) < 2:
+        raise ValueError("answer must be at least 2 characters")
+
+    store = get_clarification_store()
+    conv = store.get_conversation(conversation_id)
+    if not conv:
+        raise ValueError(f"Conversation {conversation_id} not found or expired")
+
+    # Add user answer
+    store.add_turn(conversation_id, "user", answer)
+
+    # Get updated history
+    conv = store.get_conversation(conversation_id)
+    history = conv["history"]
+
+    # Generate next question or synthesis using LLM
+    try:
+        pipeline = get_pipeline()
+        client = pipeline.provider_config.create_client()
+
+        system_prompt = build_clarification_system_prompt()
+        user_prompt = build_clarification_user_prompt(conv["topic"], history)
+
+        response = client.generate_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.7,
+            max_tokens=800
+        )
+
+        # Check if complete
+        if response.get("complete"):
+            # Synthesis ready
+            driving_question = response.get("drivingQuestion", "")
+            central_tension = response.get("centralTension", "")
+            knowledge_type = response.get("knowledgeType", "conceptual")
+
+            if not driving_question or not central_tension:
+                raise ValueError("LLM synthesis missing required fields")
+
+            # Store synthesis
+            store.set_synthesis(
+                conversation_id,
+                driving_question,
+                central_tension,
+                knowledge_type
+            )
+
+            return {
+                "complete": True,
+                "drivingQuestion": driving_question,
+                "centralTension": central_tension,
+                "knowledgeType": knowledge_type,
+                "roundNumber": len([t for t in history if t["role"] == "bot"])
+            }
+
+        else:
+            # Continue dialogue
+            question = response.get("question", "")
+            if not question:
+                # Fallback
+                question = "能再详细描述一下吗？"
+
+            store.add_turn(conversation_id, "bot", question)
+
+            return {
+                "question": question,
+                "roundNumber": len([t for t in history if t["role"] == "bot"]) + 1
+            }
+
+    except Exception as e:
+        # Fallback question if LLM fails
+        fallback_questions = build_fallback_questions()
+        round_num = len([t for t in history if t["role"] == "bot"])
+        fallback = fallback_questions[min(round_num, len(fallback_questions) - 1)]
+
+        store.add_turn(conversation_id, "bot", fallback)
+
+        return {
+            "question": fallback,
+            "roundNumber": round_num + 1,
+            "fallback": True
+        }
 
 
 def health() -> dict:
@@ -486,6 +652,12 @@ class AgentBackendHandler(BaseHTTPRequestHandler):
                 if not ok:
                     return self._send_json({"ok": False, "error": err}, status=400)
                 return self._send_json(test_provider_connection())
+
+            if path == "/api/clarify/start":
+                return self._send_json(handle_clarify_start(payload))
+
+            if path == "/api/clarify/respond":
+                return self._send_json(handle_clarify_respond(payload))
 
             if path == "/jobs/course-generation":
                 pipeline = get_pipeline()

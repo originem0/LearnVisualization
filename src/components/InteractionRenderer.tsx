@@ -119,13 +119,66 @@ function CompareRenderer({ data }: { data: InteractionData }) {
 
 /* ── Trace / Step-through ── */
 
+// Code trace variant: renders code with line highlighting + variable state table
+type CodeTraceStep = { id: string; label: string; code: string; highlightLines?: number[]; variables?: Record<string, string>; detail: string };
+
+function CodeBlock({ code, highlightLines, label }: { code: string; highlightLines?: number[]; label?: string }) {
+  const lines = code.split('\n');
+  const hlSet = new Set(highlightLines || []);
+  // Infer language label from content
+  const displayLabel = label || (
+    /\b(def |import |from |class |print\()/.test(code) ? 'Python'
+    : /\b(const |let |var |function |=>)/.test(code) ? 'JavaScript'
+    : 'Code'
+  );
+  return (
+    <div className="relative overflow-hidden rounded-lg bg-[#F3F4F6] dark:bg-[#073642]">
+      <span className="absolute right-3 top-2 text-[10px] font-medium tracking-wide text-zinc-400 select-none dark:text-zinc-500">
+        {displayLabel}
+      </span>
+      <pre className="overflow-x-auto px-4 py-3 text-sm leading-relaxed">
+        {lines.map((line, i) => (
+          <div
+            key={i}
+            className={hlSet.has(i + 1) ? 'bg-yellow-200/40 dark:bg-yellow-500/15 -mx-4 px-4' : ''}
+          >
+            <span className="inline-block w-7 text-right mr-3 text-zinc-400 select-none text-xs">{i + 1}</span>
+            <span className="text-zinc-800 dark:text-[#eee8d5]">{line}</span>
+          </div>
+        ))}
+      </pre>
+    </div>
+  );
+}
+
+function VariableTable({ variables }: { variables: Record<string, string> }) {
+  const entries = Object.entries(variables);
+  if (entries.length === 0) return null;
+  return (
+    <div className="mt-2 rounded-lg border border-[color:var(--color-border)] overflow-hidden">
+      <div className="bg-[color:var(--color-bg)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-muted)]">变量状态</div>
+      <div className="divide-y divide-[color:var(--color-border)]">
+        {entries.map(([name, value]) => (
+          <div key={name} className="flex px-3 py-1.5 text-xs">
+            <span className="font-mono font-semibold text-[color:var(--color-accent)] w-28 shrink-0">{name}</span>
+            <span className="font-mono text-[color:var(--color-text)]">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TraceRenderer({ data }: { data: InteractionData }) {
-  const steps = (data.steps || []) as Array<{ id: string; label: string; detail: string; state: string; highlight: string }>;
+  const steps = (data.steps || []) as Array<{ id: string; label: string; detail: string; state: string; highlight: string; code?: string; highlightLines?: number[]; variables?: Record<string, string> }>;
   const [current, setCurrent] = useState(0);
   const [stateRevealed, setStateRevealed] = useState(false);
   const step = steps[current];
 
   if (!step) return null;
+
+  // Detect code variant: steps have `code` field
+  const isCodeVariant = (steps as CodeTraceStep[])[0]?.code != null;
 
   const goNext = () => {
     if (current < steps.length - 1) {
@@ -159,10 +212,18 @@ function TraceRenderer({ data }: { data: InteractionData }) {
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--color-accent)] text-[10px] font-bold text-white">{current + 1}</span>
           <span className="text-sm font-semibold text-[color:var(--color-text)]">{step.label}</span>
         </div>
+
+        {/* Code variant: show code block with line highlighting */}
+        {isCodeVariant && step.code && (
+          <div className="mb-3">
+            <CodeBlock code={step.code} highlightLines={step.highlightLines} />
+          </div>
+        )}
+
         <p className="text-sm text-[color:var(--color-text)] leading-relaxed">{step.detail}</p>
 
         {/* Prediction gate: show state only after user clicks */}
-        {step.state && !stateRevealed && (
+        {!isCodeVariant && step.state && !stateRevealed && (
           <button
             onClick={() => setStateRevealed(true)}
             className="mt-3 w-full rounded-lg border border-dashed border-[color:var(--color-accent)]/40 py-2 text-xs font-medium text-[color:var(--color-accent)] transition hover:bg-[color:var(--color-accent)]/5"
@@ -170,11 +231,25 @@ function TraceRenderer({ data }: { data: InteractionData }) {
             你预测结果是什么？想好了点击查看
           </button>
         )}
-        {step.state && stateRevealed && (
+        {!isCodeVariant && step.state && stateRevealed && (
           <div className="mt-3 rounded-lg bg-[#F3F4F6] px-3 py-2 dark:bg-[#073642]">
             <pre className="text-xs text-[color:var(--color-text)] whitespace-pre-wrap font-mono">{step.state}</pre>
           </div>
         )}
+
+        {/* Code variant: prediction gate for variable state */}
+        {isCodeVariant && step.variables && !stateRevealed && (
+          <button
+            onClick={() => setStateRevealed(true)}
+            className="mt-3 w-full rounded-lg border border-dashed border-[color:var(--color-accent)]/40 py-2 text-xs font-medium text-[color:var(--color-accent)] transition hover:bg-[color:var(--color-accent)]/5"
+          >
+            预测执行后各变量的值，想好了点击查看
+          </button>
+        )}
+        {isCodeVariant && step.variables && stateRevealed && (
+          <VariableTable variables={step.variables} />
+        )}
+
         {step.highlight && stateRevealed && (
           <div className="mt-2 text-xs font-medium text-[color:var(--color-accent)]">{step.highlight}</div>
         )}
@@ -204,7 +279,81 @@ function TraceRenderer({ data }: { data: InteractionData }) {
 
 /* ── Simulate / Parameter-play ── */
 
+// Code variant prediction: discrete code variants instead of continuous sliders
+type CodeVariant = { label: string; modifiedCode: string; expectedOutput: string; explanation: string };
+
+function CodeSimulateRenderer({ data }: { data: InteractionData }) {
+  const baseCode = data.baseCode as string;
+  const variants = (data.variants || []) as CodeVariant[];
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+
+  const variant = variants[activeIdx];
+
+  const revealCurrent = () => {
+    setRevealed((prev) => new Set(prev).add(activeIdx));
+  };
+
+  return (
+    <div>
+      <p className="text-sm text-[color:var(--color-muted)] mb-4">{data.description}</p>
+      {/* Base code */}
+      <div className="mb-4">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-muted)] mb-1.5">基准代码</div>
+        <CodeBlock code={baseCode} />
+      </div>
+      {/* Variant selector */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {variants.map((v, i) => (
+          <button
+            key={i}
+            onClick={() => setActiveIdx(i)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              activeIdx === i
+                ? 'border-[color:var(--color-accent)] bg-[color:var(--color-accent)]/10 text-[color:var(--color-accent)]'
+                : 'border-[color:var(--color-border)] text-[color:var(--color-muted)] hover:border-[color:var(--color-accent)]'
+            }`}
+          >
+            {v.label}
+            {revealed.has(i) && <span className="ml-1 text-emerald-500">✓</span>}
+          </button>
+        ))}
+      </div>
+      {/* Active variant */}
+      {variant && (
+        <div className="space-y-3">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--color-muted)] mb-1.5">修改后</div>
+            <CodeBlock code={variant.modifiedCode} />
+          </div>
+          {!revealed.has(activeIdx) ? (
+            <button
+              onClick={revealCurrent}
+              className="w-full rounded-lg border border-dashed border-[color:var(--color-accent)]/40 py-2 text-xs font-medium text-[color:var(--color-accent)] transition hover:bg-[color:var(--color-accent)]/5"
+            >
+              预测输出结果，想好了点击查看
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="rounded-lg bg-[#F3F4F6] px-3 py-2 dark:bg-[#073642]">
+                <div className="text-[10px] font-semibold text-[color:var(--color-muted)] mb-1">输出</div>
+                <pre className="text-xs text-[color:var(--color-text)] whitespace-pre-wrap font-mono">{variant.expectedOutput}</pre>
+              </div>
+              <p className="text-xs text-[color:var(--color-muted)] leading-relaxed">{variant.explanation}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SimulateRenderer({ data }: { data: InteractionData }) {
+  // Detect code variant: data has `baseCode` field
+  if (data.baseCode != null) {
+    return <CodeSimulateRenderer data={data} />;
+  }
+
   const parameters = (data.parameters || []) as Array<{ id: string; label: string; min: number; max: number; default: number; step: number; unit?: string }>;
   const presets = (data.presets || []) as Array<{ label: string; values: Record<string, number>; note: string }>;
   const scenarios = (data.scenarios || []) as Array<{ conditions: Record<string, [number, number]>; description: string; insight?: string }>;
