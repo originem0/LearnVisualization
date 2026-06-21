@@ -2,6 +2,7 @@ import re
 from typing import Any
 
 KNOWLEDGE_TYPES = {"factual", "conceptual", "procedural", "strategic", "metacognitive", "situational"}
+PROBLEM_NATURES = {"gap", "model_mismatch", "system_paradox"}
 
 
 def _to_str_list(value: Any) -> list[str]:
@@ -31,6 +32,17 @@ def _to_contract_scope(value: Any) -> dict[str, Any]:
     }
 
 
+def _to_problem_framing(value: Any) -> dict[str, str]:
+    raw = value if isinstance(value, dict) else {}
+    return {
+        "phenomenon": str(raw.get("phenomenon") or "").strip(),
+        "contrast": str(raw.get("contrast") or "").strip(),
+        "problemNature": str(raw.get("problemNature") or "").strip(),
+        "systemGoal": str(raw.get("systemGoal") or "").strip(),
+        "modelGap": str(raw.get("modelGap") or "").strip(),
+    }
+
+
 def normalize_generation_contract(payload: dict[str, Any] | None) -> dict[str, Any]:
     payload = payload or {}
     raw = payload.get("contract")
@@ -44,6 +56,7 @@ def normalize_generation_contract(payload: dict[str, Any] | None) -> dict[str, A
         "audience": str(raw.get("audience") or "").strip(),
         "desiredOutcome": str(raw.get("desiredOutcome") or "").strip(),
         "scope": _to_contract_scope(raw.get("scope")),
+        "problemFraming": _to_problem_framing(raw.get("problemFraming")),
     }
 
     missing = [
@@ -60,6 +73,15 @@ def normalize_generation_contract(payload: dict[str, Any] | None) -> dict[str, A
         raise ValueError("生成前必须明确 scope.exclude，用来约束本课不讲什么")
     if not contract["scope"]["depth"]:
         raise ValueError("生成前必须明确 scope.depth")
+    framing = contract["problemFraming"]
+    missing_framing = [
+        key for key in ("phenomenon", "contrast", "problemNature", "systemGoal", "modelGap")
+        if not framing[key]
+    ]
+    if missing_framing:
+        raise ValueError(f"生成前必须完成问题框定，缺少字段: problemFraming.{', problemFraming.'.join(missing_framing)}")
+    if framing["problemNature"] not in PROBLEM_NATURES:
+        raise ValueError(f"problemFraming.problemNature must be one of: {', '.join(sorted(PROBLEM_NATURES))}")
     return contract
 
 

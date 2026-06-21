@@ -12,8 +12,7 @@ if str(APP_DIR) not in sys.path:
 from clarification_store import ClarificationStore
 from clarification_prompts import (
     build_clarification_system_prompt,
-    build_clarification_user_prompt,
-    build_fallback_questions
+    build_clarification_user_prompt
 )
 
 
@@ -23,10 +22,13 @@ def test_prompt_generation():
     assert "drivingQuestion" in system_prompt
     assert "centralTension" in system_prompt
     assert "knowledgeType" in system_prompt
+    assert "problemFraming" in system_prompt
+    assert "差异现象" in system_prompt
 
     user_prompt = build_clarification_user_prompt("RAG", [])
     assert "RAG" in user_prompt
     assert "第 1 轮" in user_prompt
+    assert "problemFraming" in user_prompt
 
     # Test with history
     history = [
@@ -38,14 +40,6 @@ def test_prompt_generation():
     assert "My recall is low" in user_prompt
 
     print("✓ Prompt generation tests passed")
-
-
-def test_fallback_questions():
-    """Test that fallback questions exist."""
-    questions = build_fallback_questions()
-    assert len(questions) >= 3
-    assert all(isinstance(q, str) and len(q) > 0 for q in questions)
-    print("✓ Fallback questions test passed")
 
 
 def test_full_conversation_flow():
@@ -99,7 +93,6 @@ def test_round_guidance():
 
 if __name__ == "__main__":
     test_prompt_generation()
-    test_fallback_questions()
     test_full_conversation_flow()
     test_round_guidance()
     print("\n✅ All integration tests passed!")

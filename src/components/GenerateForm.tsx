@@ -53,6 +53,13 @@ interface CourseContract {
     exclude: string[];
     depth: string;
   };
+  problemFraming?: {
+    phenomenon: string;
+    contrast: string;
+    problemNature: string;
+    systemGoal: string;
+    modelGap: string;
+  };
 }
 
 const STAGE_LABELS_ZH: Record<string, string> = {
@@ -68,6 +75,23 @@ const STAGE_LABELS_EN: Record<string, string> = {
   validate: 'Validating content quality',
   export: 'Exporting course package',
 };
+
+const PROBLEM_NATURE_LABELS_ZH: Record<string, string> = {
+  gap: '现状与目标的落差',
+  model_mismatch: '旧模型解释不了现象',
+  system_paradox: '解决动作反而制造问题',
+};
+
+const PROBLEM_NATURE_LABELS_EN: Record<string, string> = {
+  gap: 'Gap between current and target state',
+  model_mismatch: 'Current model does not fit the phenomenon',
+  system_paradox: 'The attempted solution sustains the problem',
+};
+
+function formatProblemNature(value: string, isZh: boolean): string {
+  const labels = isZh ? PROBLEM_NATURE_LABELS_ZH : PROBLEM_NATURE_LABELS_EN;
+  return labels[value] || value;
+}
 
 // --- localStorage helpers ---
 
@@ -461,6 +485,26 @@ export default function GenerateForm({ locale }: { locale: string }) {
                 <strong>{isZh ? '核心张力：' : 'Central Tension: '}</strong>
                 {clarificationResult.centralTension}
               </div>
+              {clarificationResult.contract.problemFraming && (
+                <>
+                  <div className="text-[color:var(--color-muted)]">
+                    <strong>{isZh ? '差异现象：' : 'Phenomenon: '}</strong>
+                    {clarificationResult.contract.problemFraming.phenomenon}
+                  </div>
+                  <div className="text-[color:var(--color-muted)]">
+                    <strong>{isZh ? '对比关系：' : 'Contrast: '}</strong>
+                    {clarificationResult.contract.problemFraming.contrast}
+                  </div>
+                  <div className="text-[color:var(--color-muted)]">
+                    <strong>{isZh ? '问题类型：' : 'Problem Type: '}</strong>
+                    {formatProblemNature(clarificationResult.contract.problemFraming.problemNature, isZh)}
+                  </div>
+                  <div className="text-[color:var(--color-muted)]">
+                    <strong>{isZh ? '模型缺口：' : 'Model Gap: '}</strong>
+                    {clarificationResult.contract.problemFraming.modelGap}
+                  </div>
+                </>
+              )}
               <div className="text-[color:var(--color-muted)]">
                 <strong>{isZh ? '受众：' : 'Audience: '}</strong>
                 {clarificationResult.contract.audience}

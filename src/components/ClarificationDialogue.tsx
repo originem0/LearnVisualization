@@ -26,6 +26,13 @@ interface CourseContract {
     exclude: string[];
     depth: string;
   };
+  problemFraming?: {
+    phenomenon: string;
+    contrast: string;
+    problemNature: string;
+    systemGoal: string;
+    modelGap: string;
+  };
 }
 
 interface ClarificationDialogueProps {

@@ -46,7 +46,6 @@ try:
     from .clarification_prompts import (
         build_clarification_system_prompt,
         build_clarification_user_prompt,
-        build_fallback_questions,
     )
 except ImportError:
     from common import (
@@ -73,7 +72,6 @@ except ImportError:
     from clarification_prompts import (
         build_clarification_system_prompt,
         build_clarification_user_prompt,
-        build_fallback_questions,
     )
 
 REPO_ROOT = DEFAULT_REPO_ROOT
@@ -121,6 +119,27 @@ def get_pipeline() -> CourseGenerationPipeline:
     return _pipeline
 
 
+def _unwrap_llm_json_content(response: dict) -> dict:
+    """Support the current provider wrapper while keeping older test doubles usable."""
+    if not isinstance(response, dict):
+        return {}
+    content = response.get("content")
+    if isinstance(content, dict):
+        return content
+    return response
+
+
+def _clarification_gate_question(error: str) -> str:
+    if "problemFraming" in error:
+        return (
+            "我还不能把它收束成课程问题，因为缺少问题框定。请给一个具体差异现象："
+            "在哪个场景 A 会发生，换到哪个场景 B 就不发生，或你的直觉和实际观察哪里冲突？"
+        )
+    if "scope" in error:
+        return "范围还不够清楚。为了让课程有取舍，这门课必须讲什么、明确不讲什么、讲到什么深度？"
+    return "我还不能把它收束成课程契约。请补充一个具体例子：你观察到了什么现象，它和你的预期哪里不一致？"
+
+
 def handle_clarify_start(payload: dict) -> dict:
     """
     Start a new clarification dialogue.
@@ -139,22 +158,23 @@ def handle_clarify_start(payload: dict) -> dict:
     # Generate first question using LLM
     try:
         pipeline = get_pipeline()
-        client = pipeline.provider_config.create_client()
+        client = pipeline.client
 
         system_prompt = build_clarification_system_prompt()
         user_prompt = build_clarification_user_prompt(topic, [])
 
         response = client.generate_json(
+            schema_name="clarification_start",
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.7,
-            max_tokens=500
+            max_tokens=700
         )
+        content = _unwrap_llm_json_content(response)
 
-        question = response.get("question")
+        question = str(content.get("question") or "").strip()
         if not question:
-            # LLM returned complete (shouldn't happen on first turn, but handle it)
-            question = "请描述一下你想了解这个主题的哪个方面？"
+            raise ValueError("clarification model did not return a question")
 
         # Store bot question
         store.add_turn(conversation_id, "bot", question)
@@ -166,14 +186,14 @@ def handle_clarify_start(payload: dict) -> dict:
         }
 
     except Exception as e:
-        # Fallback to pre-defined question if LLM fails
-        fallback = build_fallback_questions()[0]
-        store.add_turn(conversation_id, "bot", fallback)
+        import sys
+        print(f"[clarify] start fallback: {e}", file=sys.stderr)
         return {
             "conversationId": conversation_id,
-            "question": fallback,
+            "question": "",
             "roundNumber": 1,
-            "fallback": True
+            "fallback": True,
+            "error": "AI clarification unavailable"
         }
 
 
@@ -208,31 +228,43 @@ def handle_clarify_respond(payload: dict) -> dict:
     # Generate next question or synthesis using LLM
     try:
         pipeline = get_pipeline()
-        client = pipeline.provider_config.create_client()
+        client = pipeline.client
 
         system_prompt = build_clarification_system_prompt()
         user_prompt = build_clarification_user_prompt(conv["topic"], history)
 
         response = client.generate_json(
+            schema_name="clarification_respond",
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.7,
-            max_tokens=800
+            max_tokens=1200
         )
+        content = _unwrap_llm_json_content(response)
 
         # Check if complete
-        if response.get("complete"):
-            raw_contract = response.get("contract")
+        if content.get("complete"):
+            raw_contract = content.get("contract")
             if not isinstance(raw_contract, dict):
                 raw_contract = {
-                    "drivingQuestion": response.get("drivingQuestion", ""),
-                    "centralTension": response.get("centralTension", ""),
-                    "knowledgeType": response.get("knowledgeType", "conceptual"),
-                    "audience": response.get("audience", ""),
-                    "desiredOutcome": response.get("desiredOutcome", ""),
-                    "scope": response.get("scope") or {},
+                    "drivingQuestion": content.get("drivingQuestion", ""),
+                    "centralTension": content.get("centralTension", ""),
+                    "knowledgeType": content.get("knowledgeType", "conceptual"),
+                    "audience": content.get("audience", ""),
+                    "desiredOutcome": content.get("desiredOutcome", ""),
+                    "scope": content.get("scope") or {},
                 }
-            contract = normalize_generation_contract({"topic": conv["topic"], "contract": raw_contract})
+            try:
+                contract = normalize_generation_contract({"topic": conv["topic"], "contract": raw_contract})
+            except ValueError as exc:
+                question = _clarification_gate_question(str(exc))
+                next_round = len([t for t in history if t["role"] == "bot"]) + 1
+                store.add_turn(conversation_id, "bot", question)
+                return {
+                    "question": question,
+                    "roundNumber": next_round,
+                    "needsMoreEvidence": True
+                }
 
             # Store synthesis
             store.set_synthesis(
@@ -253,30 +285,28 @@ def handle_clarify_respond(payload: dict) -> dict:
 
         else:
             # Continue dialogue
-            question = response.get("question", "")
+            question = str(content.get("question") or "").strip()
             if not question:
-                # Fallback
-                question = "能再详细描述一下吗？"
+                raise ValueError("clarification model did not return a question")
 
+            next_round = len([t for t in history if t["role"] == "bot"]) + 1
             store.add_turn(conversation_id, "bot", question)
 
             return {
                 "question": question,
-                "roundNumber": len([t for t in history if t["role"] == "bot"]) + 1
+                "roundNumber": next_round
             }
 
     except Exception as e:
-        # Fallback question if LLM fails
-        fallback_questions = build_fallback_questions()
+        import sys
+        print(f"[clarify] respond fallback: {e}", file=sys.stderr)
         round_num = len([t for t in history if t["role"] == "bot"])
-        fallback = fallback_questions[min(round_num, len(fallback_questions) - 1)]
-
-        store.add_turn(conversation_id, "bot", fallback)
 
         return {
-            "question": fallback,
+            "question": "",
             "roundNumber": round_num + 1,
-            "fallback": True
+            "fallback": True,
+            "error": "AI clarification unavailable"
         }
 
 

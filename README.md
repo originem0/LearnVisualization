@@ -45,6 +45,8 @@ design/                设计规范（5 份文件）
 用户输入 topic
     ↓
 [Clarification] LLM 多轮澄清，产出 contract（固定问卷不能替代）
+    ├─ 收束差异现象：相比什么不同、哪种条件下失效、直觉与现实哪里冲突
+    └─ 标注问题框定：gap / model_mismatch / system_paradox + 系统目标 + 模型缺口
     ↓
 [Contract Gate] /jobs/course-generation 必须提交 contract
     ↓
@@ -125,7 +127,7 @@ npm run build
 
 - 学习科学驱动（Merrill 五原则、认知负荷理论、必要难度）
 - AI 辅助生成，人类把关质量
-- contract-first：没有澄清契约就不生成
+- contract-first：没有澄清契约就不生成；契约必须包含差异现象和问题框定
 - 主线问题驱动，章节之间必须有连续叙事
 - 交互只作为必要高光，不再为每章强制生成
 - 静态导出，客户端自适应

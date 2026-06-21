@@ -10,7 +10,15 @@
 - `validate`：essay-course schema 校验 + 本地质量检查
 - `export`：导出待审课程包
 
-`POST /jobs/course-generation` 必须提交 `contract`。旧的顶层 `drivingQuestion` / `centralTension` 等字段不能绕过门禁。澄清必须由 LLM 参与生成下一问和最终 contract；固定问题只允许作为故障兜底提示，不能替代 contract。
+`POST /jobs/course-generation` 必须提交 `contract`。旧的顶层 `drivingQuestion` / `centralTension` 等字段不能绕过门禁。澄清必须由 LLM 参与生成下一问和最终 contract；固定问题不能替代 contract。
+
+澄清完成的标准不是“问够几轮”，而是形成问题框定：
+
+- `phenomenon`：用户观察到的具体现象
+- `contrast`：A/B 差异、条件变化或直觉与现实的冲突
+- `problemNature`：`gap`、`model_mismatch`、`system_paradox` 三选一
+- `systemGoal`：真正要理解或改善的系统状态，不是指标
+- `modelGap`：用户当前缺少的对象、关系、条件或边界模型
 
 ## 端点
 

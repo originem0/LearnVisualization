@@ -92,6 +92,13 @@ def contract() -> dict:
             "exclude": ["分布式一致性", "缓存集群运维"],
             "depth": "围绕关键机制深挖，4-6章",
         },
+        "problemFraming": {
+            "phenomenon": "同样是 key-value 读取，普通字典命中后状态不变，但缓存命中会更新 recency，过期或容量压力也会改变结果",
+            "contrast": "直觉把缓存当快字典；真实缓存会因为时间、容量和访问历史让同一个 key 得到不同命运",
+            "problemNature": "model_mismatch",
+            "systemGoal": "建立缓存系统如何同时维护有效性、容量和访问价值的运行模型",
+            "modelGap": "缺少命中路径、TTL、淘汰策略和元数据更新之间的关系模型",
+        },
     }
 
 
@@ -165,6 +172,11 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         }
         with self.assertRaises(ValueError):
             pipeline.create_job(legacy_payload, run_async=False)
+
+        incomplete_contract = contract()
+        incomplete_contract.pop("problemFraming")
+        with self.assertRaises(ValueError):
+            pipeline.create_job({"topic": "缓存系统 internals", "contract": incomplete_contract}, run_async=False)
 
 
 if __name__ == "__main__":

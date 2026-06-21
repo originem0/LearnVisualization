@@ -21,13 +21,17 @@ def test_handle_clarify_start_with_mock_llm():
     """Test handle_clarify_start with mocked LLM."""
 
     # Mock the LLM response
-    mock_response = {"question": "你在学习 RAG 时遇到了什么具体问题？"}
+    mock_response = {
+        "content": {"question": "你在学习 RAG 时遇到了什么具体问题？"},
+        "usage": {},
+        "model": "mock-model"
+    }
 
     with patch('main.get_pipeline') as mock_pipeline:
         # Setup mock
         mock_client = Mock()
         mock_client.generate_json.return_value = mock_response
-        mock_pipeline.return_value.provider_config.create_client.return_value = mock_client
+        mock_pipeline.return_value.client = mock_client
 
         # Call handler
         result = handle_clarify_start({"topic": "RAG"})
@@ -35,8 +39,9 @@ def test_handle_clarify_start_with_mock_llm():
         # Verify result
         assert "conversationId" in result
         assert "question" in result
-        assert result["question"] == mock_response["question"]
+        assert result["question"] == mock_response["content"]["question"]
         assert result["roundNumber"] == 1
+        assert mock_client.generate_json.call_args.kwargs["schema_name"] == "clarification_start"
 
         print("✓ handle_clarify_start works with mocked LLM")
         print(f"  Generated question: {result['question']}")
@@ -51,16 +56,16 @@ def test_handle_clarify_start_fallback():
         # Make LLM fail
         mock_pipeline.side_effect = Exception("LLM unavailable")
 
-        # Call handler - should use fallback
+        # Call handler - should report unavailable, not substitute fixed questions
         result = handle_clarify_start({"topic": "Python装饰器"})
 
         assert "conversationId" in result
-        assert "question" in result
+        assert result["question"] == ""
         assert result["fallback"] == True
         assert result["roundNumber"] == 1
+        assert result["error"] == "AI clarification unavailable"
 
-        print("✓ handle_clarify_start fallback works")
-        print(f"  Fallback question: {result['question']}")
+        print("✓ handle_clarify_start reports unavailable without fixed template")
 
 
 def test_handle_clarify_respond_continue():
@@ -72,12 +77,16 @@ def test_handle_clarify_respond_continue():
     store.add_turn(conv_id, "bot", "你遇到什么问题？")
 
     # Mock LLM to return next question
-    mock_response = {"question": "能具体描述一下你的场景吗？"}
+    mock_response = {
+        "content": {"question": "能具体描述一下你的场景吗？"},
+        "usage": {},
+        "model": "mock-model"
+    }
 
     with patch('main.get_pipeline') as mock_pipeline:
         mock_client = Mock()
         mock_client.generate_json.return_value = mock_response
-        mock_pipeline.return_value.provider_config.create_client.return_value = mock_client
+        mock_pipeline.return_value.client = mock_client
 
         # Call handler
         result = handle_clarify_respond({
@@ -87,10 +96,9 @@ def test_handle_clarify_respond_continue():
 
         assert "question" in result
         assert not result.get("complete")
-        # history is a reference to the store's list, so it includes the new bot turn
-        # Initial: bot1, after adding user1 and bot2: [bot1, user1, bot2]
-        # len([bot1, bot2]) + 1 = 2 + 1 = 3
-        assert result["roundNumber"] == 3
+        assert result["question"] == mock_response["content"]["question"]
+        assert mock_client.generate_json.call_args.kwargs["schema_name"] == "clarification_respond"
+        assert result["roundNumber"] == 2
 
         print("✓ handle_clarify_respond continues dialogue")
         print(f"  Next question: {result['question']}")
@@ -110,25 +118,36 @@ def test_handle_clarify_respond_complete():
 
     # Mock LLM to return synthesis
     mock_response = {
-        "complete": True,
-        "contract": {
-            "drivingQuestion": "Python装饰器中的闭包作用域如何工作？",
-            "centralTension": "多层函数嵌套使变量捕获机制不直观",
-            "knowledgeType": "conceptual",
-            "audience": "写过 Python 函数但不理解闭包的新手",
-            "desiredOutcome": "能解释装饰器里变量如何被捕获",
-            "scope": {
-                "include": ["闭包", "作用域", "装饰器调用时机"],
-                "exclude": ["元类", "完整 descriptor 协议"],
-                "depth": "围绕机制深挖，4-6章"
+        "content": {
+            "complete": True,
+            "contract": {
+                "drivingQuestion": "Python装饰器中的闭包作用域如何工作？",
+                "centralTension": "多层函数嵌套使变量捕获机制不直观",
+                "knowledgeType": "conceptual",
+                "audience": "写过 Python 函数但不理解闭包的新手",
+                "desiredOutcome": "能解释装饰器里变量如何被捕获",
+                "scope": {
+                    "include": ["闭包", "作用域", "装饰器调用时机"],
+                    "exclude": ["元类", "完整 descriptor 协议"],
+                    "depth": "围绕机制深挖，4-6章"
+                },
+                "problemFraming": {
+                    "phenomenon": "写装饰器时函数能执行，但引用外层变量时出现 UnboundLocalError",
+                    "contrast": "普通函数调用里变量查找看似直接，但装饰器多层嵌套后同名变量的读写结果不同",
+                    "problemNature": "model_mismatch",
+                    "systemGoal": "理解装饰器调用链和闭包变量捕获如何共同决定运行时行为",
+                    "modelGap": "缺少函数对象、作用域链、闭包 cell 与赋值语义之间的关系模型"
+                }
             }
-        }
+        },
+        "usage": {},
+        "model": "mock-model"
     }
 
     with patch('main.get_pipeline') as mock_pipeline:
         mock_client = Mock()
         mock_client.generate_json.return_value = mock_response
-        mock_pipeline.return_value.provider_config.create_client.return_value = mock_client
+        mock_pipeline.return_value.client = mock_client
 
         # Call handler
         result = handle_clarify_respond({
@@ -137,10 +156,11 @@ def test_handle_clarify_respond_complete():
         })
 
         assert result["complete"] == True
-        assert result["contract"]["drivingQuestion"] == mock_response["contract"]["drivingQuestion"]
-        assert result["drivingQuestion"] == mock_response["contract"]["drivingQuestion"]
-        assert result["centralTension"] == mock_response["contract"]["centralTension"]
-        assert result["knowledgeType"] == mock_response["contract"]["knowledgeType"]
+        assert result["contract"]["drivingQuestion"] == mock_response["content"]["contract"]["drivingQuestion"]
+        assert result["drivingQuestion"] == mock_response["content"]["contract"]["drivingQuestion"]
+        assert result["centralTension"] == mock_response["content"]["contract"]["centralTension"]
+        assert result["knowledgeType"] == mock_response["content"]["contract"]["knowledgeType"]
+        assert mock_client.generate_json.call_args.kwargs["schema_name"] == "clarification_respond"
 
         # Verify synthesis was stored
         conv = store.get_conversation(conv_id)
