@@ -76,6 +76,11 @@ class TestChapterNormalization(unittest.TestCase):
         block = validate_essay_narrative_block({"type": "steps", "content": "x"}, 0)
         self.assertEqual(block["type"], "text")
 
+    def test_heading_aliases_are_preserved_as_headings(self):
+        for alias in ("section", "subheading", "h2", "h3"):
+            block = validate_essay_narrative_block({"type": alias, "content": "小节标题"}, 0)
+            self.assertEqual(block["type"], "heading")
+
     def test_code_block_keeps_lang(self):
         block = validate_essay_narrative_block({"type": "code", "content": "print(1)", "lang": "python"}, 0)
         self.assertEqual(block["lang"], "python")

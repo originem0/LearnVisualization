@@ -5,6 +5,13 @@ from typing import Any
 REGISTERS = {"explainer", "essay"}
 WRITING_MODES = {"conceptual-essay", "case-narrative", "mechanism-explainer"}
 BLOCK_TYPES = {"text", "heading", "callout", "code", "quote"}
+BLOCK_TYPE_ALIASES = {
+    "paragraph": "text",
+    "section": "heading",
+    "subheading": "heading",
+    "h2": "heading",
+    "h3": "heading",
+}
 HIGHLIGHT_KINDS = {"bespoke", "trace"}
 ESSAY_KNOWLEDGE_TYPES = {"conceptual", "strategic", "metacognitive"}
 CONCEPTUAL_WRITING_TYPES = {"conceptual", "strategic", "metacognitive"}
@@ -66,6 +73,7 @@ def normalize_essay_plan_payload(payload: dict[str, Any] | None, *, topic: str, 
 def validate_essay_narrative_block(block: dict[str, Any] | None, index: int) -> dict[str, Any]:
     b = block or {}
     btype = _s(b.get("type")) or "text"
+    btype = BLOCK_TYPE_ALIASES.get(btype, btype)
     if btype not in BLOCK_TYPES:
         btype = "text"
     out: dict[str, Any] = {"type": btype, "content": _s(b.get("content"))}

@@ -135,6 +135,37 @@ class ConceptualEssayQualityTests(unittest.TestCase):
         self.assertTrue(any("章节 role" in issue for issue in result["issues"]))
         self.assertTrue(any("比较对象喧宾夺主" in issue for issue in result["issues"]))
 
+    def test_conceptual_quality_allows_bounded_comparison_mentions(self):
+        chapter_plan = {
+            "id": "c03",
+            "number": 3,
+            "title": "超人与价值重估：创造新尺度的尝试",
+            "role": "展示尼采的跨越策略：超人如何通过价值重估克服不自知的虚无主义",
+        }
+        chapter = {
+            "id": "c03",
+            "number": 3,
+            "title": chapter_plan["title"],
+            "role": chapter_plan["role"],
+            "narrative": [
+                {"type": "heading", "content": "超人不是强者神话"},
+                {"type": "text", "content": "超人首先是价值重估的承担者。尼采的问题不是谁更有力量，而是谁能在旧尺度失效后重新刻下尺度。"},
+                {"type": "text", "content": "价值重估要求人不再把旧道德残渣误认为常识。这里可以顺手区分萨特：萨特谈自由选择，但本章只用这个差异凸显尼采的尺度创造。"},
+                {"type": "heading", "content": "价值重估如何克服虚无"},
+                {"type": "text", "content": "具体说，重估不是把偏好改名为价值，而是改变评价发生的根据。超人要创造的不是一个新口号，而是一套能让生命重新排序的度量衡。"},
+                {"type": "text", "content": "因此，萨特只作为后文对照的边界：本章主轴仍是尼采如何把虚无主义问题推进到超人与价值重估。"},
+            ],
+        }
+
+        result = evaluate_chapter_quality(
+            chapter,
+            register="essay",
+            writing_mode="conceptual-essay",
+            chapter_plan=chapter_plan,
+        )
+
+        self.assertTrue(result["pass"], result["issues"])
+
 
 if __name__ == "__main__":
     unittest.main()
