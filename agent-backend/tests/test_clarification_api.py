@@ -24,11 +24,23 @@ def test_prompt_generation():
     assert "knowledgeType" in system_prompt
     assert "problemFraming" in system_prompt
     assert "差异现象" in system_prompt
+    assert "初学者定位" in system_prompt
+    assert "用户说“不知道" in system_prompt
 
     user_prompt = build_clarification_user_prompt("RAG", [])
     assert "RAG" in user_prompt
     assert "第 1 轮" in user_prompt
     assert "problemFraming" in user_prompt
+
+    beginner_prompt = build_clarification_user_prompt(
+        "尼采",
+        [
+            {"role": "bot", "text": "你怎么看超人？"},
+            {"role": "user", "text": "我不知道超人是什么意思"},
+        ],
+    )
+    assert "初学者位置" in beginner_prompt
+    assert "不要继续追问陌生概念比较" in beginner_prompt
 
     # Test with history
     history = [

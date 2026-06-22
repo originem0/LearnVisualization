@@ -14,6 +14,7 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from unittest.mock import Mock, patch
+import main
 from main import handle_clarify_start, handle_clarify_respond
 from clarification_store import get_store
 
@@ -225,6 +226,59 @@ def test_handle_clarify_respond_rejects_weak_synthesis():
         assert not result.get("complete")
         assert result["needsMoreEvidence"] == True
         assert "gateIssue" in result
+        assert "problemFraming" not in result["question"]
+
+
+def test_beginner_uncertainty_allows_inferred_contrast():
+    """A beginner saying 'I don't know' can rely on the agent to infer the organizing contrast."""
+
+    history = [
+        {"role": "bot", "text": "你怎么看尼采的超人？"},
+        {"role": "user", "text": "我不知道超人或权力意志是什么意思"},
+        {"role": "bot", "text": "那你对上帝已死有什么直觉？"},
+        {"role": "user", "text": "我知道上帝已死，但不知道为什么会涉及超人"},
+        {"role": "bot", "text": "如果没有信仰你希望怎样？"},
+        {"role": "user", "text": "迷茫时希望有指引"},
+    ]
+    contract = {
+        "drivingQuestion": "尼采为什么认为上帝已死会引出超人问题？",
+        "centralTension": "用户直觉里失去信仰只是少了旧指南，但尼采把它看成价值来源的危机。",
+        "knowledgeType": "conceptual",
+        "audience": "对尼采好奇但不了解核心概念的初学者",
+        "desiredOutcome": "能解释上帝已死、虚无主义、超人和权力意志之间的来龙去脉",
+        "scope": {
+            "include": ["上帝已死", "虚无主义", "超人", "权力意志"],
+            "exclude": ["萨特专题", "存在主义通史"],
+            "depth": "从前因和概念关系入门",
+        },
+        "problemFraming": {
+            "phenomenon": "用户听过上帝已死，却不知道为什么它会引出超人和权力意志。",
+            "contrast": "失去旧指南针与重新创造价值来源",
+            "problemNature": "model_mismatch",
+            "systemGoal": "建立尼采核心概念如何回应价值危机的解释链条",
+            "modelGap": "缺少上帝已死、虚无主义、超人和权力意志之间的关系模型",
+        },
+    }
+
+    assert main._clarification_readiness_issue(contract, history) is None
+
+
+def test_beginner_gate_followup_does_not_exam_user():
+    history = [
+        {"role": "bot", "text": "你怎么看超人？"},
+        {"role": "user", "text": "我不知道超人是什么意思"},
+    ]
+
+    question = main._clarification_gate_followup(
+        "problemFraming.contrast 必须写出 A/B 差异、条件变化或直觉与现实冲突",
+        "尼采",
+        history,
+    )
+
+    assert "problemFraming" not in question
+    assert "A/B" not in question
+    assert "初学" in question
+    assert "直接回“对”" in question
 
 
 def test_error_handling():
@@ -268,6 +322,12 @@ class ClarificationHandlerMockTests(unittest.TestCase):
     def test_respond_rejects_weak_synthesis(self):
         test_handle_clarify_respond_rejects_weak_synthesis()
 
+    def test_beginner_uncertainty_allows_inferred_contrast(self):
+        test_beginner_uncertainty_allows_inferred_contrast()
+
+    def test_beginner_gate_followup_does_not_exam_user(self):
+        test_beginner_gate_followup_does_not_exam_user()
+
     def test_error_handling(self):
         test_error_handling()
 
@@ -280,6 +340,8 @@ if __name__ == "__main__":
     test_handle_clarify_respond_continue()
     test_handle_clarify_respond_returns_candidate_contract()
     test_handle_clarify_respond_rejects_weak_synthesis()
+    test_beginner_uncertainty_allows_inferred_contrast()
+    test_beginner_gate_followup_does_not_exam_user()
     test_error_handling()
 
     print("\n✅ All mock tests passed!")

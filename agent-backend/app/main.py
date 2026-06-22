@@ -167,12 +167,12 @@ def _public_job_view(job: dict) -> dict:
 def _clarification_gate_question(error: str) -> str:
     if "problemFraming" in error:
         return (
-            "我还不能把它收束成课程问题，因为缺少问题框定。请给一个具体差异现象："
-            "在哪个场景 A 会发生，换到哪个场景 B 就不发生，或你的直觉和实际观察哪里冲突？"
+            "我还不能稳定地整理成课程问题。先不用你补术语或框架，"
+            "请只说一句：你最想弄明白的是这个概念为什么出现，还是它到底是什么意思？"
         )
     if "scope" in error:
         return "范围还不够清楚。为了让课程有取舍，这门课必须讲什么、明确不讲什么、讲到什么深度？"
-    return "我还不能把它收束成课程契约。请补充一个具体例子：你观察到了什么现象，它和你的预期哪里不一致？"
+    return "我还不能把它收束成课程契约。请用一句话说：你现在最卡住的是哪个词、哪条因果关系，还是哪个判断？"
 
 
 _DIFFERENCE_MARKERS = (
@@ -180,9 +180,21 @@ _DIFFERENCE_MARKERS = (
     "A", "B", "vs", "versus", "contrast", "whereas", "but",
 )
 
+_BEGINNER_UNCERTAINTY_MARKERS = (
+    "不知道", "不了解", "不清楚", "没概念", "听不懂", "不懂", "是什么", "什么意思", "含义"
+)
+
 
 def _has_difference_signal(text: str) -> bool:
     return any(marker in text for marker in _DIFFERENCE_MARKERS)
+
+
+def _history_shows_beginner_uncertainty(history: list[dict]) -> bool:
+    return any(
+        turn.get("role") == "user"
+        and any(marker in str(turn.get("text") or "") for marker in _BEGINNER_UNCERTAINTY_MARKERS)
+        for turn in history
+    )
 
 
 def _clarification_readiness_issue(contract: dict, history: list[dict]) -> str | None:
@@ -200,7 +212,7 @@ def _clarification_readiness_issue(contract: dict, history: list[dict]) -> str |
 
     if len(phenomenon) < 12:
         return "problemFraming.phenomenon 还不是具体现象"
-    if len(contrast) < 12 or not _has_difference_signal(contrast):
+    if len(contrast) < 12 or (not _has_difference_signal(contrast) and not _history_shows_beginner_uncertainty(history)):
         return "problemFraming.contrast 必须写出 A/B 差异、条件变化或直觉与现实冲突"
     if len(system_goal) < 12:
         return "problemFraming.systemGoal 还没有写出真实系统目标"
@@ -214,10 +226,25 @@ def _clarification_readiness_issue(contract: dict, history: list[dict]) -> str |
     return None
 
 
-def _clarification_gate_followup(issue: str) -> str:
+def _clarification_gate_followup(issue: str, topic: str, history: list[dict]) -> str:
+    if _history_shows_beginner_uncertainty(history):
+        return (
+            f"没关系，这说明你现在是“对 {topic} 有好奇、但核心概念的来龙去脉还没立起来”的初学者位置。"
+            "我先这样理解你的学习需求：从你已经听过但没串起来的关键词开始，解释它为什么会被提出、"
+            "它要回应什么问题，以及后面的概念为什么会跟着出现。"
+            "如果这个方向对，你直接回“对”；如果不对，只要说最想先弄懂的那个词。"
+        )
+    if "contrast" in issue:
+        return (
+            "我还缺一条能组织课程的主线。请不用写成 A/B，只说你的直觉和这个主题之间哪里对不上："
+            "你原本以为它只是怎么回事，但它好像实际牵出了什么更大的问题？"
+        )
+    if "drivingQuestion" in issue:
+        return "现在的问题还太像泛泛介绍。请说一句：学完这门课后，你最希望能解释哪个“为什么”？"
+    if "systemGoal" in issue or "modelGap" in issue or "phenomenon" in issue:
+        return "还差一点课程焦点。请说一句：你不是想背定义，而是想看懂这个主题背后的哪条关系或来龙去脉？"
     return (
-        f"还不能完成澄清：{issue}。请补一个具体差异现象："
-        "在哪个场景 A 会发生，换到哪个场景 B 就不发生，或者你的直觉和实际观察哪里冲突？"
+        "还不能完成澄清。请补一句最朴素的困惑：你以为它应该很简单，但现在发现它复杂在哪里？"
     )
 
 
@@ -361,7 +388,7 @@ def handle_clarify_respond(payload: dict) -> dict:
 
             readiness_issue = _clarification_readiness_issue(contract, history)
             if readiness_issue:
-                question = _clarification_gate_followup(readiness_issue)
+                question = _clarification_gate_followup(readiness_issue, conv["topic"], history)
                 next_round = len([t for t in history if t["role"] == "bot"]) + 1
                 store.add_turn(conversation_id, "bot", question)
                 return {

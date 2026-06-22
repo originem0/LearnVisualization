@@ -287,7 +287,7 @@ function toClarificationResult(data: any): ClarificationResult {
 function inputPlaceholder(isZh: boolean, hasCandidate: boolean, mode: 'answer' | 'continue' | 'adjust') {
   if (!hasCandidate) return isZh ? '输入你的回答...' : 'Type your answer...';
   if (mode === 'adjust') return isZh ? '说明你想调整哪一项...' : 'Describe what should change...';
-  return isZh ? '继续补充你的差异现象、边界或目标...' : 'Add more contrast, boundaries, or goals...';
+  return isZh ? '继续补充你的困惑、边界或目标...' : 'Add more confusion, boundaries, or goals...';
 }
 
 function CandidateContractCard({
@@ -308,14 +308,14 @@ function CandidateContractCard({
   const framing = result.contract.problemFraming;
   const adjustFields = isZh
     ? [
-        ['差异现象', '我想调整差异现象：'],
-        ['对比关系', '我想调整对比关系：'],
+        ['学习困惑', '我想调整学习困惑：'],
+        ['核心冲突', '我想调整核心冲突：'],
         ['模型缺口', '我想调整模型缺口：'],
         ['范围取舍', '我想调整范围取舍：'],
       ]
     : [
-        ['Phenomenon', 'I want to adjust the phenomenon: '],
-        ['Contrast', 'I want to adjust the contrast: '],
+        ['Confusion', 'I want to adjust the learning confusion: '],
+        ['Core tension', 'I want to adjust the core tension: '],
         ['Model gap', 'I want to adjust the model gap: '],
         ['Scope', 'I want to adjust the scope: '],
       ];
@@ -356,8 +356,8 @@ function CandidateContractCard({
         <ContractLine label={isZh ? '核心张力' : 'Central tension'} value={result.contract.centralTension} />
         {framing && (
           <>
-            <ContractLine label={isZh ? '差异现象' : 'Phenomenon'} value={framing.phenomenon} />
-            <ContractLine label={isZh ? '对比关系' : 'Contrast'} value={framing.contrast} />
+            <ContractLine label={isZh ? '学习困惑' : 'Learning confusion'} value={framing.phenomenon} />
+            <ContractLine label={isZh ? '核心冲突' : 'Core tension'} value={framing.contrast} />
             <ContractLine label={isZh ? '模型缺口' : 'Model gap'} value={framing.modelGap} />
           </>
         )}
