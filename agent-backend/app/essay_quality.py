@@ -19,6 +19,7 @@ BANNED_PHRASES = (
 COMPARISON_NAMES = ("萨特", "康德", "黑格尔", "马克思", "福柯", "海德格尔", "柏拉图", "苏格拉底", "弗洛伊德")
 COMPARISON_ROLE_MARKERS = ("比较", "对比", "对照", "分歧", "差异", "路线", "三人", "两条", "另两条")
 CONCEPTUAL_DRIFT_PHRASES = ("从某种意义上", "某种程度上", "本质上", "更深层", "深刻", "意义", "价值", "秩序", "主体", "现代性")
+FINAL_FORWARD_PHRASES = ("下一章", "接下来", "要回答这些", "要回答这个问题", "必须深入", "继续追问")
 
 
 def _role_terms(role: str) -> list[str]:
@@ -55,6 +56,7 @@ def evaluate_chapter_quality(
     register: str,
     writing_mode: str = "mechanism-explainer",
     chapter_plan: dict[str, Any] | None = None,
+    is_final_chapter: bool = False,
 ) -> dict[str, Any]:
     narrative = chapter.get("narrative") if isinstance(chapter, dict) else []
     blocks = narrative if isinstance(narrative, list) else []
@@ -77,6 +79,15 @@ def evaluate_chapter_quality(
     if text.count("。") + text.count("；") < 6:
         issues.append("正文句子太少，实质密度不足")
     if writing_mode == "conceptual-essay":
+        if is_final_chapter:
+            tail_text = "\n".join(
+                str(block.get("content") or "")
+                for block in blocks[-3:]
+                if isinstance(block, dict)
+            )
+            if any(phrase in tail_text for phrase in FINAL_FORWARD_PHRASES):
+                issues.append("末章仍在抛出后续问题，没有完成课程收束")
+
         role = str((chapter_plan or {}).get("role") or chapter.get("role") or "").strip()
         role_text = "\n".join([
             str((chapter_plan or {}).get("title") or chapter.get("title") or ""),

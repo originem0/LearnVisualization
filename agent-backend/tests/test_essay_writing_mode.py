@@ -83,6 +83,19 @@ class WritingModePromptTests(unittest.TestCase):
         self.assertIn("禁止因为没有场景、人物、情节、个人经历而判定不合格", user_prompt)
         self.assertIn("比较对象是否受控", user_prompt)
 
+    def test_final_chapter_prompt_requires_closure(self):
+        final_plan = {"id": "c02", "number": 2, "title": "虚无主义如何出现", "role": "追踪危机后果"}
+        _, user_prompt = build_chapter_prompts(
+            request_payload={"topic": "尼采", "contract": conceptual_contract()},
+            plan_artifact=plan_artifact(),
+            chapter_plan=final_plan,
+            prev_chapter_ending="前文已经建立价值秩序危机。",
+        )
+
+        self.assertIn("这是最后一章", user_prompt)
+        self.assertIn("正文必须完成课程收束", user_prompt)
+        self.assertIn("不要写“下一章/接下来/要回答这些/必须深入”", user_prompt)
+
 
 class ConceptualEssayQualityTests(unittest.TestCase):
     def test_conceptual_quality_accepts_argument_without_story_scene(self):
@@ -223,6 +236,37 @@ class ConceptualEssayQualityTests(unittest.TestCase):
         )
 
         self.assertTrue(result["pass"], result["issues"])
+
+    def test_final_chapter_quality_flags_forward_throw(self):
+        chapter_plan = {
+            "id": "c05",
+            "number": 5,
+            "title": "尺度创造与尺度缺席的根本分歧",
+            "role": "解决主线张力：判断三人在价值重估问题上的根本分歧，确立面对虚无的判断框架",
+        }
+        chapter = {
+            "id": "c05",
+            "number": 5,
+            "title": chapter_plan["title"],
+            "role": chapter_plan["role"],
+            "narrative": [
+                {"type": "heading", "content": "根本分歧"},
+                {"type": "text", "content": "尼采要求价值重估，萨特要求自由选择，加缪要求荒谬反抗。三者分歧在于是否要创造尺度。"},
+                {"type": "text", "content": "这个判断框架能解释上帝已死之后的虚无主义处境，也能区分自由、反抗和超人的不同路线。"},
+                {"type": "text", "content": "要回答这些，我们必须深入权力意志的内部，继续追问它如何承担永恒重负。"},
+            ],
+        }
+
+        result = evaluate_chapter_quality(
+            chapter,
+            register="essay",
+            writing_mode="conceptual-essay",
+            chapter_plan=chapter_plan,
+            is_final_chapter=True,
+        )
+
+        self.assertFalse(result["pass"])
+        self.assertTrue(any("末章" in issue for issue in result["issues"]))
 
 
 if __name__ == "__main__":

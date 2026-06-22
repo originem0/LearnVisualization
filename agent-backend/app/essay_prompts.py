@@ -90,6 +90,7 @@ def build_chapter_prompts(
     contract = request_payload["contract"]
     register = plan_artifact["register"]
     writing_mode = plan_artifact.get("writingMode") or writing_mode_for_knowledge_type(contract["knowledgeType"])
+    is_final_chapter = chapter_plan.get("number") == len(plan_artifact.get("chapterPlans") or [])
     if register == "essay":
         register_rules = (
             "语域：思想随笔腔。允许有立场，但每个抽象判断都必须落到具体事实、案例或经验结构。"
@@ -144,8 +145,11 @@ def build_chapter_prompts(
         "- narrative 表示章节内容的连续性，不表示必须写成故事体裁。\n"
         "- highlight 默认 null；只有代码执行追踪才使用 kind=trace。\n"
         "- 非最后一章 bridge 必须自然抛出下一章要承接的问题。\n"
+        "- 如果这是最后一章，正文最后必须回扣 drivingQuestion 和 desiredOutcome，给出判断框架；不要写“下一章/接下来/要回答这些/必须深入”。\n"
         "- 输出 10-18 个 narrative block，宁可少而有主线，不要凑满知识点。\n"
     )
+    if is_final_chapter:
+        user_prompt += "\n章节位置：这是最后一章。bridge 必须为 null，正文必须完成课程收束，不能再抛出后续章节式问题。\n"
     if revision_feedback:
         user_prompt += f"\n上次质量评审未通过，必须修正：{revision_feedback}\n"
     user_prompt += (

@@ -856,6 +856,7 @@ class CourseGenerationPipeline:
             register=register,
             writing_mode=writing_mode,
             chapter_plan=chapter_plan,
+            is_final_chapter=chapter.get("number") == len(plan_artifact.get("chapterPlans") or []),
         )
         if not local.get("pass"):
             return local
