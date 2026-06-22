@@ -166,6 +166,64 @@ class ConceptualEssayQualityTests(unittest.TestCase):
 
         self.assertTrue(result["pass"], result["issues"])
 
+    def test_conceptual_quality_allows_comparison_role_without_named_role(self):
+        chapter_plan = {
+            "id": "c05",
+            "number": 5,
+            "title": "尺度创造与尺度缺席的根本分歧",
+            "role": "解决主线张力：判断三人在价值重估问题上的根本分歧，确立面对虚无的判断框架",
+        }
+        chapter = {
+            "id": "c05",
+            "number": 5,
+            "title": chapter_plan["title"],
+            "role": chapter_plan["role"],
+            "narrative": [
+                {"type": "text", "content": "尼采把问题推向尺度创造：上帝已死后，人不能只沿用旧价值残渣。萨特则把真空转译为自由选择，认为人通过选择承担价值。"},
+                {"type": "text", "content": "萨特的强处在于承认没有预设本质，弱处在于选择的尺度仍可能来自旧道德惯性。加缪选择保持荒谬中的反抗，但反抗一旦判断界限，也需要某种尺度。"},
+                {"type": "text", "content": "因此，尼采、萨特和加缪的分歧不在口号，而在面对无尺度处境时是否要重新创造尺度。萨特要求真诚选择，加缪要求清醒反抗，尼采要求价值重估。"},
+                {"type": "text", "content": "这个判断框架让初学者能回到原问题：不是没有信仰后怎样安慰自己，而是价值根据失效后，人是否还能为自己的生活建立新的度量衡。"},
+            ],
+        }
+
+        result = evaluate_chapter_quality(
+            chapter,
+            register="essay",
+            writing_mode="conceptual-essay",
+            chapter_plan=chapter_plan,
+        )
+
+        self.assertTrue(result["pass"], result["issues"])
+
+    def test_conceptual_quality_does_not_hard_fail_without_heading(self):
+        chapter_plan = {
+            "id": "c03",
+            "number": 3,
+            "title": "超人与价值重估：创造新尺度的尝试",
+            "role": "展示尼采的跨越策略：超人如何通过价值重估克服不自知的虚无主义",
+        }
+        chapter = {
+            "id": "c03",
+            "number": 3,
+            "title": chapter_plan["title"],
+            "role": chapter_plan["role"],
+            "narrative": [
+                {"type": "text", "content": "超人不是英雄故事，而是价值重估的承担者。尼采要解决的是旧尺度崩塌后如何重新刻下尺度。"},
+                {"type": "text", "content": "具体锚点在《快乐的科学》的上帝之死：旧的评价根据失效，人却仍然沿用旧价值残渣。"},
+                {"type": "text", "content": "价值重估因此不是换一个目标，而是改变评价发生的根据。超人代表能承担这种创造压力的人。"},
+                {"type": "text", "content": "这一章完成的主线是：超人如何通过价值重估克服不自知的虚无主义，并把问题推向后续比较。"},
+            ],
+        }
+
+        result = evaluate_chapter_quality(
+            chapter,
+            register="essay",
+            writing_mode="conceptual-essay",
+            chapter_plan=chapter_plan,
+        )
+
+        self.assertTrue(result["pass"], result["issues"])
+
 
 if __name__ == "__main__":
     unittest.main()

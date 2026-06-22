@@ -17,6 +17,7 @@ BANNED_PHRASES = (
 
 
 COMPARISON_NAMES = ("萨特", "康德", "黑格尔", "马克思", "福柯", "海德格尔", "柏拉图", "苏格拉底", "弗洛伊德")
+COMPARISON_ROLE_MARKERS = ("比较", "对比", "对照", "分歧", "差异", "路线", "三人", "两条", "另两条")
 CONCEPTUAL_DRIFT_PHRASES = ("从某种意义上", "某种程度上", "本质上", "更深层", "深刻", "意义", "价值", "秩序", "主体", "现代性")
 
 
@@ -44,6 +45,10 @@ def _comparison_is_runaway(text: str, name: str, role_text: str) -> bool:
     return mentions >= 6 or (mentions >= 4 and mentions >= max(role_hits, sentence_count // 3))
 
 
+def _role_allows_comparison(role_text: str) -> bool:
+    return any(marker in role_text for marker in COMPARISON_NAMES + COMPARISON_ROLE_MARKERS)
+
+
 def evaluate_chapter_quality(
     chapter: dict[str, Any],
     *,
@@ -59,7 +64,10 @@ def evaluate_chapter_quality(
 
     if len(blocks) < 4:
         issues.append("narrative 太短，无法形成连续论证")
-    if not any(isinstance(block, dict) and block.get("type") == "heading" for block in blocks):
+    if writing_mode != "conceptual-essay" and not any(
+        isinstance(block, dict) and block.get("type") == "heading"
+        for block in blocks
+    ):
         issues.append("缺少至少一个自然小节标题")
     for phrase in BANNED_PHRASES:
         if phrase in text:
@@ -84,7 +92,7 @@ def evaluate_chapter_quality(
         if drift_hits >= 10 and anchor_hits == 0:
             issues.append("conceptual-essay 连续空转概念，缺少具体事实/文本/经验锚点")
 
-        role_mentions_comparison = any(name in role_text for name in COMPARISON_NAMES)
+        role_mentions_comparison = _role_allows_comparison(role_text)
         runaway_names = [
             name for name in COMPARISON_NAMES
             if _comparison_is_runaway(text, name, role_text)
