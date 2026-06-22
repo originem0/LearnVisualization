@@ -262,14 +262,16 @@ class CourseGenerationPipeline:
         courses_root = self.repo_root / "courses"
 
         # Slug-based
-        if (courses_root / output_slug / "course.json").exists():
+        if (courses_root / output_slug / "course.json").exists() and not request_payload["overwrite"]:
             raise ValueError(f"课程 '{output_slug}' 已存在于 courses/ 中，如需重新生成请先删除")
+        if (self.generated_root / output_slug).exists() and request_payload["overwrite"]:
+            shutil.rmtree(self.generated_root / output_slug)
         if (self.generated_root / output_slug).exists():
             raise ValueError(f"课程 '{output_slug}' 已生成，如需重新生成请先删除")
 
         # Semantic dedup: check if canonical topic matches any existing course title
         canonical_topic = request_payload["topic"]
-        if courses_root.is_dir():
+        if courses_root.is_dir() and not request_payload["overwrite"]:
             for course_dir in courses_root.iterdir():
                 course_json = course_dir / "course.json"
                 if course_dir.is_dir() and course_json.exists():
@@ -434,20 +436,27 @@ class CourseGenerationPipeline:
 
             self._check_cancelled(job_id)
 
-            self.store.mark_waiting_review(
-                job_id,
-                output_dir=Path(export_artifact["outputDir"]),
-                summary={
+            output_dir = Path(export_artifact["outputDir"])
+            with self.store.job_lock(job_id):
+                exported_job = self.store.load_job(job_id)
+                exported_job["artifacts"]["output"] = str(output_dir)
+                exported_job["resultSummary"] = {
                     "outputSlug": export_artifact["outputSlug"],
                     "chapterCount": export_artifact["chapterCount"],
                     "moduleCount": export_artifact["chapterCount"],
-                    "readyForPromote": True,
-                    "reviewStatus": "pending",
+                    "readyForPromote": False,
+                    "reviewStatus": "auto_publish_pending",
                     "published": False,
                     "writingMode": composed_artifact["course"].get("writingMode"),
-                },
+                }
+                self.store.write_job(exported_job)
+
+            return self._publish_output(
+                job_id,
+                output_dir=output_dir,
+                reviewed_by="system",
+                notes="Auto-published after generation, validation, and export checks passed.",
             )
-            return self.store.load_job(job_id)
         except CancelledError:
             # Already marked as cancelled by cancel_job(); just clean up staging
             staging_dir = self.store.job_dir(job_id) / "staging"
@@ -495,37 +504,63 @@ class CourseGenerationPipeline:
         write_json_atomic(approval_path, approval_payload)
         updated_job = self.store.update_review(job_id, approved=approved, reviewed_by=reviewed_by, notes=notes)
         if approved:
-            promote_result: dict[str, str] | None = None
-            try:
-                promote_result = self._promote_reviewed_output(
-                    job_id,
-                    source_dir=output_dir,
-                    target_slug=safe_slug((job.get("request") or {}).get("output_slug") or output_dir.name, "target_slug"),
-                    overwrite=bool((job.get("request") or {}).get("overwrite", False)),
-                )
-                build_result = self._run_next_build(job_id)
-                self._finalize_promote_backup(promote_result)
-            except Exception as exc:
-                if promote_result:
-                    self._rollback_promote(promote_result)
-                self.store.mark_publish_failed(job_id, str(exc))
-                raise RuntimeError(f"publish failed: {exc}") from exc
-            with self.store.job_lock(job_id):
-                promoted_job = self.store.load_job(job_id)
-                promoted_job["artifacts"]["output"] = promote_result["targetDir"]
-                promoted_job["artifacts"]["reviewedOutput"] = str(output_dir)
-                promoted_job["resultSummary"] = {
-                    **(promoted_job.get("resultSummary") or {}),
-                    "published": True,
-                    "reviewStatus": "approved",
-                    "promotedTo": promote_result["targetDir"],
-                    "buildSkipped": bool(build_result.get("skipped")),
-                    "readyForPromote": False,
-                }
-                self.store.write_job(promoted_job)
-            self.store.mark_completed(job_id)
-            updated_job = self.store.load_job(job_id)
+            updated_job = self._publish_output(
+                job_id,
+                output_dir=output_dir,
+                reviewed_by=reviewed_by,
+                notes=notes,
+            )
         return updated_job
+
+    def _publish_output(
+        self,
+        job_id: str,
+        *,
+        output_dir: Path,
+        reviewed_by: str | None,
+        notes: str | None,
+    ) -> dict[str, Any]:
+        job = self.store.load_job(job_id)
+        approval_payload = {
+            "approved": True,
+            "reviewedBy": reviewed_by or "system",
+            "reviewedAt": now_iso(),
+            "notes": notes or "",
+        }
+        write_json_atomic(output_dir / "review" / "approval.json", approval_payload)
+        self.store.update_review(job_id, approved=True, reviewed_by=reviewed_by or "system", notes=notes)
+
+        promote_result: dict[str, str] | None = None
+        try:
+            promote_result = self._promote_reviewed_output(
+                job_id,
+                source_dir=output_dir,
+                target_slug=safe_slug((job.get("request") or {}).get("output_slug") or output_dir.name, "target_slug"),
+                overwrite=bool((job.get("request") or {}).get("overwrite", False)),
+            )
+            build_result = self._run_next_build(job_id)
+            self._finalize_promote_backup(promote_result)
+        except Exception as exc:
+            if promote_result:
+                self._rollback_promote(promote_result)
+            self.store.mark_publish_failed(job_id, str(exc))
+            raise RuntimeError(f"publish failed: {exc}") from exc
+
+        with self.store.job_lock(job_id):
+            promoted_job = self.store.load_job(job_id)
+            promoted_job["artifacts"]["output"] = promote_result["targetDir"]
+            promoted_job["artifacts"]["reviewedOutput"] = str(output_dir)
+            promoted_job["resultSummary"] = {
+                **(promoted_job.get("resultSummary") or {}),
+                "published": True,
+                "reviewStatus": "approved",
+                "promotedTo": promote_result["targetDir"],
+                "buildSkipped": bool(build_result.get("skipped")),
+                "readyForPromote": False,
+            }
+            self.store.write_job(promoted_job)
+        self.store.mark_completed(job_id)
+        return self.store.load_job(job_id)
 
     def _promote_reviewed_output(
         self,

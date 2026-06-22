@@ -123,7 +123,7 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         )
         return pipeline, temp_dir, client
 
-    def test_pipeline_exports_essay_package_waiting_review(self):
+    def test_pipeline_exports_and_publishes_essay_package(self):
         pipeline, temp_dir, _ = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-cache-essay-{uuid.uuid4().hex[:8]}"
@@ -131,10 +131,15 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        job = pipeline.run_job(job["id"])
+        with patch.object(pipeline, "_run_next_build", return_value={"ok": True, "skipped": True}):
+            job = pipeline.run_job(job["id"])
 
-        self.assertEqual(job["status"], "waiting_review")
-        exported_dir = Path(job["artifacts"]["output"])
+        self.assertEqual(job["status"], "completed")
+        self.assertTrue(job["resultSummary"]["published"])
+        self.assertEqual(job["resultSummary"]["reviewStatus"], "approved")
+        exported_dir = Path(job["artifacts"]["reviewedOutput"])
+        self.assertEqual(Path(job["artifacts"]["output"]), promoted)
+        self.assertTrue(promoted.exists())
         self.assertTrue((exported_dir / "course.json").exists())
         self.assertTrue((exported_dir / "chapters" / "c01.json").exists())
         self.assertFalse((exported_dir / "modules").exists())
@@ -148,9 +153,12 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         pipeline, temp_dir, client = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-cache-continuity-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        pipeline.run_job(job["id"])
+        with patch.object(pipeline, "_run_next_build", return_value={"ok": True, "skipped": True}):
+            pipeline.run_job(job["id"])
 
         self.assertGreaterEqual(len(client.chapter_prompts), 2)
         self.assertIn("上一章结尾", client.chapter_prompts[1])
@@ -189,6 +197,23 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             pipeline.create_job({"topic": "缓存系统 internals", "output_slug": "../escape", "contract": contract()}, run_async=False)
 
+    def test_overwrite_allows_existing_published_slug(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-overwrite-{uuid.uuid4().hex[:8]}"
+        target_dir = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(target_dir, ignore_errors=True))
+        target_dir.mkdir(parents=True)
+        (target_dir / "course.json").write_text(json.dumps({"title": "旧课程"}, ensure_ascii=False), encoding="utf-8")
+
+        job = pipeline.create_job(
+            {"topic": "缓存系统 internals", "output_slug": slug, "overwrite": True, "contract": contract()},
+            run_async=False,
+        )
+
+        self.assertEqual(job["request"]["output_slug"], slug)
+        self.assertTrue(job["request"]["overwrite"])
+
     def test_cleanup_keeps_waiting_review_output(self):
         pipeline, temp_dir, _ = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
@@ -203,7 +228,7 @@ class CourseGenerationPipelineTests(unittest.TestCase):
 
         self.assertTrue(output_dir.exists())
 
-    def test_review_publish_rolls_back_when_build_fails(self):
+    def test_auto_publish_rolls_back_when_build_fails(self):
         pipeline, temp_dir, _ = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-publish-rollback-{uuid.uuid4().hex[:8]}"
@@ -211,15 +236,12 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(target_dir, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        job = pipeline.run_job(job["id"])
-
         with patch.object(pipeline, "_run_next_build", side_effect=RuntimeError("build failed")):
-            with self.assertRaises(RuntimeError):
-                pipeline.review_job(job["id"], approved=True, reviewed_by="tester", notes="ok")
+            job = pipeline.run_job(job["id"])
 
         self.assertFalse(target_dir.exists())
         failed_job = pipeline.get_job(job["id"])
-        self.assertEqual(failed_job["status"], "waiting_review")
+        self.assertEqual(failed_job["status"], "failed")
         self.assertEqual(failed_job["review"]["status"], "publish_failed")
 
 

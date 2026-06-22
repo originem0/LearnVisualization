@@ -160,7 +160,7 @@ class JobStore:
     def mark_publish_failed(self, job_id: str, error_message: str) -> dict[str, Any]:
         with self.job_lock(job_id):
             job = self.load_job(job_id)
-            job["status"] = "waiting_review"
+            job["status"] = "failed"
             job["currentStage"] = "export"
             job["error"] = {"stage": "publish", "message": error_message, "failedAt": now_iso()}
             job["review"]["status"] = "publish_failed"
@@ -168,7 +168,7 @@ class JobStore:
                 **(job.get("resultSummary") or {}),
                 "published": False,
                 "reviewStatus": "publish_failed",
-                "readyForPromote": True,
+                "readyForPromote": False,
             }
             return self.write_job(job)
 
