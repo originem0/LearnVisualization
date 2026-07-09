@@ -9,6 +9,8 @@ interface ProviderConfigMasked {
   base_url: string;
   model: string;
   fallback_model: string | null;
+  research_model: string | null;
+  judge_model: string | null;
   api_key_configured: boolean;
 }
 
@@ -26,6 +28,8 @@ export default function SettingsPanel({ locale }: { locale: string }) {
   const [model, setModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [fallbackModel, setFallbackModel] = useState('');
+  const [researchModel, setResearchModel] = useState('');
+  const [judgeModel, setJudgeModel] = useState('');
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; latency_ms?: number; model?: string; json_ok?: boolean; quality_ok?: boolean; error?: string } | null>(null);
   const [testing, setTesting] = useState(false);
@@ -38,6 +42,8 @@ export default function SettingsPanel({ locale }: { locale: string }) {
       setBaseUrl(data.base_url);
       setModel(data.model);
       setFallbackModel(data.fallback_model || '');
+      setResearchModel(data.research_model || '');
+      setJudgeModel(data.judge_model || '');
       setApiKeyConfigured(data.api_key_configured);
     } catch {
       // ignore
@@ -99,6 +105,8 @@ export default function SettingsPanel({ locale }: { locale: string }) {
           model,
           api_key: apiKey,
           fallback_model: fallbackModel,
+          research_model: researchModel,
+          judge_model: judgeModel,
         }),
       });
       if (!res.ok) {
@@ -113,6 +121,8 @@ export default function SettingsPanel({ locale }: { locale: string }) {
       setBaseUrl(data.base_url);
       setModel(data.model);
       setFallbackModel(data.fallback_model || '');
+      setResearchModel(data.research_model || '');
+      setJudgeModel(data.judge_model || '');
       setApiKeyConfigured(data.api_key_configured);
       setApiKey('');
       setSuccess(isZh ? '已保存' : 'Saved');
@@ -204,6 +214,8 @@ export default function SettingsPanel({ locale }: { locale: string }) {
                   placeholder={apiKeyConfigured ? (isZh ? '已配置（留空不改）' : 'Configured (leave empty to keep)') : (isZh ? '未配置' : 'Not configured')}
                 />
                 <Field label={isZh ? 'Fallback Model' : 'Fallback Model'} value={fallbackModel} onChange={setFallbackModel} placeholder={isZh ? '可选' : 'Optional'} />
+                <Field label={isZh ? 'Research Model（可选）' : 'Research Model (optional)'} value={researchModel} onChange={setResearchModel} placeholder={isZh ? '留空 = 用主模型' : 'Empty = main model'} />
+                <Field label={isZh ? 'Judge Model（可选，建议异族）' : 'Judge Model (optional, cross-family)'} value={judgeModel} onChange={setJudgeModel} placeholder={isZh ? '留空 = 用主模型' : 'Empty = main model'} />
                 <button
                   onClick={handleSave}
                   disabled={loading}

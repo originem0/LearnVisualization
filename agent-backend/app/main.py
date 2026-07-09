@@ -729,6 +729,15 @@ def update_provider_config(payload: dict) -> dict:
         if value:  # empty string = don't change
             current_rt[field] = value
 
+    # Optional per-stage overrides: empty string explicitly clears the override
+    for field in ("research_model", "judge_model"):
+        if field in payload:
+            value = str(payload.get(field) or "").strip()
+            if value:
+                current_rt[field] = value
+            else:
+                current_rt.pop(field, None)
+
     ProviderConfig.save_runtime_config(current_rt)
 
     # Rebuild config and hot-swap on the pipeline

@@ -37,6 +37,20 @@ class ProviderError(RuntimeError):
     pass
 
 
+_MODEL_FAMILIES = ("claude", "gpt", "gemini", "glm", "deepseek", "qwen", "llama", "mistral", "kimi", "grok")
+
+
+def model_family(model: str | None) -> str:
+    """Crude family detector for cross-family judge warnings."""
+    name = (model or "").lower()
+    if "/" in name:
+        name = name.rsplit("/", 1)[-1]
+    for family in _MODEL_FAMILIES:
+        if family in name:
+            return family
+    return name.split("-")[0] if name else ""
+
+
 @dataclass(slots=True)
 class ProviderConfig:
     base_url: str
@@ -45,6 +59,8 @@ class ProviderConfig:
     timeout_seconds: int = 300
     max_retries: int = 3
     fallback_model: str | None = None
+    research_model: str | None = None
+    judge_model: str | None = None
 
     # Path to runtime config file (overrides env vars, survives restarts)
     _RUNTIME_CONFIG_PATH = Path(__file__).resolve().parent.parent / "runtime-config.json"
@@ -89,6 +105,8 @@ class ProviderConfig:
         timeout_seconds = int(os.environ.get("AGENT_LLM_TIMEOUT_SECONDS") or "300")
         max_retries = int(os.environ.get("AGENT_LLM_MAX_RETRIES") or "3")
         fallback_model = os.environ.get("AGENT_LLM_FALLBACK_MODEL") or None
+        research_model = os.environ.get("AGENT_LLM_RESEARCH_MODEL") or None
+        judge_model = os.environ.get("AGENT_LLM_JUDGE_MODEL") or None
 
         # runtime-config.json overrides env vars
         rt = cls._load_runtime_overrides()
@@ -100,6 +118,10 @@ class ProviderConfig:
             api_key = rt["api_key"]
         if rt.get("fallback_model"):
             fallback_model = rt["fallback_model"]
+        if rt.get("research_model"):
+            research_model = rt["research_model"]
+        if rt.get("judge_model"):
+            judge_model = rt["judge_model"]
 
         return cls(
             base_url=base_url.rstrip("/"),
@@ -108,6 +130,8 @@ class ProviderConfig:
             timeout_seconds=timeout_seconds,
             max_retries=max_retries,
             fallback_model=fallback_model,
+            research_model=research_model,
+            judge_model=judge_model,
         )
 
     @property
@@ -116,6 +140,8 @@ class ProviderConfig:
             "base_url": self.base_url,
             "model": self.model,
             "fallback_model": self.fallback_model,
+            "research_model": self.research_model,
+            "judge_model": self.judge_model,
             "api_key_configured": bool(self.api_key),
             "timeout_seconds": self.timeout_seconds,
             "max_retries": self.max_retries,
@@ -134,9 +160,11 @@ class OpenAICompatibleClient:
         user_prompt: str,
         temperature: float = 0.2,
         max_tokens: int = 8000,
+        model: str | None = None,
     ) -> dict[str, Any]:
+        chosen_model = model or self.config.model
         body = {
-            "model": self.config.model,
+            "model": chosen_model,
             "temperature": temperature,
             "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
@@ -149,7 +177,7 @@ class OpenAICompatibleClient:
         try:
             return self._call_and_parse(body, schema_name)
         except ProviderError:
-            if not self.config.fallback_model or self.config.fallback_model == self.config.model:
+            if not self.config.fallback_model or self.config.fallback_model == chosen_model:
                 raise
             body["model"] = self.config.fallback_model
             return self._call_and_parse(body, schema_name)
