@@ -42,6 +42,7 @@ def load_seed_example(register: str) -> str:
 def build_essay_plan_prompts(
     request_payload: dict[str, Any],
     *,
+    research_artifact: dict[str, Any] | None = None,
     revision_feedback: str | None = None,
 ) -> tuple[str, str]:
     contract = request_payload["contract"]
@@ -66,22 +67,40 @@ def build_essay_plan_prompts(
         f"{load_narrative_principles()}\n\n"
         "同语域 few-shot 种子（学习结构，不复制内容）：\n"
         f"{load_seed_example(register) or '(无可用种子)'}\n\n"
+    )
+
+    evidence_digest = ""
+    if research_artifact and research_artifact.get("evidence"):
+        lines = [
+            f"[{item['id']}] ({item['kind']})《{item['sourceTitle']}》: {str(item['content'])[:80]}"
+            for item in research_artifact["evidence"]
+        ]
+        evidence_digest = (
+            "研究阶段已建立证据库（写作时每章会拿到全文，这里是摘要）：\n"
+            + "\n".join(lines)
+            + "\n\n"
+        )
+    user_prompt += evidence_digest
+
+    user_prompt += (
         "输出 JSON 字段：\n"
         "{\n"
         '  "title": "课程标题",\n'
         '  "subtitle": "课程副标题",\n'
         '  "writingMode": "conceptual-essay | case-narrative | mechanism-explainer",\n'
         '  "overview": {"whyExists": "为什么存在", "wherePoints": "指向哪里", "arc": ["第1章作用", "第2章作用", "..."]},\n'
-        '  "factSpine": ["3-5 个具体事实、案例、代码或机制锚点"],\n'
+        '  "factSpine": [{"claim": "具体事实/机制断言", "evidenceIds": ["E01"]}],\n'
         '  "chapters": [\n'
-        '    {"id": "c01", "number": 1, "title": "章节标题", "role": "这一章在主线里的作用"}\n'
+        '    {"id": "c01", "number": 1, "title": "章节标题", "role": "这一章在主线里的作用", "evidenceIds": ["E01", "E02"]}\n'
         "  ]\n"
         "}\n\n"
     )
     user_prompt += (
-        "硬约束：chapters 必须 4-6 个；章节标题必须像论证步骤，不要写“基础概念/进阶应用”；"
+        "硬约束：chapters 必须 4-6 个；章节标题必须像论证步骤，不要写'基础概念/进阶应用'；"
         "factSpine 必须 3-5 条且每条是具体事实、文本、数字或机制锚点，不能是概念定义，不能为空。"
     )
+    if evidence_digest:
+        user_prompt += "factSpine 每条和每个 chapter 都必须挂到证据库里真实存在的 evidenceIds；每章至少 2 条。"
     if revision_feedback:
         user_prompt += f"\n\n上一版规划未通过校验，必须修正：{revision_feedback}\n"
     return system_prompt, user_prompt

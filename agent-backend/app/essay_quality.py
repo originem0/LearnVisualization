@@ -135,3 +135,13 @@ def validate_fact_spine(fact_spine: Any, *, evidence_ids: set[str] | None = None
                 issues.append(f"factSpine[{index}] 没有挂到任何有效证据 id")
     return issues
 
+
+def validate_chapter_evidence(chapter_plans: list[dict[str, Any]], evidence_ids: set[str]) -> list[str]:
+    """验证每个 chapter 都挂到至少 2 条有效证据。"""
+    issues: list[str] = []
+    for chapter in chapter_plans or []:
+        ids = [x for x in (chapter.get("evidenceIds") or []) if x in evidence_ids]
+        if len(ids) < 2:
+            issues.append(f"{chapter.get('id')} 只挂到 {len(ids)} 条有效证据（每章至少 2 条）")
+    return issues
+

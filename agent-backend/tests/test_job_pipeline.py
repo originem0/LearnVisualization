@@ -65,13 +65,19 @@ class FakeClient:
         elif schema_name == "essay_course_plan":
             self.plan_prompts.append(user_prompt)
             fact_spine = [
-                "LRU 命中后会更新 recency 元数据",
-                "TTL 过期即使没有容量压力也不能继续返回旧值",
-                "容量满时仍然有效的 entry 也可能被淘汰",
+                {"claim": "LRU 命中后会更新 recency 元数据", "evidenceIds": ["E01"]},
+                {"claim": "TTL 过期即使没有容量压力也不能继续返回旧值", "evidenceIds": ["E02"]},
+                {"claim": "容量满时仍然有效的 entry 也可能被淘汰", "evidenceIds": ["E03"]},
             ]
             if self.bad_fact_spine_times > 0:
                 self.bad_fact_spine_times -= 1
                 fact_spine = []
+            chapters = [
+                {"id": "c01", "number": 1, "title": "缓存不是字典", "role": "立起错误直觉", "evidenceIds": ["E01", "E02"]},
+                {"id": "c02", "number": 2, "title": "一次命中经过什么", "role": "追踪机制", "evidenceIds": ["E01", "E04"]},
+                {"id": "c03", "number": 3, "title": "过期和淘汰不是一回事", "role": "制造转折", "evidenceIds": ["E02", "E03"]},
+                {"id": "c04", "number": 4, "title": "把三条控制线放回系统", "role": "收束判断", "evidenceIds": ["E03", "E05"]},
+            ]
             content = {
                 "title": "缓存为什么不是快一点的字典",
                 "subtitle": "从命中路径到淘汰策略",
@@ -81,12 +87,7 @@ class FakeClient:
                     "arc": ["先拆掉字典直觉", "追踪命中路径", "区分过期和淘汰", "回到工程取舍"],
                 },
                 "factSpine": fact_spine,
-                "chapters": [
-                    {"id": "c01", "number": 1, "title": "缓存不是字典", "role": "立起错误直觉"},
-                    {"id": "c02", "number": 2, "title": "一次命中经过什么", "role": "追踪机制"},
-                    {"id": "c03", "number": 3, "title": "过期和淘汰不是一回事", "role": "制造转折"},
-                    {"id": "c04", "number": 4, "title": "把三条控制线放回系统", "role": "收束判断"},
-                ],
+                "chapters": chapters,
             }
         elif schema_name.endswith("_quality_judge"):
             content = {"pass": True, "score": 90, "issues": [], "rewriteHint": ""}
@@ -320,7 +321,7 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         plan = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
         self.assertEqual(len(plan["factSpine"]), 3)
         self.assertEqual(plan["factSpine"][0]["claim"], "LRU 命中后会更新 recency 元数据")
-        self.assertEqual(plan["factSpine"][0]["evidenceIds"], [])
+        self.assertEqual(plan["factSpine"][0]["evidenceIds"], ["E01"])
 
     def test_plan_fails_when_fact_spine_never_valid(self):
         pipeline, temp_dir, client = self.create_pipeline()
@@ -385,6 +386,20 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         pipeline.store.mark_stage_running(job["id"], "research")
         refreshed = pipeline.store.load_job(job["id"])
         self.assertIn("research", [s["name"] for s in refreshed["stages"]])
+
+    def test_plan_prompt_carries_evidence_digest_and_chapters_get_ids(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-plan-evidence-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+
+        self.assertIn("[E01]", client.plan_prompts[0])  # 证据摘要进入 plan prompt
+        plan = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
+        self.assertEqual(plan["chapterPlans"][0]["evidenceIds"], ["E01", "E02"])
+        self.assertEqual(plan["factSpine"][0]["evidenceIds"], ["E01"])
+
 
 
 if __name__ == "__main__":

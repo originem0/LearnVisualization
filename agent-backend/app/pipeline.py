@@ -14,7 +14,7 @@ from typing import Any
 try:
     from .common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from .essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
-    from .essay_quality import evaluate_chapter_quality, validate_fact_spine
+    from .essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence
     from .essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from .job_store import JobStore
     from .models import normalize_generation_contract
@@ -24,7 +24,7 @@ try:
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
-    from essay_quality import evaluate_chapter_quality, validate_fact_spine
+    from essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence
     from essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from job_store import JobStore
     from models import normalize_generation_contract
@@ -381,7 +381,7 @@ class CourseGenerationPipeline:
                 plan_artifact = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
             else:
                 self.store.mark_stage_running(job_id, "plan")
-                plan_artifact = self._run_plan(job_id, request_payload, client=client)
+                plan_artifact = self._run_plan(job_id, request_payload, client=client, research_artifact=research_artifact)
                 plan_path = self.store.store_stage_artifact(job_id, "plan", plan_artifact)
                 self.store.mark_stage_success(
                     job_id,
@@ -679,12 +679,12 @@ class CourseGenerationPipeline:
         )
         return artifact
 
-    def _run_plan(self, job_id: str, request_payload: dict[str, Any], *, client: OpenAICompatibleClient | None = None) -> dict[str, Any]:
+    def _run_plan(self, job_id: str, request_payload: dict[str, Any], *, client: OpenAICompatibleClient | None = None, research_artifact: dict[str, Any] | None = None) -> dict[str, Any]:
         client = client or self.client
         revision_feedback: str | None = None
         normalized: dict[str, Any] = {}
         for attempt in range(2):
-            system_prompt, user_prompt = build_essay_plan_prompts(request_payload, revision_feedback=revision_feedback)
+            system_prompt, user_prompt = build_essay_plan_prompts(request_payload, research_artifact=research_artifact, revision_feedback=revision_feedback)
             response = client.generate_json(
                 schema_name="essay_course_plan",
                 system_prompt=system_prompt,
@@ -714,8 +714,11 @@ class CourseGenerationPipeline:
                     indent=2,
                 ),
             )
-            normalized = self._normalize_essay_plan(response["content"], request_payload)
-            issues = validate_fact_spine(normalized["factSpine"])
+            normalized = self._normalize_essay_plan(response["content"], request_payload, research_artifact=research_artifact)
+            evidence_ids = {e["id"] for e in (research_artifact or {}).get("evidence") or []} or None
+            issues = validate_fact_spine(normalized["factSpine"], evidence_ids=evidence_ids)
+            if evidence_ids:
+                issues += validate_chapter_evidence(normalized["chapterPlans"], evidence_ids)
             if not issues:
                 return normalized
             revision_feedback = "；".join(issues)
@@ -796,7 +799,7 @@ class CourseGenerationPipeline:
             },
         }
 
-    def _normalize_essay_plan(self, payload: dict[str, Any], request_payload: dict[str, Any]) -> dict[str, Any]:
+    def _normalize_essay_plan(self, payload: dict[str, Any], request_payload: dict[str, Any], research_artifact: dict[str, Any] | None = None) -> dict[str, Any]:
         contract = request_payload["contract"]
         raw_chapters = payload.get("chapters") if isinstance(payload, dict) else []
         chapter_plans: list[dict[str, Any]] = []
@@ -806,10 +809,12 @@ class CourseGenerationPipeline:
                     chapter_id = str(item.get("id") or f"c{index:02d}").strip()
                     title = str(item.get("title") or f"第 {index} 章").strip()
                     role = str(item.get("role") or item.get("arc") or "").strip()
+                    raw_ids = item.get("evidenceIds") or []
                 else:
                     chapter_id = f"c{index:02d}"
                     title = str(item).strip() or f"第 {index} 章"
                     role = ""
+                    raw_ids = []
                 if not chapter_id.startswith("c"):
                     chapter_id = f"c{index:02d}"
                 chapter_plans.append({
@@ -817,6 +822,7 @@ class CourseGenerationPipeline:
                     "number": index,
                     "title": title,
                     "role": role or title,
+                    "evidenceIds": [str(x).strip() for x in raw_ids if str(x).strip()],
                 })
         if len(chapter_plans) < 4:
             defaults = [
@@ -831,6 +837,7 @@ class CourseGenerationPipeline:
                     "number": index,
                     "title": defaults[index - 1],
                     "role": defaults[index - 1],
+                    "evidenceIds": [],
                 })
 
         register = register_for_knowledge_type(contract["knowledgeType"])
@@ -866,6 +873,12 @@ class CourseGenerationPipeline:
                 normalized_spine.append({"claim": claim, "evidenceIds": ids})
         normalized["factSpine"] = normalized_spine
         normalized["contract"] = contract
+
+        valid_ids = {e["id"] for e in (research_artifact or {}).get("evidence") or []}
+        if valid_ids:
+            for chapter in chapter_plans:
+                chapter["evidenceIds"] = [x for x in chapter.get("evidenceIds") or [] if x in valid_ids]
+
         normalized["chapterPlans"] = chapter_plans
         return normalized
 
