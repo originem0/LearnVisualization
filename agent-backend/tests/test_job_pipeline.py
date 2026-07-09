@@ -256,6 +256,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(temp_dir.cleanup)
         client.bad_fact_spine_times = 1
         slug = f"test-spine-retry-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
         with patch.object(pipeline, "_run_next_build", return_value={"ok": True, "skipped": True}):
             job = pipeline.run_job(job["id"])
@@ -272,6 +274,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(temp_dir.cleanup)
         client.bad_fact_spine_times = 99
         slug = f"test-spine-fail-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
         job = pipeline.run_job(job["id"])
         self.assertEqual(job["status"], "failed")
