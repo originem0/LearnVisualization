@@ -77,9 +77,13 @@ def build_essay_plan_prompts(
         '    {"id": "c01", "number": 1, "title": "章节标题", "role": "这一章在主线里的作用"}\n'
         "  ]\n"
         "}\n\n"
-        "硬约束：chapters 必须 4-6 个；章节标题必须像论证步骤，不要写“基础概念/进阶应用”；"
-        "factSpine 必须具体，不能是概念定义。"
     )
+    user_prompt += (
+        "硬约束：chapters 必须 4-6 个；章节标题必须像论证步骤，不要写“基础概念/进阶应用”；"
+        "factSpine 必须 3-5 条且每条是具体事实、文本、数字或机制锚点，不能是概念定义，不能为空。"
+    )
+    if revision_feedback:
+        user_prompt += f"\n\n上一版规划未通过校验，必须修正：{revision_feedback}\n"
     return system_prompt, user_prompt
 
 

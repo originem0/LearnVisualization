@@ -261,7 +261,7 @@ class CourseGenerationPipelineTests(unittest.TestCase):
             job = pipeline.run_job(job["id"])
 
         self.assertEqual(len(client.plan_prompts), 2)
-        self.assertIn("factSpine", client.plan_prompts[1])  # 修复反馈进入第二次 prompt
+        self.assertIn("上一版规划未通过校验", client.plan_prompts[1])  # 修复反馈进入第二次 prompt
         plan = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
         self.assertEqual(len(plan["factSpine"]), 3)
         self.assertEqual(plan["factSpine"][0]["claim"], "LRU 命中后会更新 recency 元数据")
