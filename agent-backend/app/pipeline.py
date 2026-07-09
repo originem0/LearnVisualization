@@ -20,6 +20,7 @@ try:
     from .models import normalize_generation_contract
     from .prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
     from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError, model_family
+    from .research import run_research
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
@@ -29,6 +30,7 @@ except ImportError:
     from models import normalize_generation_contract
     from prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
     from provider import OpenAICompatibleClient, ProviderConfig, ProviderError, model_family
+    from research import run_research
 
 MAX_CONCURRENT_JOBS = 3
 COMPOSE_CONCURRENCY = 1
@@ -358,6 +360,22 @@ class CourseGenerationPipeline:
         try:
             self._check_cancelled(job_id)
 
+            # --- RESEARCH ---
+            if stage_status.get("research") == "succeeded" and job["artifacts"].get("research"):
+                research_artifact = json.loads(Path(job["artifacts"]["research"]).read_text("utf-8"))
+            else:
+                self.store.mark_stage_running(job_id, "research")
+                research_artifact = self._run_research(job_id, request_payload, client=client)
+                research_path = self.store.store_stage_artifact(job_id, "research", research_artifact)
+                self.store.mark_stage_success(
+                    job_id,
+                    "research",
+                    artifact_path=research_path,
+                    summary=research_artifact["stats"],
+                )
+
+            self._check_cancelled(job_id)
+
             # --- PLAN ---
             if stage_status.get("plan") == "succeeded" and job["artifacts"].get("plan"):
                 plan_artifact = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
@@ -396,6 +414,13 @@ class CourseGenerationPipeline:
                         "outputSlug": composed_artifact["course"]["slug"],
                     },
                 )
+
+            self._check_cancelled(job_id)
+
+            # --- VERIFY (course-level checks land in a later change) ---
+            if stage_status.get("verify") != "succeeded":
+                self.store.mark_stage_running(job_id, "verify")
+                self.store.mark_stage_success(job_id, "verify", summary={"deferred": True})
 
             self._check_cancelled(job_id)
 
@@ -626,6 +651,33 @@ class CourseGenerationPipeline:
             old_dir = Path(old_dir_value)
             if old_dir.exists():
                 shutil.rmtree(old_dir, ignore_errors=True)
+
+    def _run_research(
+        self,
+        job_id: str,
+        request_payload: dict[str, Any],
+        *,
+        client: OpenAICompatibleClient | None = None,
+    ) -> dict[str, Any]:
+        client = client or self.client
+        artifact = run_research(
+            topic=request_payload["topic"],
+            contract=request_payload["contract"],
+            client=client,
+            research_model=getattr(client.config, "research_model", None),
+            sources_dir=self.store.job_dir(job_id) / "research_sources",
+            check_cancelled=lambda: self._check_cancelled(job_id),
+        )
+        self.store.write_log(
+            job_id,
+            "research",
+            json.dumps(
+                {"queries": artifact["queries"], "documents": artifact["documents"], "stats": artifact["stats"]},
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
+        return artifact
 
     def _run_plan(self, job_id: str, request_payload: dict[str, Any], *, client: OpenAICompatibleClient | None = None) -> dict[str, Any]:
         client = client or self.client

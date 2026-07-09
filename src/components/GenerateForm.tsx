@@ -65,15 +65,19 @@ interface CourseContract {
 }
 
 const STAGE_LABELS_ZH: Record<string, string> = {
+  research: '搜集源材料',
   plan: '规划课程结构',
   compose: '生成章节内容',
+  verify: '终检与溯源',
   validate: '验证内容质量',
   export: '导出课程包',
 };
 
 const STAGE_LABELS_EN: Record<string, string> = {
+  research: 'Researching sources',
   plan: 'Planning course structure',
   compose: 'Composing chapters',
+  verify: 'Verifying against evidence',
   validate: 'Validating content quality',
   export: 'Exporting course package',
 };

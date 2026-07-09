@@ -15,6 +15,32 @@ if str(APP_DIR) not in sys.path:
 
 from pipeline import CourseGenerationPipeline  # noqa: E402
 from provider import ProviderConfig  # noqa: E402
+import research  # noqa: E402
+
+
+FAKE_DOC_TEXT = (
+    "缓存机制研究材料。" * 60
+    + "命中后系统会更新 recency 元数据，这是淘汰策略的信号来源。"
+)
+
+
+class _ResearchPatches:
+    """Context manager: 让 run_research 走假抓取，不出网。"""
+
+    def __enter__(self):
+        self._patches = [
+            patch.object(research, "wiki_search_titles", side_effect=lambda topic, lang, limit=2: [f"{topic}-{lang}"]),
+            patch.object(research, "wiki_page_text", side_effect=lambda title, lang: FAKE_DOC_TEXT),
+            patch.object(research, "ddg_search", return_value=[]),
+        ]
+        for p in self._patches:
+            p.start()
+        return self
+
+    def __exit__(self, *exc):
+        for p in self._patches:
+            p.stop()
+        return False
 
 
 class _FakeConfig:
@@ -81,6 +107,14 @@ class FakeClient:
                 "highlight": None,
                 "bridge": "下一章继续追问这个状态为什么会改变。",
             }
+        elif schema_name == "research_queries":
+            content = {"queries": ["缓存 LRU 淘汰 机制"]}
+        elif schema_name.startswith("evidence_"):
+            doc_id = schema_name.split("_", 1)[1]
+            content = {"evidence": (
+                [{"kind": "quote", "content": "命中后系统会更新 recency 元数据，这是淘汰策略的信号来源。", "note": "机制锚点"}]
+                + [{"kind": "fact", "content": f"{doc_id} 具体事实{i}：缓存条目在不同状态下的行为差异细节", "note": "锚点"} for i in range(6)]
+            )}
         else:
             raise AssertionError(f"unexpected schema: {schema_name}")
 
@@ -143,7 +177,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        job = pipeline.run_job(job["id"])
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
 
         # 生成完成后停在人工门，不落地 courses/
         self.assertEqual(job["status"], "waiting_review")
@@ -177,7 +212,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        pipeline.run_job(job["id"])
+        with _ResearchPatches():
+            pipeline.run_job(job["id"])
 
         self.assertGreaterEqual(len(client.chapter_prompts), 2)
         self.assertIn("上一章结尾", client.chapter_prompts[1])
@@ -255,7 +291,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(target_dir, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        job = pipeline.run_job(job["id"])
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
         self.assertEqual(job["status"], "waiting_review")
 
         with patch.object(pipeline, "_run_next_build", side_effect=RuntimeError("build failed")):
@@ -275,7 +312,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         promoted = REPO_ROOT / "courses" / slug
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        job = pipeline.run_job(job["id"])
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
 
         self.assertEqual(len(client.plan_prompts), 2)
         self.assertIn("上一版规划未通过校验", client.plan_prompts[1])  # 修复反馈进入第二次 prompt
@@ -292,7 +330,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         promoted = REPO_ROOT / "courses" / slug
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        job = pipeline.run_job(job["id"])
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
         self.assertEqual(job["status"], "failed")
         self.assertIn("factSpine", job["error"]["message"])
 
@@ -302,13 +341,50 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         client.config.judge_model = "fake-judge-gemini"
         slug = f"test-judge-model-{uuid.uuid4().hex[:8]}"
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        pipeline.run_job(job["id"])
+        with _ResearchPatches():
+            pipeline.run_job(job["id"])
 
         judge_calls = [m for (name, m) in client.calls if name.endswith("_quality_judge")]
         chapter_calls = [m for (name, m) in client.calls if name.endswith("_chapter")]
         self.assertTrue(judge_calls)
         self.assertTrue(all(m == "fake-judge-gemini" for m in judge_calls))
         self.assertTrue(all(m is None for m in chapter_calls))
+
+    def test_run_job_produces_research_artifact_and_stage(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-research-stage-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+
+        self.assertEqual(job["status"], "waiting_review")
+        stage_status = {s["name"]: s["status"] for s in job["stages"]}
+        self.assertEqual(stage_status["research"], "succeeded")
+        artifact = json.loads(Path(job["artifacts"]["research"]).read_text("utf-8"))
+        self.assertGreaterEqual(artifact["stats"]["evidenceCount"], 12)
+        sources = pipeline.store.job_dir(job["id"]) / "research_sources"
+        self.assertTrue((sources / "index.json").exists())
+
+    def test_legacy_four_stage_job_survives_find_and_retry(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-legacy-stages-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        # 模拟旧版 job：stages 只有 4 个
+        with pipeline.store.job_lock(job["id"]):
+            legacy = pipeline.store.load_job(job["id"])
+            legacy["stages"] = [s for s in legacy["stages"] if s["name"] in ("plan", "compose", "validate", "export")]
+            legacy["status"] = "failed"
+            legacy["currentStage"] = "plan"
+            pipeline.store.write_job(legacy)
+
+        retried = pipeline.store.prepare_retry(job["id"], None)  # 不崩溃
+        self.assertEqual(retried["status"], "queued")
+        # _find_stage 对缺失 stage 动态补条目
+        pipeline.store.mark_stage_running(job["id"], "research")
+        refreshed = pipeline.store.load_job(job["id"])
+        self.assertIn("research", [s["name"] for s in refreshed["stages"]])
 
 
 if __name__ == "__main__":

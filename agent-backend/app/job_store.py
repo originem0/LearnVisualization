@@ -12,7 +12,7 @@ try:
 except ImportError:
     from common import ensure_dir, now_iso, read_json, safe_job_id, write_json_atomic, write_text_atomic
 
-PIPELINE_STAGES = ["plan", "compose", "validate", "export"]
+PIPELINE_STAGES = ["research", "plan", "compose", "verify", "validate", "export"]
 
 
 class JobStore:
@@ -211,10 +211,14 @@ class JobStore:
     def prepare_retry(self, job_id: str, stage: str | None = None) -> dict[str, Any]:
         with self.job_lock(job_id):
             job = self.load_job(job_id)
+            order = {name: index for index, name in enumerate(PIPELINE_STAGES)}
             start_stage = stage or job.get("currentStage") or PIPELINE_STAGES[0]
-            start_index = PIPELINE_STAGES.index(start_stage)
-            for index, stage_state in enumerate(job["stages"]):
-                if index < start_index:
+            if start_stage not in order:
+                start_stage = PIPELINE_STAGES[0]
+            start_index = order[start_stage]
+            for stage_state in job["stages"]:
+                stage_index = order.get(stage_state["name"])
+                if stage_index is None or stage_index < start_index:
                     continue
                 job["artifacts"].pop(stage_state["name"], None)
                 stage_state["status"] = "pending"
@@ -224,7 +228,7 @@ class JobStore:
                 stage_state["artifactPath"] = None
                 stage_state["error"] = None
                 stage_state["retryCount"] = int(stage_state.get("retryCount") or 0) + 1
-            if start_index <= PIPELINE_STAGES.index("export"):
+            if start_index <= order["export"]:
                 job["artifacts"].pop("output", None)
             job["status"] = "queued"
             job["currentStage"] = None
@@ -273,6 +277,20 @@ class JobStore:
         for item in job["stages"]:
             if item["name"] == stage:
                 return item
+        if stage in PIPELINE_STAGES:
+            # 旧任务缺少后加的阶段：按需补一个 pending 条目，保持兼容
+            item = {
+                "name": stage,
+                "status": "pending",
+                "retryCount": 0,
+                "startedAt": None,
+                "finishedAt": None,
+                "summary": None,
+                "artifactPath": None,
+                "error": None,
+            }
+            job["stages"].append(item)
+            return item
         raise KeyError(f"unknown stage '{stage}'")
 
     def list_jobs(self) -> list[dict[str, Any]]:
