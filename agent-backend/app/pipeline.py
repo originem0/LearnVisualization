@@ -19,7 +19,7 @@ try:
     from .job_store import JobStore
     from .models import normalize_generation_contract
     from .prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
-    from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError
+    from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError, model_family
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
@@ -28,7 +28,7 @@ except ImportError:
     from job_store import JobStore
     from models import normalize_generation_contract
     from prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
-    from provider import OpenAICompatibleClient, ProviderConfig, ProviderError
+    from provider import OpenAICompatibleClient, ProviderConfig, ProviderError, model_family
 
 MAX_CONCURRENT_JOBS = 3
 COMPOSE_CONCURRENCY = 1
@@ -908,12 +908,20 @@ class CourseGenerationPipeline:
                 chapter_plan=chapter_plan,
                 plan_artifact=plan_artifact,
             )
+            judge_model = getattr(client.config, "judge_model", None)
+            if judge_model and model_family(judge_model) == model_family(getattr(client.config, "model", "")):
+                import sys
+                print(
+                    f"[pipeline] warning: judge_model '{judge_model}' 与写作模型同族，交叉评审的独立性受限",
+                    file=sys.stderr,
+                )
             response = client.generate_json(
                 schema_name=f"{chapter['id']}_quality_judge",
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 temperature=0.1,
                 max_tokens=800,
+                model=judge_model,
             )
             content = response.get("content") or {}
             return {

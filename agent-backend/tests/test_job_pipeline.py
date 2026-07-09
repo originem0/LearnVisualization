@@ -19,6 +19,9 @@ from provider import ProviderConfig  # noqa: E402
 
 class _FakeConfig:
     max_retries = 0
+    model = "fake-writer-glm"
+    judge_model = None
+    research_model = None
 
 
 class FakeClient:
@@ -27,8 +30,10 @@ class FakeClient:
         self.chapter_prompts: list[str] = []
         self.plan_prompts: list[str] = []
         self.bad_fact_spine_times = 0  # 前 N 次 plan 返回空 factSpine
+        self.calls: list[tuple[str, str | None]] = []
 
-    def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000):
+    def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000, model=None):
+        self.calls.append((schema_name, model))
         if schema_name == "topic_validation":
             content = {"canonicalTopic": "", "narrowSuggestions": []}
         elif schema_name == "essay_course_plan":
@@ -290,6 +295,20 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         job = pipeline.run_job(job["id"])
         self.assertEqual(job["status"], "failed")
         self.assertIn("factSpine", job["error"]["message"])
+
+    def test_judge_calls_use_judge_model_when_configured(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.config.judge_model = "fake-judge-gemini"
+        slug = f"test-judge-model-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        pipeline.run_job(job["id"])
+
+        judge_calls = [m for (name, m) in client.calls if name.endswith("_quality_judge")]
+        chapter_calls = [m for (name, m) in client.calls if name.endswith("_chapter")]
+        self.assertTrue(judge_calls)
+        self.assertTrue(all(m == "fake-judge-gemini" for m in judge_calls))
+        self.assertTrue(all(m is None for m in chapter_calls))
 
 
 if __name__ == "__main__":
