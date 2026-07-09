@@ -414,6 +414,51 @@ export default function GenerateForm({ locale }: { locale: string }) {
     }
   }
 
+  async function handleApprove(jobId: string) {
+    try {
+      const res = await agentFetch(`/jobs/${jobId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          approved: true,
+          reviewedBy: 'site-admin',
+          notes: 'Approved from course generation UI.',
+        }),
+      }, isZh);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const fresh = await fetchJob(jobId);
+      if (fresh) {
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? fresh : j)));
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function handleReject(jobId: string) {
+    const notes = window.prompt(isZh ? '驳回原因（可留空）' : 'Rejection notes (optional)') ?? '';
+    try {
+      const res = await agentFetch(`/jobs/${jobId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved: false, reviewedBy: 'site-admin', notes }),
+      }, isZh);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const fresh = await fetchJob(jobId);
+      if (fresh) {
+        setJobs((prev) => prev.map((j) => (j.id === jobId ? fresh : j)));
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   function handleDismiss(jobId: string) {
     removeJobId(jobId);
     setJobs((prev) => prev.filter((j) => j.id !== jobId));
@@ -546,6 +591,8 @@ export default function GenerateForm({ locale }: { locale: string }) {
               onDelete={() => handleDelete(job.id)}
               onRegenerate={() => handleRegenerate(job)}
               onRetry={() => handleRetry(job.id)}
+              onApprove={() => handleApprove(job.id)}
+              onReject={() => handleReject(job.id)}
               onDismiss={() => handleDismiss(job.id)}
             />
           ))}
@@ -565,6 +612,8 @@ function JobCard({
   onDelete,
   onRegenerate,
   onRetry,
+  onApprove,
+  onReject,
   onDismiss,
 }: {
   job: JobState;
@@ -574,6 +623,8 @@ function JobCard({
   onDelete: () => void;
   onRegenerate: () => void;
   onRetry: () => void;
+  onApprove: () => void;
+  onReject: () => void;
   onDismiss: () => void;
 }) {
   const topicName = job.request?.topic || job.id;
@@ -689,7 +740,7 @@ function JobCard({
     );
   }
 
-  // Legacy jobs may still have this status; new jobs auto-publish after validation.
+  // Waiting for human review before publish
   const slug = (summary.outputSlug as string) || '';
   const chapterCount = (summary.chapterCount as number) || (summary.moduleCount as number) || 0;
   if (job.status === 'waiting_review') {
@@ -702,14 +753,14 @@ function JobCard({
         <div className="flex items-center gap-3 text-xs text-[color:var(--color-muted)]">
           {slug && <span className="font-mono">{slug}</span>}
           {chapterCount > 0 && <span>{chapterCount} {isZh ? '章' : 'chapters'}</span>}
-          <span className="text-amber-600 dark:text-amber-300">{isZh ? '等待发布' : 'Waiting to publish'}</span>
+          <span className="text-amber-600 dark:text-amber-300">{isZh ? '待人工审核' : 'Waiting for review'}</span>
         </div>
         <div className="flex gap-3 pt-1">
-          <button type="button" onClick={onRegenerate} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
-            {isZh ? '重新生成' : 'Regenerate'}
+          <button type="button" onClick={onApprove} className="text-xs font-medium text-amber-700 hover:underline dark:text-amber-300">
+            {isZh ? '批准并发布' : 'Approve and publish'}
           </button>
-          <button type="button" onClick={onDelete} className="text-xs font-medium text-[color:var(--color-danger)] hover:underline">
-            {isZh ? '删除' : 'Delete'}
+          <button type="button" onClick={onReject} className="text-xs font-medium text-[color:var(--color-muted)] hover:underline">
+            {isZh ? '驳回' : 'Reject'}
           </button>
         </div>
       </div>

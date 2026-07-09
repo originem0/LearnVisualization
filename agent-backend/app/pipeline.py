@@ -437,26 +437,16 @@ class CourseGenerationPipeline:
             self._check_cancelled(job_id)
 
             output_dir = Path(export_artifact["outputDir"])
-            with self.store.job_lock(job_id):
-                exported_job = self.store.load_job(job_id)
-                exported_job["artifacts"]["output"] = str(output_dir)
-                exported_job["resultSummary"] = {
-                    "outputSlug": export_artifact["outputSlug"],
-                    "chapterCount": export_artifact["chapterCount"],
-                    "moduleCount": export_artifact["chapterCount"],
-                    "readyForPromote": False,
-                    "reviewStatus": "auto_publish_pending",
-                    "published": False,
-                    "writingMode": composed_artifact["course"].get("writingMode"),
-                }
-                self.store.write_job(exported_job)
-
-            return self._publish_output(
-                job_id,
-                output_dir=output_dir,
-                reviewed_by="system",
-                notes="Auto-published after generation, validation, and export checks passed.",
-            )
+            summary = {
+                "outputSlug": export_artifact["outputSlug"],
+                "chapterCount": export_artifact["chapterCount"],
+                "moduleCount": export_artifact["chapterCount"],
+                "readyForPromote": True,
+                "reviewStatus": "pending",
+                "published": False,
+                "writingMode": composed_artifact["course"].get("writingMode"),
+            }
+            return self.store.mark_waiting_review(job_id, output_dir=output_dir, summary=summary)
         except CancelledError:
             # Already marked as cancelled by cancel_job(); just clean up staging
             staging_dir = self.store.job_dir(job_id) / "staging"
