@@ -215,3 +215,44 @@ def build_judge_prompts(
         "输出 JSON：{\"pass\": true/false, \"score\": 0-100, \"issues\": [\"具体问题\"], \"rewriteHint\": \"如何重写\"}"
     )
     return system_prompt, user_prompt
+
+
+def build_research_query_prompts(topic: str, contract: dict[str, Any]) -> tuple[str, str]:
+    system_prompt = (
+        "你是课程研究员。输出 JSON。"
+        "搜索词要能命中一手文本和高质量二手材料（原著章节、标准百科、权威讲义），不要泛泛的科普词。"
+    )
+    scope = contract.get("scope") or {}
+    user_prompt = (
+        f"课程主题：{topic}\n"
+        f"驱动问题：{contract.get('drivingQuestion')}\n"
+        f"必须覆盖：{json.dumps(scope.get('include') or [], ensure_ascii=False)}\n"
+        f"不覆盖：{json.dumps(scope.get('exclude') or [], ensure_ascii=False)}\n\n"
+        "生成 6-10 个搜索查询，中英混合，具体到概念名、文本名、机制名或争论点。\n"
+        '输出 JSON：{"queries": ["...", "..."]}'
+    )
+    return system_prompt, user_prompt
+
+
+def build_evidence_extraction_prompts(
+    *,
+    topic: str,
+    contract: dict[str, Any],
+    doc_title: str,
+    doc_url: str,
+    doc_text: str,
+) -> tuple[str, str]:
+    system_prompt = (
+        "你是课程研究员，从给定材料中萃取证据条目。输出 JSON。\n"
+        "kind=quote 的 content 必须逐字复制材料原文中的连续片段——程序会做子串校验，任何改写、缩略、拼接都会被丢弃。\n"
+        "fact/example/figure 可以用你的话概括，但必须忠实于材料，不得掺入材料之外的知识。"
+    )
+    user_prompt = (
+        f"课程主题：{topic}\n"
+        f"驱动问题：{contract.get('drivingQuestion')}\n\n"
+        f"材料标题：{doc_title}\n材料地址：{doc_url}\n材料正文：\n{doc_text}\n\n"
+        "萃取最多 6 条与课程问题直接相关的证据，优先级：可直接引用的原文论证段（quote）>"
+        "具体事实/日期/数字（fact/figure）> 具体案例（example）。与课程问题无关的内容宁可不出。\n"
+        '输出 JSON：{"evidence": [{"kind": "quote|fact|example|figure", "content": "...", "note": "与课程哪条论线相关"}]}'
+    )
+    return system_prompt, user_prompt
