@@ -14,7 +14,7 @@ from typing import Any
 try:
     from .common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from .essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
-    from .essay_quality import evaluate_chapter_quality
+    from .essay_quality import evaluate_chapter_quality, validate_fact_spine
     from .essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from .job_store import JobStore
     from .models import normalize_generation_contract
@@ -23,7 +23,7 @@ try:
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
-    from essay_quality import evaluate_chapter_quality
+    from essay_quality import evaluate_chapter_quality, validate_fact_spine
     from essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from job_store import JobStore
     from models import normalize_generation_contract
@@ -639,36 +639,45 @@ class CourseGenerationPipeline:
 
     def _run_plan(self, job_id: str, request_payload: dict[str, Any], *, client: OpenAICompatibleClient | None = None) -> dict[str, Any]:
         client = client or self.client
-        system_prompt, user_prompt = build_essay_plan_prompts(request_payload)
-        response = client.generate_json(
-            schema_name="essay_course_plan",
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-        )
-        self.store.write_log(
-            job_id,
-            "plan",
-            json.dumps(
-                {
-                    "usage": response["usage"],
-                    "model": response.get("model"),
-                    "title": (response.get("content") or {}).get("title"),
-                    "chapterCount": len((response.get("content") or {}).get("chapters") or []),
-                    **(
-                        {
-                            "systemPrompt": system_prompt,
-                            "userPrompt": user_prompt,
-                            "response": response["content"],
-                        }
-                        if os.environ.get("AGENT_DEBUG_LOG_PROMPTS", "").strip().lower() in {"1", "true", "yes", "on"}
-                        else {}
-                    ),
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-        )
-        return self._normalize_essay_plan(response["content"], request_payload)
+        revision_feedback: str | None = None
+        normalized: dict[str, Any] = {}
+        for attempt in range(2):
+            system_prompt, user_prompt = build_essay_plan_prompts(request_payload, revision_feedback=revision_feedback)
+            response = client.generate_json(
+                schema_name="essay_course_plan",
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+            self.store.write_log(
+                job_id,
+                "plan",
+                json.dumps(
+                    {
+                        "attempt": attempt + 1,
+                        "usage": response["usage"],
+                        "model": response.get("model"),
+                        "title": (response.get("content") or {}).get("title"),
+                        "chapterCount": len((response.get("content") or {}).get("chapters") or []),
+                        **(
+                            {
+                                "systemPrompt": system_prompt,
+                                "userPrompt": user_prompt,
+                                "response": response["content"],
+                            }
+                            if os.environ.get("AGENT_DEBUG_LOG_PROMPTS", "").strip().lower() in {"1", "true", "yes", "on"}
+                            else {}
+                        ),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+            )
+            normalized = self._normalize_essay_plan(response["content"], request_payload)
+            issues = validate_fact_spine(normalized["factSpine"])
+            if not issues:
+                return normalized
+            revision_feedback = "；".join(issues)
+        raise ValueError(f"课程规划未通过 factSpine 校验: {revision_feedback}")
 
     def _run_compose(
         self,
@@ -803,11 +812,17 @@ class CourseGenerationPipeline:
         if not normalized["overview"]["wherePoints"]:
             normalized["overview"]["wherePoints"] = contract["desiredOutcome"]
         raw_fact_spine = (payload.get("factSpine") if isinstance(payload, dict) else []) or []
-        normalized["factSpine"] = [
-            str(item).strip()
-            for item in raw_fact_spine
-            if str(item).strip()
-        ][:5]
+        normalized_spine: list[dict[str, Any]] = []
+        for item in raw_fact_spine[:5]:
+            if isinstance(item, dict):
+                claim = str(item.get("claim") or "").strip()
+                ids = [str(x).strip() for x in (item.get("evidenceIds") or []) if str(x).strip()]
+            else:
+                claim = str(item).strip()
+                ids = []
+            if claim:
+                normalized_spine.append({"claim": claim, "evidenceIds": ids})
+        normalized["factSpine"] = normalized_spine
         normalized["contract"] = contract
         normalized["chapterPlans"] = chapter_plans
         return normalized
@@ -1064,6 +1079,7 @@ class CourseGenerationPipeline:
             "centralTension": plan_artifact["centralTension"],
             "contract": plan_artifact.get("contract"),
             "problemFraming": (plan_artifact.get("contract") or {}).get("problemFraming"),
+            "factSpine": plan_artifact.get("factSpine") or [],
             "overview": plan_artifact["overview"],
             "chapters": [chapter["id"] for chapter in chapters],
         }

@@ -25,11 +25,22 @@ class FakeClient:
     def __init__(self):
         self.config = _FakeConfig()
         self.chapter_prompts: list[str] = []
+        self.plan_prompts: list[str] = []
+        self.bad_fact_spine_times = 0  # 前 N 次 plan 返回空 factSpine
 
     def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000):
         if schema_name == "topic_validation":
             content = {"canonicalTopic": "", "narrowSuggestions": []}
         elif schema_name == "essay_course_plan":
+            self.plan_prompts.append(user_prompt)
+            fact_spine = [
+                "LRU 命中后会更新 recency 元数据",
+                "TTL 过期即使没有容量压力也不能继续返回旧值",
+                "容量满时仍然有效的 entry 也可能被淘汰",
+            ]
+            if self.bad_fact_spine_times > 0:
+                self.bad_fact_spine_times -= 1
+                fact_spine = []
             content = {
                 "title": "缓存为什么不是快一点的字典",
                 "subtitle": "从命中路径到淘汰策略",
@@ -38,11 +49,7 @@ class FakeClient:
                     "wherePoints": "读完能解释一次命中、一次过期和一次淘汰分别在回答什么问题。",
                     "arc": ["先拆掉字典直觉", "追踪命中路径", "区分过期和淘汰", "回到工程取舍"],
                 },
-                "factSpine": [
-                    "LRU 命中后会更新 recency 元数据",
-                    "TTL 过期即使没有容量压力也不能继续返回旧值",
-                    "容量满时仍然有效的 entry 也可能被淘汰",
-                ],
+                "factSpine": fact_spine,
                 "chapters": [
                     {"id": "c01", "number": 1, "title": "缓存不是字典", "role": "立起错误直觉"},
                     {"id": "c02", "number": 2, "title": "一次命中经过什么", "role": "追踪机制"},
@@ -244,6 +251,30 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.assertEqual(failed_job["status"], "failed")
         self.assertEqual(failed_job["review"]["status"], "publish_failed")
 
+    def test_plan_retries_once_when_fact_spine_missing_then_succeeds(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.bad_fact_spine_times = 1
+        slug = f"test-spine-retry-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with patch.object(pipeline, "_run_next_build", return_value={"ok": True, "skipped": True}):
+            job = pipeline.run_job(job["id"])
 
-if __name__ == "__main__":
-    unittest.main()
+        self.assertEqual(len(client.plan_prompts), 2)
+        self.assertIn("factSpine", client.plan_prompts[1])  # 修复反馈进入第二次 prompt
+        plan = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
+        self.assertEqual(len(plan["factSpine"]), 3)
+        self.assertEqual(plan["factSpine"][0]["claim"], "LRU 命中后会更新 recency 元数据")
+        self.assertEqual(plan["factSpine"][0]["evidenceIds"], [])
+
+    def test_plan_fails_when_fact_spine_never_valid(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.bad_fact_spine_times = 99
+        slug = f"test-spine-fail-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        job = pipeline.run_job(job["id"])
+        self.assertEqual(job["status"], "failed")
+        self.assertIn("factSpine", job["error"]["message"])
+
+

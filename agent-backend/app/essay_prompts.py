@@ -39,7 +39,11 @@ def load_seed_example(register: str) -> str:
     return f"course.json:\n{course}\n\nc01.json:\n{chapter}"
 
 
-def build_essay_plan_prompts(request_payload: dict[str, Any]) -> tuple[str, str]:
+def build_essay_plan_prompts(
+    request_payload: dict[str, Any],
+    *,
+    revision_feedback: str | None = None,
+) -> tuple[str, str]:
     contract = request_payload["contract"]
     register = register_for_knowledge_type(contract["knowledgeType"])
     default_writing_mode = writing_mode_for_knowledge_type(contract["knowledgeType"])

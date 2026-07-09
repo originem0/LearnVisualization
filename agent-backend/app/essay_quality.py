@@ -117,3 +117,21 @@ def evaluate_chapter_quality(
         "issues": issues,
         "rewriteHint": "；".join(issues),
     }
+
+
+def validate_fact_spine(fact_spine: Any, *, evidence_ids: set[str] | None = None) -> list[str]:
+    """factSpine 硬校验：非空、每条 claim 具体；二期传 evidence_ids 后每条必须挂到有效证据。"""
+    issues: list[str] = []
+    items = fact_spine if isinstance(fact_spine, list) else []
+    if len(items) < 3:
+        issues.append(f"factSpine 至少 3 条具体事实锚点，当前只有 {len(items)} 条")
+    for index, item in enumerate(items):
+        claim = str(item.get("claim") if isinstance(item, dict) else item or "").strip()
+        if len(claim) < 10:
+            issues.append(f"factSpine[{index}] 过短，不是具体事实/案例/机制锚点")
+        if evidence_ids is not None:
+            ids = [str(x).strip() for x in (item.get("evidenceIds") or [])] if isinstance(item, dict) else []
+            if not any(x in evidence_ids for x in ids):
+                issues.append(f"factSpine[{index}] 没有挂到任何有效证据 id")
+    return issues
+
