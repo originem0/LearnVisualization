@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from html.parser import HTMLParser
@@ -21,9 +22,18 @@ MAX_EVIDENCE = 25
 FETCH_TIMEOUT = 20
 
 
+def _research_opener() -> request.OpenerDirector:
+    """外部源站抓取可能需要走本地代理（服务器直连维基/搜索引擎不可达），
+    但 LLM 中转调用保持直连——所以这里用显式 opener 而不是进程级代理环境变量。"""
+    proxy = os.environ.get("AGENT_RESEARCH_PROXY", "").strip()
+    if proxy:
+        return request.build_opener(request.ProxyHandler({"http": proxy, "https": proxy}))
+    return request.build_opener()
+
+
 def http_get(url: str, *, timeout: int = FETCH_TIMEOUT) -> str:
     req = request.Request(url, headers={"User-Agent": USER_AGENT, "Accept-Language": "zh,en;q=0.8"})
-    with request.urlopen(req, timeout=timeout) as resp:
+    with _research_opener().open(req, timeout=timeout) as resp:
         raw = resp.read(2_000_000)
         charset = resp.headers.get_content_charset() or "utf-8"
     return raw.decode(charset, errors="replace")
