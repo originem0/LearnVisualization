@@ -83,6 +83,18 @@ def evaluate_chapter_quality(
         issues.append("explainer 章节滑向空泛哲学化")
     if text.count("。") + text.count("；") < 6:
         issues.append("正文句子太少，实质密度不足")
+    text_blocks = [
+        str(block.get("content") or "")
+        for block in blocks
+        if isinstance(block, dict) and block.get("type") == "text"
+    ]
+    if len(blocks) > 24:
+        issues.append(
+            f"narrative 碎块化：{len(blocks)} 个块远超 10-18 的约束；"
+            "不要按句子切块，把连续论证合并成 3-6 句的完整段落"
+        )
+    elif len(text_blocks) >= 8 and sum(len(t) for t in text_blocks) / len(text_blocks) < 60:
+        issues.append("narrative 碎块化：text 块平均长度过短，把相邻短句合并成完整段落")
     if writing_mode == "conceptual-essay":
         if is_final_chapter:
             tail_text = "\n".join(

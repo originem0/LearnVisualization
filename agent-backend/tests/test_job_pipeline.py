@@ -181,7 +181,11 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         )
         return pipeline, temp_dir, client
 
-    def test_pipeline_waits_for_review_then_publishes_on_approval(self):
+    def run_job_published(self, pipeline, job_id):
+        with _ResearchPatches(), patch.object(pipeline, "_run_next_build", return_value={"ok": True, "skipped": True}):
+            return pipeline.run_job(job_id)
+
+    def test_pipeline_auto_publishes_after_machine_gates(self):
         pipeline, temp_dir, _ = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-cache-essay-{uuid.uuid4().hex[:8]}"
@@ -189,29 +193,20 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            job = pipeline.run_job(job["id"])
+        job = self.run_job_published(pipeline, job["id"])
 
-        # 生成完成后停在人工门，不落地 courses/
-        self.assertEqual(job["status"], "waiting_review")
-        self.assertFalse(job["resultSummary"].get("published"))
-        self.assertTrue(job["resultSummary"]["readyForPromote"])
-        self.assertFalse(promoted.exists())
-        exported_dir = Path(job["artifacts"]["output"])
-        self.assertTrue((exported_dir / "course.json").exists())
-        self.assertTrue((exported_dir / "chapters" / "c01.json").exists())
-        self.assertFalse((exported_dir / "modules").exists())
-        approval = json.loads((exported_dir / "review" / "approval.json").read_text("utf-8"))
-        self.assertFalse(approval["approved"])
-
-        # 人工批准后才发布
-        with patch.object(pipeline, "_run_next_build", return_value={"ok": True, "skipped": True}):
-            job = pipeline.review_job(job["id"], approved=True, reviewed_by="tester", notes="ok")
-
+        # 机器防线全过后直接发布；人工判断是发布后的策展（删除/重生成）
         self.assertEqual(job["status"], "completed")
         self.assertTrue(job["resultSummary"]["published"])
         self.assertEqual(job["resultSummary"]["reviewStatus"], "approved")
         self.assertTrue(promoted.exists())
+        exported_dir = Path(job["artifacts"]["reviewedOutput"])
+        self.assertTrue((exported_dir / "course.json").exists())
+        self.assertTrue((exported_dir / "chapters" / "c01.json").exists())
+        self.assertFalse((exported_dir / "modules").exists())
+        approval = json.loads((exported_dir / "review" / "approval.json").read_text("utf-8"))
+        self.assertTrue(approval["approved"])
+        self.assertEqual(approval["reviewedBy"], "system")
         course_record = json.loads((promoted / "course.json").read_text("utf-8"))
         self.assertEqual(course_record["writingMode"], "mechanism-explainer")
         self.assertEqual(course_record["contract"]["problemFraming"]["problemNature"], "model_mismatch")
@@ -224,8 +219,7 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            pipeline.run_job(job["id"])
+        self.run_job_published(pipeline, job["id"])
 
         self.assertGreaterEqual(len(client.chapter_prompts), 2)
         self.assertIn("上一章结尾", client.chapter_prompts[1])
@@ -303,13 +297,8 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(target_dir, ignore_errors=True))
 
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
+        with _ResearchPatches(), patch.object(pipeline, "_run_next_build", side_effect=RuntimeError("build failed")):
             job = pipeline.run_job(job["id"])
-        self.assertEqual(job["status"], "waiting_review")
-
-        with patch.object(pipeline, "_run_next_build", side_effect=RuntimeError("build failed")):
-            with self.assertRaises(RuntimeError):
-                pipeline.review_job(job["id"], approved=True, reviewed_by="tester", notes="")
 
         self.assertFalse(target_dir.exists())
         failed_job = pipeline.get_job(job["id"])
@@ -332,6 +321,19 @@ class CourseGenerationPipelineTests(unittest.TestCase):
 
         self.assertFalse(checkpoint.exists())
 
+    def test_prepare_retry_from_compose_keeps_checkpoint(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-checkpoint-keep-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        checkpoint = pipeline.store.job_dir(job["id"]) / "stages" / "compose_checkpoint.json"
+        checkpoint.write_text('{"chapters": [], "compose_logs": []}', encoding="utf-8")
+
+        pipeline.store.prepare_retry(job["id"], "compose")
+
+        # 从 compose 本身重试保留检查点：已通过的章节不重写
+        self.assertTrue(checkpoint.exists())
+
     def test_plan_retries_once_when_fact_spine_missing_then_succeeds(self):
         pipeline, temp_dir, client = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
@@ -340,8 +342,7 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         promoted = REPO_ROOT / "courses" / slug
         self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            job = pipeline.run_job(job["id"])
+        job = self.run_job_published(pipeline, job["id"])
 
         self.assertEqual(len(client.plan_prompts), 2)
         self.assertNotIn("上一版规划未通过校验", client.plan_prompts[0])
@@ -369,9 +370,10 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.addCleanup(temp_dir.cleanup)
         client.config.judge_model = "fake-judge-gemini"
         slug = f"test-judge-model-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            pipeline.run_job(job["id"])
+        self.run_job_published(pipeline, job["id"])
 
         judge_calls = [m for (name, m) in client.calls if name.endswith("_quality_judge")]
         chapter_calls = [m for (name, m) in client.calls if name.endswith("_chapter")]
@@ -383,11 +385,12 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         pipeline, temp_dir, client = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-research-stage-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            job = pipeline.run_job(job["id"])
+        job = self.run_job_published(pipeline, job["id"])
 
-        self.assertEqual(job["status"], "waiting_review")
+        self.assertEqual(job["status"], "completed")
         stage_status = {s["name"]: s["status"] for s in job["stages"]}
         self.assertEqual(stage_status["research"], "succeeded")
         artifact = json.loads(Path(job["artifacts"]["research"]).read_text("utf-8"))
@@ -419,9 +422,10 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         pipeline, temp_dir, client = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-plan-evidence-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            job = pipeline.run_job(job["id"])
+        job = self.run_job_published(pipeline, job["id"])
 
         self.assertIn("[E01]", client.plan_prompts[0])  # 证据摘要进入 plan prompt
         plan = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
@@ -432,15 +436,16 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         pipeline, temp_dir, client = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-compose-evidence-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            job = pipeline.run_job(job["id"])
+        job = self.run_job_published(pipeline, job["id"])
 
         # 章节 prompt 内嵌本章证据全文
         self.assertIn("命中后系统会更新 recency 元数据", client.chapter_prompts[0])
         self.assertIn("[E01]", client.chapter_prompts[0])
         # 导出的章节带 sources
-        exported_dir = Path(job["artifacts"]["output"])
+        exported_dir = Path(job["artifacts"]["reviewedOutput"])
         c01 = json.loads((exported_dir / "chapters" / "c01.json").read_text("utf-8"))
         self.assertTrue(c01["sources"])
         self.assertEqual(c01["sources"][0]["id"], "E01")
@@ -461,10 +466,11 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         pipeline, temp_dir, client = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
         slug = f"test-verify-ok-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
         job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
-        with _ResearchPatches():
-            job = pipeline.run_job(job["id"])
-        self.assertEqual(job["status"], "waiting_review")
+        job = self.run_job_published(pipeline, job["id"])
+        self.assertEqual(job["status"], "completed")
         verify = json.loads(Path(job["artifacts"]["verify"]).read_text("utf-8"))
         self.assertTrue(verify["pass"])
         self.assertTrue(verify["mechanical"]["quoteFidelityOk"])

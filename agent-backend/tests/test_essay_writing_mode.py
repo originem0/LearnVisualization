@@ -271,3 +271,17 @@ class ConceptualEssayQualityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FragmentationGateTests(unittest.TestCase):
+    def test_fragmented_narrative_fails_local_gate(self):
+        blocks = [{"type": "text", "content": f"短句{i}。"} for i in range(30)]
+        result = evaluate_chapter_quality(
+            {"title": "碎块", "narrative": blocks},
+            register="essay",
+            writing_mode="conceptual-essay",
+            chapter_plan={"role": "短句练习"},
+            is_final_chapter=False,
+        )
+        self.assertFalse(result["pass"])
+        self.assertTrue(any("碎块化" in issue for issue in result["issues"]))

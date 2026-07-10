@@ -230,7 +230,9 @@ class JobStore:
                 stage_state["retryCount"] = int(stage_state.get("retryCount") or 0) + 1
             if start_index <= order["export"]:
                 job["artifacts"].pop("output", None)
-            if start_index <= order["compose"]:
+            # 只有 research/plan 被重置时章节缓存才作废；从 compose 本身重试要保留
+            # 已通过的章节，做到"只重写失败的章"
+            if start_index < order["compose"]:
                 checkpoint = self.job_dir(job_id) / "stages" / "compose_checkpoint.json"
                 checkpoint.unlink(missing_ok=True)
             job["status"] = "queued"

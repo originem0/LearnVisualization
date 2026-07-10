@@ -64,12 +64,14 @@ design/                设计规范（5 份文件）
     ↓
 [Validate] essay 引擎校验 + 本地质量检查
     ↓
-[Export] 写入 generated/，等待人工 review
+[Export] 写入 generated/
     ↓
-[Review approved] promote 到 courses/ → npm run build 成功后才完成
+[Auto-publish] 机器防线全过后自动 promote 到 courses/ → npm run build 成功后才完成
+    ↓
+[人工策展] 在线上通读成品；不满意则删除课程或重新生成（人类判断后移，不取消）
 ```
 
-核心设计：**新生成课程是 contract-first narrative essay**。生成结果只包含 `course.json`、`chapters/cNN.json`、`review/approval.json`；不再生成 `modules/`、`visuals/`、`interactions/`。旧 legacy 课程仍可渲染，但公开路由只保留精选课程。生成是开卷的：research 阶段建立带出处的证据库，写作与评审都对着证据进行，发布前必须人工审核。
+核心设计：**新生成课程是 contract-first narrative essay**。生成结果只包含 `course.json`、`chapters/cNN.json`、`review/approval.json`；不再生成 `modules/`、`visuals/`、`interactions/`。旧 legacy 课程仍可渲染，但公开路由只保留精选课程。生成是开卷的：research 阶段建立带出处的证据库，写作与评审都对着证据进行，发布由机器防线把关（引文逐字校验、证据锚定、交叉评审、全课终检），人工判断保留为发布后的策展——读线上成品，不满意删除或重生成。
 
 ## 资源限制
 

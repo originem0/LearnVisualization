@@ -473,16 +473,28 @@ class CourseGenerationPipeline:
             self._check_cancelled(job_id)
 
             output_dir = Path(export_artifact["outputDir"])
-            summary = {
-                "outputSlug": export_artifact["outputSlug"],
-                "chapterCount": export_artifact["chapterCount"],
-                "moduleCount": export_artifact["chapterCount"],
-                "readyForPromote": True,
-                "reviewStatus": "pending",
-                "published": False,
-                "writingMode": composed_artifact["course"].get("writingMode"),
-            }
-            return self.store.mark_waiting_review(job_id, output_dir=output_dir, summary=summary)
+            with self.store.job_lock(job_id):
+                exported_job = self.store.load_job(job_id)
+                exported_job["artifacts"]["output"] = str(output_dir)
+                exported_job["resultSummary"] = {
+                    "outputSlug": export_artifact["outputSlug"],
+                    "chapterCount": export_artifact["chapterCount"],
+                    "moduleCount": export_artifact["chapterCount"],
+                    "readyForPromote": False,
+                    "reviewStatus": "auto_publish_pending",
+                    "published": False,
+                    "writingMode": composed_artifact["course"].get("writingMode"),
+                }
+                self.store.write_job(exported_job)
+
+            # 机器防线（引文逐字校验、证据锚定、评审、全课终检）全部通过后直接发布；
+            # 人工判断保留为发布后的策展：读线上成品，不满意删除或重新生成。
+            return self._publish_output(
+                job_id,
+                output_dir=output_dir,
+                reviewed_by="system",
+                notes="Auto-published after research-grounded generation passed all machine gates.",
+            )
         except CancelledError:
             # Already marked as cancelled by cancel_job(); just clean up staging
             staging_dir = self.store.job_dir(job_id) / "staging"
