@@ -57,6 +57,7 @@ class FakeClient:
         self.plan_prompts: list[str] = []
         self.bad_fact_spine_times = 0  # 前 N 次 plan 返回空 factSpine
         self.fabricate_quotes = False
+        self.fail_course_verify = False
         self.calls: list[tuple[str, str | None]] = []
 
     def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000, model=None):
@@ -90,6 +91,9 @@ class FakeClient:
                 "factSpine": fact_spine,
                 "chapters": chapters,
             }
+        elif schema_name == "course_verify":
+            content = {"pass": not getattr(self, "fail_course_verify", False),
+                       "issues": ["末章没有回扣 drivingQuestion"] if getattr(self, "fail_course_verify", False) else []}
         elif schema_name.endswith("_quality_judge"):
             content = {"pass": True, "score": 90, "issues": [], "rewriteHint": ""}
         elif schema_name.endswith("_chapter"):
@@ -436,6 +440,33 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.assertEqual(job["status"], "failed")
         self.assertIn("quote", job["error"]["message"])
 
+    def test_verify_stage_records_artifact(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-verify-ok-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+        self.assertEqual(job["status"], "waiting_review")
+        verify = json.loads(Path(job["artifacts"]["verify"]).read_text("utf-8"))
+        self.assertTrue(verify["pass"])
+        self.assertTrue(verify["mechanical"]["quoteFidelityOk"])
+        judge_models = [m for (name, m) in client.calls if name == "course_verify"]
+        self.assertEqual(len(judge_models), 1)
+
+    def test_verify_failure_fails_job_with_stored_details(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.fail_course_verify = True
+        slug = f"test-verify-fail-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+        self.assertEqual(job["status"], "failed")
+        self.assertIn("verify", job["error"]["stage"])
+        verify = json.loads(Path(pipeline.store.stage_artifact_path(job["id"], "verify")).read_text("utf-8"))
+        self.assertFalse(verify["pass"])
+        self.assertIn("末章没有回扣 drivingQuestion", verify["issues"])
 
 
 if __name__ == "__main__":

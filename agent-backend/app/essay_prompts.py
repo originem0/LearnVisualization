@@ -315,3 +315,39 @@ def build_evidence_extraction_prompts(
         '输出 JSON：{"evidence": [{"kind": "quote|fact|example|figure", "content": "...", "note": "与课程哪条论线相关"}]}'
     )
     return system_prompt, user_prompt
+
+
+def build_course_verify_prompts(
+    *,
+    plan_artifact: dict[str, Any],
+    chapters: list[dict[str, Any]],
+) -> tuple[str, str]:
+    system_prompt = "你是课程终审评审。只输出 JSON。"
+
+    def _chapter_digest(chapter: dict[str, Any], full: bool) -> str:
+        blocks = [b for b in chapter.get("narrative") or [] if isinstance(b, dict) and b.get("type") == "text"]
+        if full:
+            body = "\n".join(str(b.get("content") or "") for b in blocks)
+        else:
+            head = str(blocks[0].get("content") or "") if blocks else ""
+            tail = str(blocks[-1].get("content") or "") if len(blocks) > 1 else ""
+            body = f"{head}\n……\n{tail}"
+        return f"## {chapter['id']} {chapter.get('title')}\nrole: {chapter.get('role')}\n{body}"
+
+    digests = [
+        _chapter_digest(chapter, full=(index == len(chapters) - 1))
+        for index, chapter in enumerate(chapters)
+    ]
+    user_prompt = (
+        "对整门课做终检（章节已逐章通过评审，这里只看课程级问题）。\n"
+        f"drivingQuestion: {plan_artifact.get('drivingQuestion')}\n"
+        f"centralTension: {plan_artifact.get('centralTension')}\n"
+        f"desiredOutcome: {(plan_artifact.get('contract') or {}).get('desiredOutcome')}\n\n"
+        + "\n\n".join(digests)
+        + "\n\n检查：\n"
+        "1. 全课读完，drivingQuestion 是否被实际回答（不是被绕开或替换）。\n"
+        "2. 末章（全文已给出）是否完成收束，给出可迁移的判断框架，而不是继续抛问题。\n"
+        "3. 章节之间的论证是否连续，有没有断裂或重复空转。\n"
+        '输出 JSON：{"pass": true/false, "issues": ["具体问题"]}'
+    )
+    return system_prompt, user_prompt

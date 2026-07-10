@@ -13,7 +13,7 @@ from typing import Any
 
 try:
     from .common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
-    from .essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
+    from .essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts, build_course_verify_prompts
     from .essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence, check_quote_fidelity
     from .essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from .job_store import JobStore
@@ -23,7 +23,7 @@ try:
     from .research import run_research, quote_in_text
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
-    from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
+    from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts, build_course_verify_prompts
     from essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence, check_quote_fidelity
     from essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from job_store import JobStore
@@ -417,10 +417,21 @@ class CourseGenerationPipeline:
 
             self._check_cancelled(job_id)
 
-            # --- VERIFY (course-level checks land in a later change) ---
-            if stage_status.get("verify") != "succeeded":
+            # --- VERIFY (course-level final check) ---
+            if stage_status.get("verify") == "succeeded" and job["artifacts"].get("verify"):
+                pass
+            else:
                 self.store.mark_stage_running(job_id, "verify")
-                self.store.mark_stage_success(job_id, "verify", summary={"deferred": True})
+                verify_artifact = self._run_verify(job_id, composed_artifact, research_artifact, client=client)
+                verify_path = self.store.store_stage_artifact(job_id, "verify", verify_artifact)
+                if not verify_artifact["pass"]:
+                    raise ValueError(f"课程终检未通过: {verify_artifact['issues'][:5]}")
+                self.store.mark_stage_success(
+                    job_id,
+                    "verify",
+                    artifact_path=verify_path,
+                    summary={"pass": True, "issueCount": 0},
+                )
 
             self._check_cancelled(job_id)
 
@@ -797,6 +808,7 @@ class CourseGenerationPipeline:
         self.store.write_log(job_id, "compose", json.dumps(compose_logs, ensure_ascii=False, indent=2))
         course = self._build_course_record(plan_artifact, chapters)
         return {
+            "plan": {"factSpine": plan_artifact.get("factSpine") or []},
             "course": course,
             "chapters": chapters,
             "review_approval": {
@@ -1042,6 +1054,76 @@ class CourseGenerationPipeline:
             if isinstance(block, dict) and block.get("type") == "text" and str(block.get("content") or "").strip()
         ]
         return "\n\n".join(text_blocks[-2:]) or None
+
+    def _run_verify(
+        self,
+        job_id: str,
+        composed_artifact: dict[str, Any],
+        research_artifact: dict[str, Any] | None,
+        *,
+        client: OpenAICompatibleClient | None = None,
+    ) -> dict[str, Any]:
+        client = client or self.client
+        chapters = composed_artifact["chapters"]
+        evidence = (research_artifact or {}).get("evidence") or []
+        evidence_ids = {e["id"] for e in evidence}
+        issues: list[str] = []
+
+        fidelity: list[str] = []
+        for chapter in chapters:
+            fidelity.extend(f"{chapter['id']}: {issue}" for issue in check_quote_fidelity(chapter, evidence))
+        issues.extend(fidelity)
+
+        bad_sources = [
+            f"{chapter['id']} sources 含未知证据 id: {source.get('id')}"
+            for chapter in chapters
+            for source in chapter.get("sources") or []
+            if source.get("id") not in evidence_ids
+        ]
+        issues.extend(bad_sources)
+
+        plan_artifact = composed_artifact.get("plan") or {}
+        spine = plan_artifact.get("factSpine") or composed_artifact["course"].get("factSpine") or []
+        bad_spine = [
+            f"factSpine[{index}] 挂到不存在的证据 id"
+            for index, item in enumerate(spine)
+            if evidence_ids and not any(x in evidence_ids for x in (item.get("evidenceIds") or []))
+        ]
+        issues.extend(bad_spine)
+
+        mechanical = {
+            "quoteFidelityOk": not fidelity,
+            "sourcesOk": not bad_sources,
+            "factSpineOk": not bad_spine,
+        }
+
+        judge_model = getattr(client.config, "judge_model", None)
+        system_prompt, user_prompt = build_course_verify_prompts(
+            plan_artifact={**plan_artifact, "drivingQuestion": composed_artifact["course"].get("drivingQuestion"),
+                           "centralTension": composed_artifact["course"].get("centralTension"),
+                           "contract": composed_artifact["course"].get("contract")},
+            chapters=chapters,
+        )
+        response = client.generate_json(
+            schema_name="course_verify",
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.1,
+            max_tokens=1200,
+            model=judge_model,
+        )
+        course_judge = {
+            "pass": bool((response.get("content") or {}).get("pass")),
+            "issues": (response.get("content") or {}).get("issues") or [],
+        }
+        issues.extend(str(x) for x in course_judge["issues"])
+
+        return {
+            "pass": not issues,
+            "issues": issues,
+            "mechanical": mechanical,
+            "courseJudge": course_judge,
+        }
 
     def _run_next_build(self, job_id: str) -> dict[str, Any]:
         """Run npm run build to regenerate static pages with the new course."""
