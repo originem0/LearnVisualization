@@ -316,6 +316,22 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.assertEqual(failed_job["status"], "failed")
         self.assertEqual(failed_job["review"]["status"], "publish_failed")
 
+    def test_prepare_retry_from_plan_discards_compose_checkpoint(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-checkpoint-reset-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        checkpoint = pipeline.store.job_dir(job["id"]) / "stages" / "compose_checkpoint.json"
+        checkpoint.write_text('{"chapters": [], "compose_logs": []}', encoding="utf-8")
+        with pipeline.store.job_lock(job["id"]):
+            failed = pipeline.store.load_job(job["id"])
+            failed["currentStage"] = "plan"
+            pipeline.store.write_job(failed)
+
+        pipeline.store.prepare_retry(job["id"], None)
+
+        self.assertFalse(checkpoint.exists())
+
     def test_plan_retries_once_when_fact_spine_missing_then_succeeds(self):
         pipeline, temp_dir, client = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
@@ -328,6 +344,7 @@ class CourseGenerationPipelineTests(unittest.TestCase):
             job = pipeline.run_job(job["id"])
 
         self.assertEqual(len(client.plan_prompts), 2)
+        self.assertNotIn("上一版规划未通过校验", client.plan_prompts[0])
         self.assertIn("上一版规划未通过校验", client.plan_prompts[1])  # 修复反馈进入第二次 prompt
         plan = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
         self.assertEqual(len(plan["factSpine"]), 3)

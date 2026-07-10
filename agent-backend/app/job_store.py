@@ -230,6 +230,9 @@ class JobStore:
                 stage_state["retryCount"] = int(stage_state.get("retryCount") or 0) + 1
             if start_index <= order["export"]:
                 job["artifacts"].pop("output", None)
+            if start_index <= order["compose"]:
+                checkpoint = self.job_dir(job_id) / "stages" / "compose_checkpoint.json"
+                checkpoint.unlink(missing_ok=True)
             job["status"] = "queued"
             job["currentStage"] = None
             job["error"] = None
