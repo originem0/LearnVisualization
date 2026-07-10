@@ -177,7 +177,8 @@ def build_chapter_prompts(
             f"{rendered}\n\n"
             "证据使用规则：\n"
             "- 具体事实断言必须有上面证据支撑；证据覆盖不到的地方，要么不写，要么明示为作者立场。\n"
-            "- quote 类型的 narrative block 必须逐字复制某条证据的 content（程序校验），cite 写来源标题。\n"
+            "- quote 类型的 narrative block 必须从上面某条证据的 content 里原样复制粘贴一段连续文字（程序做逐字校验，凭记忆改写必被拒），cite 写来源标题。\n"
+            "- 没有把握逐字复制时，不要用 quote 块——改用 text 块转述，并在句中注明依据哪条证据。\n"
             "- 证据要进入论证（解释、对照、推进），不要点名式背书。\n"
             '- 在输出 JSON 里加 "usedEvidence": ["E01", ...]，列出实际使用的证据 id。\n\n'
         )
