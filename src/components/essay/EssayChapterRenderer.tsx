@@ -45,6 +45,28 @@ export default function EssayChapterRenderer({ chapter, prev, next, locale, base
         </div>
       ) : null}
 
+      {chapter.sources && chapter.sources.length > 0 ? (
+        <section className="mt-10 border-t border-[color:var(--color-border)] pt-5">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
+            {isZh ? '参考资料' : 'Sources'}
+          </h2>
+          <ul className="mt-3 space-y-1.5">
+            {chapter.sources.map((source) => (
+              <li key={source.id} className="text-sm leading-6">
+                <a
+                  href={source.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-[color:var(--color-accent)] hover:underline"
+                >
+                  {source.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <nav className="mt-10 grid gap-3 border-t border-[color:var(--color-border)] pt-6 sm:grid-cols-2">
         {prev ? (
           <Link href={`${basePath}/${prev.id}/`} className="rounded-lg border border-[color:var(--color-border)] p-4 transition-colors hover:bg-zinc-50 dark:hover:bg-[#0b3a45]">

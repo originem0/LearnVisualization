@@ -172,6 +172,12 @@ export interface Highlight {
   afterBlock: number;
 }
 
+export interface ChapterSource {
+  id: string;
+  title: string;
+  url: string;
+}
+
 export interface Chapter {
   id: string;
   number: number;
@@ -180,6 +186,7 @@ export interface Chapter {
   narrative: EssayNarrativeBlock[];
   highlight?: Highlight | null;
   bridge?: string | null;
+  sources?: ChapterSource[];
 }
 
 export interface EssayCourse {
