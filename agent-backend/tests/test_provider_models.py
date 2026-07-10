@@ -64,3 +64,23 @@ class PerCallModelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NonObjectJsonTests(unittest.TestCase):
+    def make_client(self):
+        return OpenAICompatibleClient(ProviderConfig(base_url="http://fake.local/v1", model="writer-a"))
+
+    def test_double_encoded_json_is_unwrapped(self):
+        client = self.make_client()
+        inner = '{"title": "ok"}'
+        payload = {"choices": [{"message": {"content": __import__("json").dumps(inner)}}], "usage": {}}
+        with patch.object(client, "_post_json", return_value=payload):
+            result = client.generate_json(schema_name="x", system_prompt="s", user_prompt="u")
+        self.assertEqual(result["content"], {"title": "ok"})
+
+    def test_non_object_json_raises_provider_error(self):
+        client = self.make_client()
+        payload = {"choices": [{"message": {"content": '"just a string"'}}], "usage": {}}
+        with patch.object(client, "_post_json", return_value=payload):
+            with self.assertRaises(ProviderError):
+                client.generate_json(schema_name="x", system_prompt="s", user_prompt="u")

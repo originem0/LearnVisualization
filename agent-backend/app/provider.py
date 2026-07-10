@@ -228,6 +228,15 @@ class OpenAICompatibleClient:
         except json.JSONDecodeError as exc:
             raise ProviderError(f"{schema_name}: model returned invalid JSON: {exc}") from exc
 
+        # 部分模型/中转会把 JSON 再包一层字符串（双重编码）
+        if isinstance(parsed, str):
+            try:
+                parsed = json.loads(parsed)
+            except json.JSONDecodeError:
+                pass
+        if not isinstance(parsed, dict):
+            raise ProviderError(f"{schema_name}: model returned non-object JSON ({type(parsed).__name__})")
+
         return {
             "schema_name": schema_name,
             "content": parsed,

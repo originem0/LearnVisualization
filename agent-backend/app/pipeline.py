@@ -942,12 +942,24 @@ class CourseGenerationPipeline:
                 revision_feedback=revision_feedback,
                 evidence_items=chapter_evidence,
             )
-            response = client.generate_json(
-                schema_name=f"{chapter_plan['id']}_chapter",
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                max_tokens=16000,
-            )
+            try:
+                response = client.generate_json(
+                    schema_name=f"{chapter_plan['id']}_chapter",
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    max_tokens=16000,
+                )
+            except ProviderError as exc:
+                # 模型输出坏 JSON 等瞬时故障算一次失败尝试，带反馈重试而不是整个阶段崩掉
+                if attempt == attempts - 1:
+                    raise
+                local_logs.append({
+                    "chapterId": chapter_plan["id"],
+                    "attempt": attempt + 1,
+                    "providerError": str(exc)[:300],
+                })
+                revision_feedback = "上一次输出不是合法的 JSON 对象，请重新输出完整的章节 JSON。"
+                continue
             chapter = normalize_chapter_payload(
                 response["content"],
                 chapter_id=chapter_plan["id"],
