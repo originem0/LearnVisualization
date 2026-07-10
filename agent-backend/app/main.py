@@ -288,7 +288,8 @@ def handle_clarify_start(payload: dict) -> dict:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.7,
-            max_tokens=700
+            max_tokens=700,
+            model=getattr(client.config, "clarify_model", None),
         )
         content = _unwrap_llm_json_content(response)
 
@@ -358,7 +359,8 @@ def handle_clarify_respond(payload: dict) -> dict:
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.7,
-            max_tokens=1200
+            max_tokens=1200,
+            model=getattr(client.config, "clarify_model", None),
         )
         content = _unwrap_llm_json_content(response)
 
@@ -730,7 +732,7 @@ def update_provider_config(payload: dict) -> dict:
             current_rt[field] = value
 
     # Optional per-stage overrides: empty string explicitly clears the override
-    for field in ("research_model", "judge_model"):
+    for field in ("research_model", "judge_model", "clarify_model"):
         if field in payload:
             value = str(payload.get(field) or "").strip()
             if value:

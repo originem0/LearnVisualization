@@ -61,6 +61,7 @@ class ProviderConfig:
     fallback_model: str | None = None
     research_model: str | None = None
     judge_model: str | None = None
+    clarify_model: str | None = None
 
     # Path to runtime config file (overrides env vars, survives restarts)
     _RUNTIME_CONFIG_PATH = Path(__file__).resolve().parent.parent / "runtime-config.json"
@@ -107,6 +108,7 @@ class ProviderConfig:
         fallback_model = os.environ.get("AGENT_LLM_FALLBACK_MODEL") or None
         research_model = os.environ.get("AGENT_LLM_RESEARCH_MODEL") or None
         judge_model = os.environ.get("AGENT_LLM_JUDGE_MODEL") or None
+        clarify_model = os.environ.get("AGENT_LLM_CLARIFY_MODEL") or None
 
         # runtime-config.json overrides env vars
         rt = cls._load_runtime_overrides()
@@ -122,6 +124,8 @@ class ProviderConfig:
             research_model = rt["research_model"]
         if rt.get("judge_model"):
             judge_model = rt["judge_model"]
+        if rt.get("clarify_model"):
+            clarify_model = rt["clarify_model"]
 
         return cls(
             base_url=base_url.rstrip("/"),
@@ -132,6 +136,7 @@ class ProviderConfig:
             fallback_model=fallback_model,
             research_model=research_model,
             judge_model=judge_model,
+            clarify_model=clarify_model,
         )
 
     @property
@@ -142,6 +147,7 @@ class ProviderConfig:
             "fallback_model": self.fallback_model,
             "research_model": self.research_model,
             "judge_model": self.judge_model,
+            "clarify_model": self.clarify_model,
             "api_key_configured": bool(self.api_key),
             "timeout_seconds": self.timeout_seconds,
             "max_retries": self.max_retries,

@@ -62,6 +62,18 @@ class PerCallModelTests(unittest.TestCase):
         self.assertEqual(config.masked["judge_model"], "j")
 
 
+class ClarifyModelConfigTests(unittest.TestCase):
+    def test_config_carries_clarify_model(self):
+        config = ProviderConfig(base_url="http://fake.local/v1", model="a", clarify_model="c")
+        self.assertEqual(config.clarify_model, "c")
+        self.assertEqual(config.masked["clarify_model"], "c")
+
+    def test_clarify_model_defaults_none(self):
+        config = ProviderConfig(base_url="http://fake.local/v1", model="a")
+        self.assertIsNone(config.clarify_model)
+        self.assertIsNone(config.masked["clarify_model"])
+
+
 if __name__ == "__main__":
     unittest.main()
 
