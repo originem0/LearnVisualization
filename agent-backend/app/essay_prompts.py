@@ -113,6 +113,7 @@ def build_chapter_prompts(
     chapter_plan: dict[str, Any],
     prev_chapter_ending: str | None,
     revision_feedback: str | None = None,
+    evidence_items: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     contract = request_payload["contract"]
     register = plan_artifact["register"]
@@ -163,6 +164,26 @@ def build_chapter_prompts(
         f"- overview: {json.dumps(plan_artifact['overview'], ensure_ascii=False, indent=2)}\n"
         f"- factSpine: {json.dumps(plan_artifact.get('factSpine') or [], ensure_ascii=False, indent=2)}\n\n"
         f"上一章结尾（用于承接声音和过渡）：\n{prev_chapter_ending or '(第一章，无上一章)'}\n\n"
+    )
+
+    evidence_block = ""
+    if evidence_items:
+        rendered = "\n\n".join(
+            f"[{item['id']}] ({item['kind']})《{item['sourceTitle']}》 {item['sourceUrl']}\n{item['content']}"
+            for item in evidence_items
+        )
+        evidence_block = (
+            "本章证据库（写作必须建立在这些材料上）：\n"
+            f"{rendered}\n\n"
+            "证据使用规则：\n"
+            "- 具体事实断言必须有上面证据支撑；证据覆盖不到的地方，要么不写，要么明示为作者立场。\n"
+            "- quote 类型的 narrative block 必须逐字复制某条证据的 content（程序校验），cite 写来源标题。\n"
+            "- 证据要进入论证（解释、对照、推进），不要点名式背书。\n"
+            '- 在输出 JSON 里加 "usedEvidence": ["E01", ...]，列出实际使用的证据 id。\n\n'
+        )
+
+    user_prompt += evidence_block
+    user_prompt += (
         f"{register_rules}\n\n"
         f"{mode_rules}\n\n"
         "写作约束：\n"
@@ -185,6 +206,7 @@ def build_chapter_prompts(
         '  "title": "章节标题",\n'
         '  "role": "章节作用",\n'
         '  "narrative": [{"type": "text", "content": "正文"}],\n'
+        '  "usedEvidence": ["E01"],\n'
         '  "highlight": null,\n'
         '  "bridge": "过渡到下一章；末章为 null"\n'
         "}"
@@ -199,6 +221,7 @@ def build_judge_prompts(
     writing_mode: str,
     chapter_plan: dict[str, Any],
     plan_artifact: dict[str, Any],
+    evidence_items: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     system_prompt = "你是严格的课程内容评审。只输出 JSON。"
     if writing_mode == "conceptual-essay":
@@ -229,6 +252,23 @@ def build_judge_prompts(
         f"- centralTension: {plan_artifact.get('centralTension')}\n"
         f"- chapterPosition: {chapter.get('number')} / {len(plan_artifact.get('chapterPlans') or [])}\n"
         f"chapter: {json.dumps(chapter, ensure_ascii=False, indent=2)}\n\n"
+    )
+
+    if evidence_items:
+        digest = "\n".join(
+            f"[{item['id']}] ({item['kind']}) {str(item['content'])[:120]}"
+            for item in evidence_items
+        )
+        user_prompt += (
+            f"本章证据库：\n{digest}\n\n"
+            "证据评审（任一不过即 pass=false）：\n"
+            "(a) 列出没有证据支撑、又没有明示为立场的具体事实断言；\n"
+            "(b) quote 块是否逐字来自证据；\n"
+            "(c) 证据是否真正进入论证，而不是点名背书；\n"
+            "(d) 章节是否完成 chapterPlan.role。\n\n"
+        )
+
+    user_prompt += (
         "标准：主线连贯、实质密度足够、没有 AI 套话、没有疑似杜撰的无来源研究/专家背书、语域吻合。\n"
         f"{mode_standard}"
         "输出 JSON：{\"pass\": true/false, \"score\": 0-100, \"issues\": [\"具体问题\"], \"rewriteHint\": \"如何重写\"}"

@@ -3,6 +3,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
+try:
+    from .research import quote_in_text
+except ImportError:
+    from research import quote_in_text
+
 
 BANNED_PHRASES = (
     "你有没有想过",
@@ -145,3 +150,13 @@ def validate_chapter_evidence(chapter_plans: list[dict[str, Any]], evidence_ids:
             issues.append(f"{chapter.get('id')} 只挂到 {len(ids)} 条有效证据（每章至少 2 条）")
     return issues
 
+
+def check_quote_fidelity(chapter: dict[str, Any], evidence: list[dict[str, Any]]) -> list[str]:
+    """quote block 必须逐字来自证据库（归一化子串）；这是机器防线，不走 LLM。"""
+    issues: list[str] = []
+    for block in chapter.get("narrative") or []:
+        if isinstance(block, dict) and block.get("type") == "quote":
+            content = str(block.get("content") or "")
+            if not any(quote_in_text(content, str(e.get("content") or "")) for e in evidence):
+                issues.append(f"quote 块不是证据库原文，必须逐字引用证据或改为 text：{content[:40]}…")
+    return issues

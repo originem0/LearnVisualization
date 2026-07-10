@@ -14,23 +14,23 @@ from typing import Any
 try:
     from .common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from .essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
-    from .essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence
+    from .essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence, check_quote_fidelity
     from .essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from .job_store import JobStore
     from .models import normalize_generation_contract
     from .prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
     from .provider import OpenAICompatibleClient, ProviderConfig, ProviderError, model_family
-    from .research import run_research
+    from .research import run_research, quote_in_text
 except ImportError:
     from common import ensure_dir, issue_messages, now_iso, safe_job_id, safe_slug, slugify, validate_package_dir, write_json_atomic
     from essay_prompts import build_chapter_prompts, build_essay_plan_prompts, build_judge_prompts
-    from essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence
+    from essay_quality import evaluate_chapter_quality, validate_fact_spine, validate_chapter_evidence, check_quote_fidelity
     from essay_schema import normalize_chapter_payload, normalize_essay_plan_payload, register_for_knowledge_type
     from job_store import JobStore
     from models import normalize_generation_contract
     from prompt_assets import PROMPT_VERSION, build_topic_validation_prompt
     from provider import OpenAICompatibleClient, ProviderConfig, ProviderError, model_family
-    from research import run_research
+    from research import run_research, quote_in_text
 
 MAX_CONCURRENT_JOBS = 3
 COMPOSE_CONCURRENCY = 1
@@ -402,7 +402,7 @@ class CourseGenerationPipeline:
                 composed_artifact = json.loads(Path(job["artifacts"]["compose"]).read_text("utf-8"))
             else:
                 self.store.mark_stage_running(job_id, "compose")
-                composed_artifact = self._run_compose(job_id, request_payload, plan_artifact, client=client)
+                composed_artifact = self._run_compose(job_id, request_payload, plan_artifact, research_artifact=research_artifact, client=client)
                 compose_path = self.store.store_stage_artifact(job_id, "compose", composed_artifact)
                 self.store.mark_stage_success(
                     job_id,
@@ -730,6 +730,7 @@ class CourseGenerationPipeline:
         request_payload: dict[str, Any],
         plan_artifact: dict[str, Any],
         *,
+        research_artifact: dict[str, Any] | None = None,
         client: OpenAICompatibleClient | None = None,
     ) -> dict[str, Any]:
         client = client or self.client
@@ -756,6 +757,11 @@ class CourseGenerationPipeline:
             if chapter_plan["id"] in completed_ids:
                 continue
 
+            evidence_library = (research_artifact or {}).get("evidence") or []
+            chapter_evidence = [
+                e for e in evidence_library if e["id"] in set(chapter_plan.get("evidenceIds") or [])
+            ] or evidence_library[:8]
+
             chapter, local_logs = self._compose_chapter_with_rewrites(
                 job_id=job_id,
                 request_payload=request_payload,
@@ -764,6 +770,8 @@ class CourseGenerationPipeline:
                 chapter_index=index,
                 client=client,
                 prev_chapter_ending=prev_chapter_ending,
+                chapter_evidence=chapter_evidence,
+                evidence_library=evidence_library,
             )
             chapters.append(chapter)
             prev_chapter_ending = self._last_chapter_ending(chapter)
@@ -892,6 +900,8 @@ class CourseGenerationPipeline:
         chapter_index: int,
         client: OpenAICompatibleClient,
         prev_chapter_ending: str | None,
+        chapter_evidence: list[dict[str, Any]] | None = None,
+        evidence_library: list[dict[str, Any]] | None = None,
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         local_logs: list[dict[str, Any]] = []
         revision_feedback: str | None = None
@@ -906,6 +916,7 @@ class CourseGenerationPipeline:
                 chapter_plan=chapter_plan,
                 prev_chapter_ending=prev_chapter_ending,
                 revision_feedback=revision_feedback,
+                evidence_items=chapter_evidence,
             )
             response = client.generate_json(
                 schema_name=f"{chapter_plan['id']}_chapter",
@@ -921,7 +932,29 @@ class CourseGenerationPipeline:
                 chapter["role"] = chapter_plan["role"]
             if chapter_index == len(plan_artifact["chapterPlans"]):
                 chapter["bridge"] = None
-            judgement = self._judge_chapter(chapter, plan_artifact, chapter_plan, client=client)
+
+            used_ids = [str(x).strip() for x in (response["content"] or {}).get("usedEvidence") or [] if str(x).strip()]
+            library = evidence_library or []
+            by_id = {e["id"]: e for e in library}
+            quoted_ids = [
+                e["id"] for e in library
+                if any(
+                    isinstance(block, dict) and block.get("type") == "quote"
+                    and quote_in_text(str(block.get("content") or ""), str(e.get("content") or ""))
+                    for block in chapter["narrative"]
+                )
+            ]
+            source_ids = list(dict.fromkeys([x for x in used_ids if x in by_id] + quoted_ids))
+            chapter["sources"] = [
+                {"id": x, "title": by_id[x]["sourceTitle"], "url": by_id[x]["sourceUrl"]}
+                for x in source_ids
+            ]
+
+            fidelity_issues = check_quote_fidelity(chapter, library) if library else []
+            if fidelity_issues:
+                judgement = {"pass": False, "score": 40, "issues": fidelity_issues, "rewriteHint": "；".join(fidelity_issues)}
+            else:
+                judgement = self._judge_chapter(chapter, plan_artifact, chapter_plan, client=client, evidence_items=chapter_evidence)
             log_entry = {
                 "chapterId": chapter["id"],
                 "usage": response["usage"],
@@ -953,6 +986,7 @@ class CourseGenerationPipeline:
         chapter_plan: dict[str, Any],
         *,
         client: OpenAICompatibleClient,
+        evidence_items: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         register = plan_artifact["register"]
         writing_mode = plan_artifact.get("writingMode") or "mechanism-explainer"
@@ -972,6 +1006,7 @@ class CourseGenerationPipeline:
                 writing_mode=writing_mode,
                 chapter_plan=chapter_plan,
                 plan_artifact=plan_artifact,
+                evidence_items=evidence_items,
             )
             judge_model = getattr(client.config, "judge_model", None)
             if judge_model and model_family(judge_model) == model_family(getattr(client.config, "model", "")):

@@ -56,6 +56,7 @@ class FakeClient:
         self.chapter_prompts: list[str] = []
         self.plan_prompts: list[str] = []
         self.bad_fact_spine_times = 0  # 前 N 次 plan 返回空 factSpine
+        self.fabricate_quotes = False
         self.calls: list[tuple[str, str | None]] = []
 
     def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000, model=None):
@@ -101,10 +102,16 @@ class FakeClient:
                 "narrative": [
                     {"type": "text", "content": f"{chapter_id} 直接进入缓存机制问题。它先说明一个具体状态。然后把这个状态放回命中路径里。"},
                     {"type": "heading", "content": "状态为什么重要"},
+                    {"type": "quote", "content": (
+                        "这句引文是模型编造的，不在任何证据里，长度足够触发校验。"
+                        if self.fabricate_quotes
+                        else "命中后系统会更新 recency 元数据，这是淘汰策略的信号来源。"
+                    ), "cite": "研究材料"},
                     {"type": "text", "content": "命中不是单步查表。系统要先定位 entry。接着检查有效性。然后返回 value。最后更新访问元数据。"},
                     {"type": "callout", "content": "如果命中后不更新元数据，后面的淘汰策略就会拿到错误信号。"},
                     {"type": "text", "content": "这一章的结尾保留一个问题：当 value 还存在时，它到底是可信、过期，还是应该因为容量压力被移走？"},
                 ],
+                "usedEvidence": ["E01"],
                 "highlight": None,
                 "bridge": "下一章继续追问这个状态为什么会改变。",
             }
@@ -399,6 +406,35 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         plan = json.loads(Path(job["artifacts"]["plan"]).read_text("utf-8"))
         self.assertEqual(plan["chapterPlans"][0]["evidenceIds"], ["E01", "E02"])
         self.assertEqual(plan["factSpine"][0]["evidenceIds"], ["E01"])
+
+    def test_chapter_prompt_embeds_evidence_and_output_carries_sources(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-compose-evidence-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+
+        # 章节 prompt 内嵌本章证据全文
+        self.assertIn("命中后系统会更新 recency 元数据", client.chapter_prompts[0])
+        self.assertIn("[E01]", client.chapter_prompts[0])
+        # 导出的章节带 sources
+        exported_dir = Path(job["artifacts"]["output"])
+        c01 = json.loads((exported_dir / "chapters" / "c01.json").read_text("utf-8"))
+        self.assertTrue(c01["sources"])
+        self.assertEqual(c01["sources"][0]["id"], "E01")
+        self.assertTrue(c01["sources"][0]["url"].startswith("https://"))
+
+    def test_fabricated_quote_block_triggers_rewrite_then_fails(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.fabricate_quotes = True
+        slug = f"test-quote-fidelity-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+        self.assertEqual(job["status"], "failed")
+        self.assertIn("quote", job["error"]["message"])
 
 
 
