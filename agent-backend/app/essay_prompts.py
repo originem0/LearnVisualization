@@ -288,7 +288,9 @@ def build_research_query_prompts(topic: str, contract: dict[str, Any]) -> tuple[
         f"必须覆盖：{json.dumps(scope.get('include') or [], ensure_ascii=False)}\n"
         f"不覆盖：{json.dumps(scope.get('exclude') or [], ensure_ascii=False)}\n\n"
         "生成 6-10 个搜索查询，中英混合，具体到概念名、文本名、机制名或争论点。\n"
-        '输出 JSON：{"queries": ["...", "..."]}'
+        "另外给出 wikiTopics：3-6 个维基百科条目名（人名、著作名、概念名），"
+        "必须覆盖『必须覆盖』清单里出现的每一个思想家和核心概念，不要只围绕主主题。\n"
+        '输出 JSON：{"queries": ["...", "..."], "wikiTopics": ["条目名", "..."]}'
     )
     return system_prompt, user_prompt
 

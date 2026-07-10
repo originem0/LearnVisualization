@@ -202,6 +202,8 @@ def run_research(
     queries = [str(q).strip() for q in (response.get("content") or {}).get("queries") or [] if str(q).strip()][:10]
     if not queries:
         queries = [topic]
+    # scope 里的其他思想家/概念要靠这些条目名进语料，只搜主主题会漏掉对照对象
+    wiki_topics = [str(t).strip() for t in (response.get("content") or {}).get("wikiTopics") or [] if str(t).strip()][:6]
 
     # 2. 抓取语料：wiki 优先，DDG 补充
     documents: list[dict[str, Any]] = []
@@ -219,13 +221,12 @@ def run_research(
             "text": text[:MAX_PAGE_CHARS],
         })
 
-    for lang in ("zh", "en"):
-        check_cancelled()
+    def fetch_wiki(search_term: str, lang: str, limit: int) -> None:
         try:
-            titles = wiki_search_titles(topic, lang, limit=4)
+            titles = wiki_search_titles(search_term, lang, limit=limit)
         except Exception as exc:
-            log(f"[research] wiki({lang}) search failed: {exc}")
-            continue
+            log(f"[research] wiki({lang}) search '{search_term}' failed: {exc}")
+            return
         for title in titles:
             try:
                 add_document(
@@ -235,6 +236,13 @@ def run_research(
                 )
             except Exception as exc:
                 log(f"[research] wiki({lang}) page '{title}' failed: {exc}")
+
+    for lang in ("zh", "en"):
+        check_cancelled()
+        fetch_wiki(topic, lang, 3)
+        for wiki_topic in wiki_topics:
+            check_cancelled()
+            fetch_wiki(wiki_topic, lang, 1)
 
     web_candidates: list[dict[str, str]] = []
     for query in queries:
