@@ -67,6 +67,7 @@ def normalize_generation_contract(payload: dict[str, Any] | None) -> dict[str, A
         "desiredOutcome": str(raw.get("desiredOutcome") or "").strip(),
         "scope": _to_contract_scope(raw.get("scope")),
         "problemFraming": _to_problem_framing(raw.get("problemFraming")),
+        "teachingHooks": _to_str_list(raw.get("teachingHooks")),
     }
 
     missing = [

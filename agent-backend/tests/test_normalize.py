@@ -15,6 +15,7 @@ from quality import (
     normalize_plan_payload,
     validate_narrative_block,
 )
+from models import normalize_generation_contract
 
 # -- Minimal valid fixtures --
 
@@ -222,6 +223,35 @@ class TestConceptMapLLMEdges(unittest.TestCase):
         module = {"title": "Empty", "concepts": [], "logicChain": []}
         result = build_concept_map(module)
         self.assertTrue(len(result["nodes"]) > 0, "Fallback map should have nodes")
+
+
+class TeachingHooksNormalizationTests(unittest.TestCase):
+    def _base_contract(self):
+        return {
+            "drivingQuestion": "为什么缓存不是快字典？",
+            "centralTension": "查表直觉忽略了有效性和容量",
+            "knowledgeType": "conceptual",
+            "audience": "写应用但不懂缓存内部的工程师",
+            "desiredOutcome": "能解释命中/过期/淘汰",
+            "scope": {"include": ["命中路径"], "exclude": ["分布式"], "depth": "机制深挖"},
+            "problemFraming": {
+                "phenomenon": "同样 key-value，缓存命中会改状态",
+                "contrast": "字典命中不变，缓存命中更新 recency",
+                "problemNature": "model_mismatch",
+                "systemGoal": "理解缓存如何同时维护有效性和容量",
+                "modelGap": "缺少命中路径与淘汰策略的关系模型",
+            },
+        }
+
+    def test_teaching_hooks_normalized_to_str_list(self):
+        raw = self._base_contract()
+        raw["teachingHooks"] = ["LRU 淘汰更新 recency", "  ", "TTL 过期不返回旧值", 123]
+        contract = normalize_generation_contract({"contract": raw})
+        self.assertEqual(contract["teachingHooks"], ["LRU 淘汰更新 recency", "TTL 过期不返回旧值", "123"])
+
+    def test_missing_teaching_hooks_is_empty_list(self):
+        contract = normalize_generation_contract({"contract": self._base_contract()})
+        self.assertEqual(contract["teachingHooks"], [])
 
 
 if __name__ == "__main__":
