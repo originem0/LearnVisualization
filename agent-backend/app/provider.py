@@ -167,6 +167,8 @@ class OpenAICompatibleClient:
             "model": chosen_model,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            # 部分中转站省略 stream 参数时默认走 SSE，显式关闭
+            "stream": False,
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -195,6 +197,7 @@ class OpenAICompatibleClient:
             "model": self.config.model,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "stream": False,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
