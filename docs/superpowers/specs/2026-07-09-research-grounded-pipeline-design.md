@@ -1,7 +1,7 @@
 # 开卷生成管线（Research-Grounded Essay Pipeline）设计
 
 日期：2026-07-09
-状态：已获用户批准
+状态：已实施（2026-07-10）
 分支：refactor/narrative-essay
 
 ## 背景与诊断

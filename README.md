@@ -52,9 +52,15 @@ design/                设计规范（5 份文件）
     ↓
 [输入门控] 规则校验 + LLM 主题验证/规范化/语义去重
     ↓
-[Plan] LLM 生成 essay spine + 4-6 章章节弧线
+[Research] 搜索+抓取源材料（wiki zh/en + DuckDuckGo），萃取证据库
+    ├─ quote 逐字子串机器校验，编造引文直接丢弃
+    └─ 可用证据 < 12 条则任务失败（宁缺毋滥）
     ↓
-[Compose] 串行生成 chapter，后章接收前章结尾，judge 不过则重写
+[Plan] LLM 生成 essay spine + 4-6 章章节弧线；factSpine/每章 evidenceIds 必须挂到证据库
+    ↓
+[Compose] 串行生成 chapter，后章接收前章结尾；章节携带本章证据全文，quote 保真机器校验，judge 走异族 judge_model
+    ↓
+[Verify] 全课终检：quote/sources/factSpine 机械复查 + 课程级收束评审
     ↓
 [Validate] essay 引擎校验 + 本地质量检查
     ↓
@@ -63,7 +69,7 @@ design/                设计规范（5 份文件）
 [Review approved] promote 到 courses/ → npm run build 成功后才完成
 ```
 
-核心设计：**新生成课程是 contract-first narrative essay**。生成结果只包含 `course.json`、`chapters/cNN.json`、`review/approval.json`；不再生成 `modules/`、`visuals/`、`interactions/`。旧 legacy 课程仍可渲染，但公开路由只保留精选课程。
+核心设计：**新生成课程是 contract-first narrative essay**。生成结果只包含 `course.json`、`chapters/cNN.json`、`review/approval.json`；不再生成 `modules/`、`visuals/`、`interactions/`。旧 legacy 课程仍可渲染，但公开路由只保留精选课程。生成是开卷的：research 阶段建立带出处的证据库，写作与评审都对着证据进行，发布前必须人工审核。
 
 ## 资源限制
 
@@ -99,6 +105,8 @@ python3 -m app.main   # http://127.0.0.1:8081
 ```
 
 危险 POST 接口默认需要独立管理员 token。必须设置 `AGENT_ADMIN_TOKEN`，`AGENT_SETTINGS_PASSWORD` 只用于 LLM 设置面板，不能复用为管理员 token。前端会在首次需要时提示输入，并通过 `X-Agent-Admin-Token` 发送；token 只保存在当前页面内存中。
+
+LLM 配置支持 per-stage 模型：`model`（写作）、`fallback_model`（兜底）、`research_model`（研究，可选）、`judge_model`（评审，建议与写作模型异族）。每个 job 的抓取原文保存在 `agent-backend/jobs/<id>/research_sources/` 供审计。
 
 主要端点：
 
