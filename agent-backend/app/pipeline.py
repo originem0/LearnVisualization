@@ -982,10 +982,17 @@ class CourseGenerationPipeline:
                 )
             ]
             source_ids = list(dict.fromkeys([x for x in used_ids if x in by_id] + quoted_ids))
-            chapter["sources"] = [
-                {"id": x, "title": by_id[x]["sourceTitle"], "url": by_id[x]["sourceUrl"]}
-                for x in source_ids
-            ]
+            # 同一来源可能有多条证据（不同 evidence id 指向同一条目）；参考资料按来源去重
+            seen_sources: set[tuple[str, str]] = set()
+            chapter["sources"] = []
+            for x in source_ids:
+                key = (by_id[x]["sourceTitle"], by_id[x]["sourceUrl"])
+                if key in seen_sources:
+                    continue
+                seen_sources.add(key)
+                chapter["sources"].append(
+                    {"id": x, "title": by_id[x]["sourceTitle"], "url": by_id[x]["sourceUrl"]}
+                )
 
             fidelity_issues = check_quote_fidelity(chapter, library) if library else []
             if fidelity_issues:

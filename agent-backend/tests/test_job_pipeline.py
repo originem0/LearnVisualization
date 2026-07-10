@@ -115,7 +115,7 @@ class FakeClient:
                     {"type": "callout", "content": "如果命中后不更新元数据，后面的淘汰策略就会拿到错误信号。"},
                     {"type": "text", "content": "这一章的结尾保留一个问题：当 value 还存在时，它到底是可信、过期，还是应该因为容量压力被移走？"},
                 ],
-                "usedEvidence": ["E01"],
+                "usedEvidence": ["E01", "E02"],
                 "highlight": None,
                 "bridge": "下一章继续追问这个状态为什么会改变。",
             }
@@ -450,6 +450,10 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.assertTrue(c01["sources"])
         self.assertEqual(c01["sources"][0]["id"], "E01")
         self.assertTrue(c01["sources"][0]["url"].startswith("https://"))
+        # E01/E02 同属一份文档，参考资料按来源去重后不重复
+        source_keys = [(s["title"], s["url"]) for s in c01["sources"]]
+        self.assertEqual(len(source_keys), len(set(source_keys)))
+        self.assertEqual(len(c01["sources"]), 1)
 
     def test_fabricated_quote_block_triggers_rewrite_then_fails(self):
         pipeline, temp_dir, client = self.create_pipeline()
