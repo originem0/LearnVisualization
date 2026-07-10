@@ -107,7 +107,12 @@ def _normalize_highlight(raw: Any, narrative_len: int) -> dict[str, Any] | None:
 
 def normalize_chapter_payload(payload: dict[str, Any] | None, *, chapter_id: str, number: int) -> dict[str, Any]:
     p = payload or {}
-    narrative = [validate_essay_narrative_block(b, i) for i, b in enumerate(p.get("narrative") or [])]
+    narrative = [
+        block
+        for i, b in enumerate(p.get("narrative") or [])
+        # 空 content 块任何类型都不合法，引擎校验会拦，这里直接丢弃
+        if (block := validate_essay_narrative_block(b, i))["content"]
+    ]
     bridge_raw = p.get("bridge")
     bridge = _s(bridge_raw) or None if bridge_raw is not None else None
     return {

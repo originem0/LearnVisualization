@@ -96,3 +96,18 @@ class TestChapterNormalization(unittest.TestCase):
               "highlight": {"kind": "trace", "data": {"steps": []}, "caption": "c", "afterBlock": 0}}
         result = normalize_chapter_payload(ch, chapter_id="c02", number=2)
         self.assertEqual(result["highlight"]["kind"], "trace")
+
+
+class EmptyBlockDropTests(unittest.TestCase):
+    def test_normalize_chapter_drops_empty_content_blocks(self):
+        chapter = normalize_chapter_payload(
+            {"narrative": [
+                {"type": "text", "content": "正文一段。"},
+                {"type": "text", "content": "   "},
+                {"type": "heading", "content": ""},
+                {"type": "callout", "content": "提示"},
+            ]},
+            chapter_id="c01",
+            number=1,
+        )
+        self.assertEqual([b["content"] for b in chapter["narrative"]], ["正文一段。", "提示"])
