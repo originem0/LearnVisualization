@@ -934,6 +934,7 @@ class CourseGenerationPipeline:
                 schema_name=f"{chapter_plan['id']}_chapter",
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
+                max_tokens=16000,
             )
             chapter = normalize_chapter_payload(
                 response["content"],
