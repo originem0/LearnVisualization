@@ -114,7 +114,10 @@ def evaluate_chapter_quality(
             if _comparison_is_runaway(text, name, role_text)
         ]
         if runaway_names and not role_mentions_comparison:
-            issues.append(f"比较对象喧宾夺主: {', '.join(runaway_names)}")
+            issues.append(
+                f"比较对象喧宾夺主: {', '.join(runaway_names)}；"
+                "本章 role 没有要求比较，重写时删除这些对象的成段展开，正文最多保留一句过渡提及"
+            )
 
     return {
         "pass": not issues,

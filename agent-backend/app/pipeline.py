@@ -917,7 +917,7 @@ class CourseGenerationPipeline:
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         local_logs: list[dict[str, Any]] = []
         revision_feedback: str | None = None
-        attempts = 3
+        attempts = 4
         last_chapter: dict[str, Any] | None = None
         last_judgement: dict[str, Any] | None = None
         for attempt in range(attempts):

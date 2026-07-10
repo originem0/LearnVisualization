@@ -61,7 +61,7 @@ class WritingModePromptTests(unittest.TestCase):
         self.assertIn("writingMode: conceptual-essay", user_prompt)
         self.assertIn("不要求人物、情节、场景、个人经历", user_prompt)
         self.assertIn("narrative 表示章节内容的连续性，不表示必须写成故事体裁", user_prompt)
-        self.assertIn("不要提前扩写萨特", user_prompt)
+        self.assertIn("不得成段展开", user_prompt)
 
     def test_conceptual_judge_prompt_uses_chapter_role_not_story_rubric(self):
         chapter = {
