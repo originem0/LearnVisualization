@@ -310,7 +310,7 @@ def build_evidence_extraction_prompts(
         f"课程主题：{topic}\n"
         f"驱动问题：{contract.get('drivingQuestion')}\n\n"
         f"材料标题：{doc_title}\n材料地址：{doc_url}\n材料正文：\n{doc_text}\n\n"
-        "萃取最多 6 条与课程问题直接相关的证据，优先级：可直接引用的原文论证段（quote）>"
+        "萃取最多 8 条与课程问题直接相关的证据，优先级：可直接引用的原文论证段（quote）>"
         "具体事实/日期/数字（fact/figure）> 具体案例（example）。与课程问题无关的内容宁可不出。\n"
         '输出 JSON：{"evidence": [{"kind": "quote|fact|example|figure", "content": "...", "note": "与课程哪条论线相关"}]}'
     )

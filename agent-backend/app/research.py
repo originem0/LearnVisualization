@@ -222,14 +222,19 @@ def run_research(
     for lang in ("zh", "en"):
         check_cancelled()
         try:
-            for title in wiki_search_titles(topic, lang, limit=2):
+            titles = wiki_search_titles(topic, lang, limit=4)
+        except Exception as exc:
+            log(f"[research] wiki({lang}) search failed: {exc}")
+            continue
+        for title in titles:
+            try:
                 add_document(
                     f"Wikipedia({lang}): {title}",
                     f"https://{lang}.wikipedia.org/wiki/{parse.quote(title)}",
                     wiki_page_text(title, lang),
                 )
-        except Exception as exc:
-            log(f"[research] wiki({lang}) failed: {exc}")
+            except Exception as exc:
+                log(f"[research] wiki({lang}) page '{title}' failed: {exc}")
 
     web_candidates: list[dict[str, str]] = []
     for query in queries:
