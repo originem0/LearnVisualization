@@ -18,7 +18,7 @@ USER_AGENT = "LearnVisualization-Research/1.0 (+https://visualize.sharonzhou.sit
 MAX_PAGE_CHARS = 30_000
 MAX_WEB_PAGES = 12
 MIN_EVIDENCE = 12
-MAX_EVIDENCE = 25
+MAX_EVIDENCE = 40
 FETCH_TIMEOUT = 20
 
 
