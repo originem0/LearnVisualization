@@ -256,14 +256,14 @@ def build_judge_prompts(
 
     if evidence_items:
         digest = "\n".join(
-            f"[{item['id']}] ({item['kind']}) {str(item['content'])[:120]}"
+            f"[{item['id']}] ({item['kind']}) {item['content']}"
             for item in evidence_items
         )
         user_prompt += (
-            f"本章证据库：\n{digest}\n\n"
+            f"本章证据库（以下为证据全文）：\n{digest}\n\n"
             "证据评审（任一不过即 pass=false）：\n"
             "(a) 列出没有证据支撑、又没有明示为立场的具体事实断言；\n"
-            "(b) quote 块是否逐字来自证据；\n"
+            "(b) quote 块是否逐字来自证据；程序已做子串校验，只有确实不在上面证据全文中的才算违规；\n"
             "(c) 证据是否真正进入论证，而不是点名背书；\n"
             "(d) 章节是否完成 chapterPlan.role。\n\n"
         )
