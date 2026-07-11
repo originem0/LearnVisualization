@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { Chapter, EssayNarrativeBlock, Highlight } from '@/lib/course-schema';
+import type { Chapter, EssayNarrativeBlock, Highlight, CourseRegister } from '@/lib/course-schema';
 import type { Locale } from '@/lib/i18n';
 import type { NarrativeBlock } from '@/lib/types';
 import { NarrativeBlockRenderer } from '@/components/NarrativeRenderer';
@@ -15,14 +15,22 @@ interface EssayChapterRendererProps {
   next?: Chapter;
   locale: Locale;
   basePath: string;
+  register: CourseRegister;
+  index: number;
+  total: number;
 }
 
-export default function EssayChapterRenderer({ chapter, prev, next, locale, basePath }: EssayChapterRendererProps) {
+const WIDE_BLOCK_TYPES = new Set(['code', 'diagram', 'comparison', 'steps']);
+
+export default function EssayChapterRenderer({ chapter, prev, next, locale, basePath, register, index, total }: EssayChapterRendererProps) {
   const isZh = locale === 'zh';
+  const isEssay = register === 'essay';
+  const articleWidth = isEssay ? 'max-w-[40rem]' : 'max-w-[52rem]';
+  const measure = isEssay ? '' : 'mx-auto max-w-[42rem]';
 
   return (
-    <article className="mx-auto max-w-[54rem] pb-12">
-      <header className="border-b border-[color:var(--color-border)] pb-6">
+    <article className={`register-${register} mx-auto ${articleWidth} pb-12`}>
+      <header className={`border-b border-[color:var(--color-border)] pb-6 ${measure}`}>
         <div className="font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--color-muted)]">{chapter.id}</div>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-4xl">{chapter.title}</h1>
         {chapter.role ? (
@@ -30,23 +38,26 @@ export default function EssayChapterRenderer({ chapter, prev, next, locale, base
         ) : null}
       </header>
 
-      <div className="prose-custom py-7">
-        {chapter.narrative.map((block, index) => (
-          <div key={`${chapter.id}-${index}`}>
-            <NarrativeBlockRenderer block={toNarrativeBlock(block)} />
-            {chapter.highlight && chapter.highlight.afterBlock === index ? renderHighlight(chapter.highlight) : null}
-          </div>
-        ))}
+      <div className="essay-body essay-prose py-8">
+        {chapter.narrative.map((block, blockIndex) => {
+          const wide = !isEssay && WIDE_BLOCK_TYPES.has(block.type);
+          return (
+            <div key={`${chapter.id}-${blockIndex}`} className={wide ? '' : measure}>
+              <NarrativeBlockRenderer block={toNarrativeBlock(block)} />
+              {chapter.highlight && chapter.highlight.afterBlock === blockIndex ? renderHighlight(chapter.highlight) : null}
+            </div>
+          );
+        })}
       </div>
 
       {chapter.bridge ? (
-        <div className="my-8 border-l-[3px] border-[color:var(--color-border)] pl-4 text-base leading-8 text-[color:var(--color-text)]">
+        <div className={`my-8 border-l-[3px] border-[color:var(--color-border)] pl-4 text-base leading-8 text-[color:var(--color-text)] ${measure}`}>
           {chapter.bridge}
         </div>
       ) : null}
 
       {chapter.sources && chapter.sources.length > 0 ? (
-        <section className="mt-10 border-t border-[color:var(--color-border)] pt-5">
+        <section className={`mt-10 border-t border-[color:var(--color-border)] pt-5 ${measure}`}>
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
             {isZh ? '参考资料' : 'Sources'}
           </h2>
@@ -67,7 +78,7 @@ export default function EssayChapterRenderer({ chapter, prev, next, locale, base
         </section>
       ) : null}
 
-      <nav className="mt-10 grid gap-3 border-t border-[color:var(--color-border)] pt-6 sm:grid-cols-2">
+      <nav className={`mt-10 grid gap-3 border-t border-[color:var(--color-border)] pt-6 sm:grid-cols-2 ${measure}`}>
         {prev ? (
           <Link href={`${basePath}/${prev.id}/`} className="rounded-lg border border-[color:var(--color-border)] p-4 transition-colors hover:bg-zinc-50 dark:hover:bg-[#0b3a45]">
             <span className="block text-xs text-[color:var(--color-muted)]">{isZh ? '上一章' : 'Previous'}</span>

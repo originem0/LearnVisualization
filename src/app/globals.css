@@ -248,3 +248,42 @@
     animation: none;
   }
 }
+
+/* =====================================================
+   Essay reading experience — register-scoped typography
+   (essay courses only; legacy uses .prose-custom untouched)
+   ===================================================== */
+
+.font-serif-sc {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
+}
+
+.essay-prose > * + * {
+  margin-top: 1.1em;
+}
+
+.register-essay .essay-body {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
+  font-size: 1.09375rem; /* 17.5px */
+  line-height: 1.95;
+}
+
+.register-explainer .essay-body {
+  font-size: 1rem; /* 16px */
+  line-height: 1.8;
+}
+
+/* 章内小标题：三档层级的中档，压过任何继承 */
+.essay-body h2.essay-heading {
+  font-size: 1.25rem; /* 20px */
+  font-weight: 600;
+  line-height: 1.5;
+  margin-top: 2.5em;
+  margin-bottom: 0.9em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

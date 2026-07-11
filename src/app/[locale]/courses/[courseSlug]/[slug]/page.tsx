@@ -107,6 +107,9 @@ export default function CourseModulePage({ params }: ModulePageProps) {
         next={next}
         locale={locale}
         basePath={basePath}
+        register={pkg.register}
+        index={index}
+        total={pkg.chapters.length}
       />
     );
   }
