@@ -1,7 +1,7 @@
 # Essay 课程阅读体验重做（Reading Experience）设计
 
 日期：2026-07-11
-状态：已获用户批准
+状态：已实施（2026-07-11）
 分支：reading-experience
 
 ## 背景与诊断

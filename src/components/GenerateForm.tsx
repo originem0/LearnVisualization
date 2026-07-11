@@ -729,9 +729,14 @@ function JobCard({
           <button type="button" onClick={onDismiss} className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]">&times;</button>
         </div>
         <p className="text-xs text-[color:var(--color-danger)] line-clamp-3">{message}</p>
+        <p className="text-[11px] leading-4 text-[color:var(--color-muted)]">
+          {isZh
+            ? '重试将从失败阶段继续：已完成的研究、规划与章节不会重跑。'
+            : 'Retry resumes from the failed stage; finished research, plan, and chapters are reused.'}
+        </p>
         <div className="flex gap-3 pt-1">
           <button type="button" onClick={onRetry} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
-            {isZh ? '重试' : 'Retry'}
+            {isZh ? '重试（复用研究与规划）' : 'Retry (reuse research & plan)'}
           </button>
           <button type="button" onClick={onRegenerate} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
             {isZh ? '重新生成' : 'Regenerate'}
