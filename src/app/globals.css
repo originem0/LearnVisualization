@@ -273,15 +273,6 @@
   line-height: 1.8;
 }
 
-/* 章内小标题：三档层级的中档，压过任何继承 */
-.essay-body h2.essay-heading {
-  font-size: 1.25rem; /* 20px */
-  font-weight: 600;
-  line-height: 1.5;
-  margin-top: 2.5em;
-  margin-bottom: 0.9em;
-}
-
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;

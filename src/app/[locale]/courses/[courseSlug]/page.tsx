@@ -158,13 +158,13 @@ function EssayCourseHomePage({ params }: { params: { locale: Locale; courseSlug:
         <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
           {pkg.register === 'essay' ? (isZh ? '叙事随笔课' : 'Narrative essay') : (isZh ? '技术解说课' : 'Explainer course')}
         </div>
-        <h1 className="font-serif-sc mt-4 text-3xl font-bold leading-tight tracking-tight text-[color:var(--color-text)] sm:text-4xl">
+        <h1 className={`mt-4 text-3xl font-bold leading-tight tracking-tight text-[color:var(--color-text)] sm:text-4xl ${pkg.register === 'essay' ? 'font-serif-sc' : ''}`}>
           {pkg.title}
         </h1>
         {pkg.subtitle ? (
           <p className="mt-3 text-lg text-[color:var(--color-muted)]">{pkg.subtitle}</p>
         ) : null}
-        <p className="font-serif-sc mt-7 max-w-[40rem] border-l-2 border-[color:var(--color-accent)]/40 pl-5 text-[1.25rem] leading-[1.9] text-[color:var(--color-text)]">
+        <p className={`mt-7 max-w-[40rem] border-l-2 border-[color:var(--color-accent)]/40 pl-5 text-[1.25rem] leading-[1.9] text-[color:var(--color-text)] ${pkg.register === 'essay' ? 'font-serif-sc' : ''}`}>
           {pkg.drivingQuestion}
         </p>
         {firstChapter ? (

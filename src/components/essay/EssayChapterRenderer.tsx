@@ -66,7 +66,7 @@ export default function EssayChapterRenderer({ chapter, prev, next, locale, base
           const wide = !isEssay && WIDE_BLOCK_TYPES.has(block.type);
           let rendered: ReactNode;
           if (block.type === 'quote') {
-            rendered = <EssayQuote content={block.content} cite={block.cite as string | undefined} />;
+            rendered = <EssayQuote content={block.content} cite={block.cite as string | undefined} hasSources={Boolean(chapter.sources && chapter.sources.length > 0)} />;
           } else if (block.type === 'callout') {
             rendered = <EssayCallout content={block.content} />;
           } else {
@@ -175,21 +175,26 @@ function renderHighlight(highlight: Highlight) {
   return null;
 }
 
-function EssayQuote({ content, cite }: { content: string; cite?: string }) {
+function EssayQuote({ content, cite, hasSources }: { content: string; cite?: string; hasSources: boolean }) {
   return (
     <figure className="relative my-2 pl-6">
       <span
         aria-hidden="true"
         className="font-serif-sc absolute -left-1 -top-3 select-none text-5xl leading-none text-[color:var(--color-accent)]/30"
       >
-        "
+        “
       </span>
       <blockquote className="font-serif-sc text-[1.15em] leading-[1.9] text-[color:var(--color-text)]">
         {content}
       </blockquote>
       {cite ? (
         <figcaption className="mt-2 text-sm text-[color:var(--color-muted)]">
-          —— <a href="#chapter-sources" className="underline decoration-dotted underline-offset-4 hover:text-[color:var(--color-text)]">{cite}</a>
+          {'\u2014\u2014 '}
+          {hasSources ? (
+            <a href="#chapter-sources" className="underline decoration-dotted underline-offset-4 hover:text-[color:var(--color-text)]">{cite}</a>
+          ) : (
+            <span>{cite}</span>
+          )}
         </figcaption>
       ) : null}
     </figure>
