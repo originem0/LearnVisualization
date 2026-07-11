@@ -9,6 +9,7 @@ import { NarrativeBlockRenderer } from '@/components/NarrativeRenderer';
 import InteractionRenderer from '@/components/InteractionRenderer';
 import InteractionErrorBoundary from '@/components/InteractionErrorBoundary';
 import { resolveInteractionComponent } from '@/lib/module-registry';
+import ReadingProgress from '@/components/essay/ReadingProgress';
 
 interface EssayChapterRendererProps {
   chapter: Chapter;
@@ -23,6 +24,11 @@ interface EssayChapterRendererProps {
 
 const WIDE_BLOCK_TYPES = new Set(['code', 'diagram', 'comparison', 'steps']);
 
+function estimateMinutes(chapter: Chapter): number {
+  const chars = chapter.narrative.reduce((sum, block) => sum + (block.content?.length || 0), 0);
+  return Math.max(1, Math.ceil(chars / 400));
+}
+
 export default function EssayChapterRenderer({ chapter, prev, next, locale, basePath, register, index, total }: EssayChapterRendererProps) {
   const isZh = locale === 'zh';
   const isEssay = register === 'essay';
@@ -31,12 +37,28 @@ export default function EssayChapterRenderer({ chapter, prev, next, locale, base
 
   return (
     <article className={`register-${register} mx-auto ${articleWidth} pb-12`}>
+      <ReadingProgress />
+
+      {/* 移动端章节条：<xl 时侧栏不可见 */}
+      <nav className={`mb-4 flex items-center justify-between gap-2 text-sm text-[color:var(--color-muted)] xl:hidden ${measure}`}>
+        {prev ? (
+          <Link href={`${basePath}/${prev.id}/`} className="shrink-0 hover:text-[color:var(--color-text)]">←</Link>
+        ) : <span className="w-4" />}
+        <span className="truncate font-mono text-xs uppercase tracking-[0.16em]">
+          {chapter.id} · {isZh ? `第 ${index + 1}/${total} 章` : `Ch. ${index + 1}/${total}`}
+        </span>
+        {next ? (
+          <Link href={`${basePath}/${next.id}/`} className="shrink-0 hover:text-[color:var(--color-text)]">→</Link>
+        ) : <span className="w-4" />}
+      </nav>
+
       <header className={`border-b border-[color:var(--color-border)] pb-6 ${measure}`}>
-        <div className="font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--color-muted)]">{chapter.id}</div>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-[color:var(--color-text)] sm:text-4xl">{chapter.title}</h1>
-        {chapter.role ? (
-          <p className="mt-4 text-sm leading-7 text-[color:var(--color-muted)] sm:text-base">{chapter.role}</p>
-        ) : null}
+        <div className="font-mono text-xs uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
+          {chapter.id} · {isZh ? `第 ${index + 1}/${total} 章` : `Chapter ${index + 1}/${total}`} · {isZh ? `约 ${estimateMinutes(chapter)} 分钟` : `~${estimateMinutes(chapter)} min`}
+        </div>
+        <h1 className={`mt-3 text-[1.75rem] font-bold leading-snug tracking-tight text-[color:var(--color-text)] sm:text-[2rem] ${isEssay ? 'font-serif-sc' : ''}`}>
+          {chapter.title}
+        </h1>
       </header>
 
       <div className="essay-body essay-prose py-8">
