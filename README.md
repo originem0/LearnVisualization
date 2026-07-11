@@ -46,7 +46,9 @@ design/                设计规范（5 份文件）
     ↓
 [Clarification] LLM 多轮澄清，提出候选 contract（固定问卷不能替代）
     ├─ 收束差异现象：相比什么不同、哪种条件下失效、直觉与现实哪里冲突
-    └─ 标注问题框定：gap / model_mismatch / system_paradox + 系统目标 + 模型缺口
+    ├─ 标注问题框定：gap / model_mismatch / system_paradox + 系统目标 + 模型缺口
+    ├─ 异族 LLM 评审契约实质（挡空洞契约），不过则继续追问
+    └─ 通过时产出 teachingHooks（具体教学抓手），约束下游生成
     ↓
 [User Confirmation] 用户确认候选 contract 后，/jobs/course-generation 才能提交
     ↓
@@ -108,7 +110,7 @@ python3 -m app.main   # http://127.0.0.1:8081
 
 危险 POST 接口默认需要独立管理员 token。必须设置 `AGENT_ADMIN_TOKEN`，`AGENT_SETTINGS_PASSWORD` 只用于 LLM 设置面板，不能复用为管理员 token。前端会在首次需要时提示输入，并通过 `X-Agent-Admin-Token` 发送；token 只保存在当前页面内存中。
 
-LLM 配置支持 per-stage 模型：`model`（写作）、`fallback_model`（兜底）、`research_model`（研究，可选）、`judge_model`（评审，建议与写作模型异族）。每个 job 的抓取原文保存在 `agent-backend/jobs/<id>/research_sources/` 供审计。
+LLM 配置支持 per-stage 模型：`model`（写作）、`fallback_model`（兜底）、`research_model`（研究，可选）、`clarify_model`（澄清对话，建议强推理模型）、`judge_model`（评审，建议与写作模型异族）。每个 job 的抓取原文保存在 `agent-backend/jobs/<id>/research_sources/` 供审计。
 
 主要端点：
 
