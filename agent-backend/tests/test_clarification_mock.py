@@ -352,6 +352,43 @@ def test_handle_clarify_respond_rejects_hollow_contract_via_review():
         assert "problemFraming" not in result["question"]
 
 
+def test_options_passthrough_and_cleaning():
+    """继续对话时 options 被清洗透传；缺失时为空列表。"""
+    store = get_store()
+    conv_id = store.create_conversation("Rust 所有权")
+    store.add_turn(conv_id, "bot", "问题1")
+
+    with_options = {
+        "content": {"question": "你卡在哪一类场景？", "options": [" 借用检查报错 ", "", "生命周期标注看不懂", 123, "move 语义", "第五个应被截断"]},
+        "usage": {}, "model": "mock",
+    }
+    with patch('main.get_pipeline') as mock_pipeline:
+        mock_client = Mock()
+        mock_client.generate_json.return_value = with_options
+        mock_client.config = _mock_config()
+        mock_pipeline.return_value.client = mock_client
+        result = handle_clarify_respond({"conversationId": conv_id, "answer": "我写 Rust 总被编译器骂"})
+
+    assert result["options"] == ["借用检查报错", "生命周期标注看不懂", "123", "move 语义"]
+    assert result["question"] == "你卡在哪一类场景？"
+
+
+def test_options_absent_defaults_empty():
+    store = get_store()
+    conv_id = store.create_conversation("Rust 所有权")
+    store.add_turn(conv_id, "bot", "问题1")
+
+    no_options = {"content": {"question": "继续问"}, "usage": {}, "model": "mock"}
+    with patch('main.get_pipeline') as mock_pipeline:
+        mock_client = Mock()
+        mock_client.generate_json.return_value = no_options
+        mock_client.config = _mock_config()
+        mock_pipeline.return_value.client = mock_client
+        result = handle_clarify_respond({"conversationId": conv_id, "answer": "随便答一句够长的话"})
+
+    assert result["options"] == []
+
+
 def test_error_handling():
     """Test error handling for invalid inputs."""
 
@@ -405,6 +442,12 @@ class ClarificationHandlerMockTests(unittest.TestCase):
     def test_error_handling(self):
         test_error_handling()
 
+    def test_options_passthrough_and_cleaning(self):
+        test_options_passthrough_and_cleaning()
+
+    def test_options_absent_defaults_empty(self):
+        test_options_absent_defaults_empty()
+
 
 if __name__ == "__main__":
     print("Running mock tests for clarification handlers...\n")
@@ -418,6 +461,8 @@ if __name__ == "__main__":
     test_beginner_uncertainty_allows_inferred_contrast()
     test_beginner_gate_followup_does_not_exam_user()
     test_error_handling()
+    test_options_passthrough_and_cleaning()
+    test_options_absent_defaults_empty()
 
     print("\n✅ All mock tests passed!")
     print("\nNote: These tests use mocked LLM responses.")

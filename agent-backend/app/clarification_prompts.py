@@ -60,6 +60,7 @@ def build_clarification_system_prompt() -> str:
 - 追问对象、关系、条件和边界。不要只收集背景信息。
 - 避免引导式提问（"是不是想学X"）。如果需要给候选方向，必须基于用户已说出的差异现象。
 - 当用户卡在陌生概念上，优先给出你的整理让用户确认，而不是继续开放追问。
+- 提问纪律：每轮问题正文最多 2 句铺垫 + 1 句问句。不要先讲一段课再提问；背景解释压缩进 options 或留给课程本身。
 
 **何时合成：**
 - 最少 3 轮对话后才能合成
@@ -69,7 +70,9 @@ def build_clarification_system_prompt() -> str:
 - 最多 10 轮，之后必须基于已有信息合成，但仍要显式写出 problemFraming 的不确定处
 
 **输出格式：**
-- 如果需要继续：{"question": "下一个问题的文本"}
+- 如果需要继续：{"question": "下一个问题的文本", "options": ["候选回答A", "候选回答B"]}
+  - options 可选，0-4 个：每个是用户可能的真实处境或回答（≤25 字），不是"是/否"，不是新问题。
+  - 用户暴露初学者信号（不知道/不懂/是什么）后，必须给 options——把"让用户确认你的整理"变成可点选项。
 - 如果完成：
 {
   "complete": true,
@@ -156,7 +159,7 @@ def build_clarification_user_prompt(topic: str, history: list) -> str:
 {_get_round_guidance(history)}
 
 输出 JSON（只输出 JSON，不要其他文字）：
-- 如果继续对话：{{"question": "你的问题"}}
+- 如果继续对话：{{"question": "你的问题", "options": ["候选回答A", "候选回答B"]}}（options 可选，0-4 个，每个 ≤25 字）
 - 如果准备好合成：{{"complete": true, "contract": {{"drivingQuestion": "...", "centralTension": "...", "knowledgeType": "...", "audience": "...", "desiredOutcome": "...", "scope": {{"include": ["..."], "exclude": ["..."], "depth": "..."}}, "problemFraming": {{"phenomenon": "...", "contrast": "...", "problemNature": "gap|model_mismatch|system_paradox", "systemGoal": "...", "modelGap": "..."}}}}}}
 """
 
@@ -164,12 +167,11 @@ def build_clarification_user_prompt(topic: str, history: list) -> str:
 def _get_round_guidance(history: list | int) -> str:
     """Provide round-specific guidance to the LLM."""
     if isinstance(history, int):
-        history_length = history
         history_items: list = []
+        bot_turns = history
     else:
         history_items = history
-        history_length = len(history)
-    bot_turns = (history_length + 1) // 2  # Rough estimate
+        bot_turns = len([t for t in history_items if isinstance(t, dict) and t.get("role") == "bot"])
 
     if _history_shows_beginner_uncertainty(history_items):
         return "用户已经暴露出初学者位置。不要继续追问陌生概念比较；先用普通话整理他的隐含困惑，让他确认或修正。必要时可以合成。"

@@ -130,6 +130,15 @@ def _unwrap_llm_json_content(response: dict) -> dict:
     return response
 
 
+def _clean_options(content: dict) -> list[str]:
+    """清洗澄清模型给出的候选回答：str 化、strip、去空、最多 4 个。"""
+    raw = content.get("options") if isinstance(content, dict) else None
+    if not isinstance(raw, list):
+        return []
+    cleaned = [str(item).strip() for item in raw if str(item).strip()]
+    return cleaned[:4]
+
+
 def _is_public_job_get(parts: list[str]) -> bool:
     return (len(parts) == 1 and parts[0] == "jobs") or (len(parts) == 2 and parts[0] == "jobs")
 
@@ -346,7 +355,8 @@ def handle_clarify_start(payload: dict) -> dict:
         return {
             "conversationId": conversation_id,
             "question": question,
-            "roundNumber": 1
+            "roundNumber": 1,
+            "options": _clean_options(content),
         }
 
     except Exception as e:
@@ -428,7 +438,8 @@ def handle_clarify_respond(payload: dict) -> dict:
                 return {
                     "question": question,
                     "roundNumber": next_round,
-                    "needsMoreEvidence": True
+                    "needsMoreEvidence": True,
+                    "options": [],
                 }
 
             readiness_issue = _clarification_readiness_issue(contract, history)
@@ -441,6 +452,7 @@ def handle_clarify_respond(payload: dict) -> dict:
                     "roundNumber": next_round,
                     "needsMoreEvidence": True,
                     "gateIssue": readiness_issue,
+                    "options": [],
                 }
 
             review = _review_contract(client, contract)
@@ -454,6 +466,7 @@ def handle_clarify_respond(payload: dict) -> dict:
                     "roundNumber": next_round,
                     "needsMoreEvidence": True,
                     "reviewIssue": (review["issues"] or [""])[0],
+                    "options": [],
                 }
             contract["teachingHooks"] = review["teachingHooks"]
 
@@ -467,7 +480,8 @@ def handle_clarify_respond(payload: dict) -> dict:
                 "centralTension": contract["centralTension"],
                 "knowledgeType": contract["knowledgeType"],
                 "message": candidate_summary,
-                "roundNumber": len([t for t in history if t["role"] == "bot"])
+                "roundNumber": len([t for t in history if t["role"] == "bot"]),
+                "options": [],
             }
 
         else:
@@ -481,7 +495,8 @@ def handle_clarify_respond(payload: dict) -> dict:
 
             return {
                 "question": question,
-                "roundNumber": next_round
+                "roundNumber": next_round,
+                "options": _clean_options(content),
             }
 
     except Exception as e:
