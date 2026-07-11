@@ -95,10 +95,17 @@ def build_essay_plan_prompts(
         "  ]\n"
         "}\n\n"
     )
+    framing = contract.get("problemFraming") or {}
+    hooks = contract.get("teachingHooks") or []
     user_prompt += (
         "硬约束：chapters 必须 4-6 个；章节标题必须像论证步骤，不要写'基础概念/进阶应用'；"
-        "factSpine 必须 3-5 条且每条是具体事实、文本、数字或机制锚点，不能是概念定义，不能为空。"
+        "factSpine 必须 3-5 条且每条是具体事实、文本、数字或机制锚点，不能是概念定义，不能为空。\n"
+        f"这门课要填补的读者模型缺口：{framing.get('modelGap')}。"
+        "drivingQuestion 必须是全课真正回答的问题；每一章的弧线都要服务于填补上述 modelGap，"
+        "不要写成与缺口无关的百科罗列。"
     )
+    if hooks:
+        user_prompt += f"以下具体锚点必须在课程中被讲到，factSpine 要优先回应它们：{json.dumps(hooks, ensure_ascii=False)}。"
     if evidence_digest:
         user_prompt += "factSpine 每条和每个 chapter 都必须挂到证据库里真实存在的 evidenceIds；每章至少 2 条。"
     if revision_feedback:
@@ -283,14 +290,20 @@ def build_research_query_prompts(topic: str, contract: dict[str, Any]) -> tuple[
         "搜索词要能命中一手文本和高质量二手材料（原著章节、标准百科、权威讲义），不要泛泛的科普词。"
     )
     scope = contract.get("scope") or {}
+    framing = contract.get("problemFraming") or {}
+    hooks = contract.get("teachingHooks") or []
     user_prompt = (
         f"课程主题：{topic}\n"
         f"驱动问题：{contract.get('drivingQuestion')}\n"
         f"必须覆盖：{json.dumps(scope.get('include') or [], ensure_ascii=False)}\n"
-        f"不覆盖：{json.dumps(scope.get('exclude') or [], ensure_ascii=False)}\n\n"
-        "生成 6-10 个搜索查询，中英混合，具体到概念名、文本名、机制名或争论点。\n"
+        f"不覆盖：{json.dumps(scope.get('exclude') or [], ensure_ascii=False)}\n"
+        f"读者的模型缺口（搜索要能补上它）：{framing.get('modelGap')}\n"
+        f"直觉与现实的冲突（搜索要能照亮它）：{framing.get('contrast')}\n"
+        f"必须讲到的具体锚点：{json.dumps(hooks, ensure_ascii=False)}\n\n"
+        "生成 6-10 个搜索查询，中英混合，具体到概念名、文本名、机制名或争论点；"
+        "查询要优先命中能补上『模型缺口』和覆盖『具体锚点』的一手/权威材料。\n"
         "另外给出 wikiTopics：3-6 个维基百科条目名（人名、著作名、概念名），"
-        "必须覆盖『必须覆盖』清单里出现的每一个思想家和核心概念，不要只围绕主主题。\n"
+        "必须覆盖『必须覆盖』清单和『具体锚点』里出现的每一个思想家和核心概念，不要只围绕主主题。\n"
         '输出 JSON：{"queries": ["...", "..."], "wikiTopics": ["条目名", "..."]}'
     )
     return system_prompt, user_prompt

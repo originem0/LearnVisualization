@@ -269,6 +269,40 @@ class ConceptualEssayQualityTests(unittest.TestCase):
         self.assertTrue(any("末章" in issue for issue in result["issues"]))
 
 
+class ContractGroundingResearchPlanTests(unittest.TestCase):
+    def _contract(self):
+        return {
+            "drivingQuestion": "尼采为什么把困境说成价值秩序危机？",
+            "centralTension": "摆脱旧权威不等于获得新尺度",
+            "knowledgeType": "conceptual",
+            "audience": "想理解尼采的学习者",
+            "desiredOutcome": "能解释价值秩序危机",
+            "scope": {"include": ["价值秩序", "上帝之死"], "exclude": ["萨特专题"], "depth": "深挖"},
+            "problemFraming": {
+                "phenomenon": "旧道德权威退场后人仍需判断什么值得追求",
+                "contrast": "直觉认为自由即无约束；尼采问旧尺度崩塌后新尺度从哪来",
+                "problemNature": "model_mismatch",
+                "systemGoal": "建立价值秩序约束判断的模型",
+                "modelGap": "缺少上帝之死、虚无主义、价值重估之间的关系链",
+            },
+            "teachingHooks": ["《快乐的科学》125 节狂人宣告", "重估一切价值的晚期计划"],
+        }
+
+    def test_research_query_prompt_grounds_on_model_gap_and_hooks(self):
+        from essay_prompts import build_research_query_prompts
+        _, user = build_research_query_prompts("尼采哲学", self._contract())
+        self.assertIn("缺少上帝之死、虚无主义、价值重估之间的关系链", user)  # modelGap
+        self.assertIn("直觉认为自由即无约束", user)                          # contrast
+        self.assertIn("《快乐的科学》125 节狂人宣告", user)                   # teachingHooks 种子
+
+    def test_plan_prompt_requires_filling_model_gap(self):
+        from essay_prompts import build_essay_plan_prompts
+        payload = {"topic": "尼采哲学", "output_slug": "x", "contract": self._contract()}
+        _, user = build_essay_plan_prompts(payload)
+        self.assertIn("modelGap", user)      # 指令引用了模型缺口概念
+        self.assertIn("填补", user)          # 要求章节弧线服务于填补缺口
+
+
 if __name__ == "__main__":
     unittest.main()
 
