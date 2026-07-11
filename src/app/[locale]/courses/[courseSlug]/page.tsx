@@ -154,20 +154,23 @@ function EssayCourseHomePage({ params }: { params: { locale: Locale; courseSlug:
 
   return (
     <div className="mx-auto max-w-[64rem] space-y-12 stagger-in">
-      <section className="border-b border-[color:var(--color-border)] pb-8">
+      <section className="border-b border-[color:var(--color-border)] pb-10">
         <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[color:var(--color-muted)]">
           {pkg.register === 'essay' ? (isZh ? '叙事随笔课' : 'Narrative essay') : (isZh ? '技术解说课' : 'Explainer course')}
         </div>
-        <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-[color:var(--color-text)] sm:text-5xl">
-          {pkg.drivingQuestion}
+        <h1 className="font-serif-sc mt-4 text-3xl font-bold leading-tight tracking-tight text-[color:var(--color-text)] sm:text-4xl">
+          {pkg.title}
         </h1>
-        <p className="mt-5 max-w-3xl text-base leading-8 text-[color:var(--color-muted)]">
-          {pkg.centralTension}
+        {pkg.subtitle ? (
+          <p className="mt-3 text-lg text-[color:var(--color-muted)]">{pkg.subtitle}</p>
+        ) : null}
+        <p className="font-serif-sc mt-7 max-w-[40rem] border-l-2 border-[color:var(--color-accent)]/40 pl-5 text-[1.25rem] leading-[1.9] text-[color:var(--color-text)]">
+          {pkg.drivingQuestion}
         </p>
         {firstChapter ? (
           <Link
             href={`${basePath}/${firstChapter.id}/`}
-            className="mt-7 inline-flex rounded-lg bg-[color:var(--color-text)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-bg)] transition-opacity hover:opacity-90"
+            className="mt-8 inline-flex rounded-lg bg-[color:var(--color-text)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-bg)] transition-opacity hover:opacity-90"
           >
             {isZh ? '开始第一章' : 'Start chapter 1'}
           </Link>
@@ -200,7 +203,7 @@ function EssayCourseHomePage({ params }: { params: { locale: Locale; courseSlug:
               <span>
                 <span className="block font-medium text-[color:var(--color-text)]">{chapter.title}</span>
                 <span className="mt-1 block text-sm leading-6 text-[color:var(--color-muted)]">
-                  {chapter.role || pkg.overview.arc[index] || ''}
+                  {pkg.overview.arc[index] || chapter.role || ''}
                 </span>
               </span>
             </Link>
