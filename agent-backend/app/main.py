@@ -41,6 +41,7 @@ try:
         build_clarification_system_prompt,
         build_clarification_user_prompt,
         build_contract_review_prompts,
+        build_review_followup_prompts,
     )
 except ImportError:
     from common import (
@@ -70,6 +71,7 @@ except ImportError:
         build_clarification_system_prompt,
         build_clarification_user_prompt,
         build_contract_review_prompts,
+        build_review_followup_prompts,
     )
 
 REPO_ROOT = DEFAULT_REPO_ROOT
@@ -311,6 +313,28 @@ def _review_contract(client, contract: dict) -> dict:
     return {"pass": bool(content.get("pass")), "issues": issues, "teachingHooks": hooks}
 
 
+def _review_followup_question(client, issues: list[str], topic: str, history: list[dict]) -> dict:
+    """把评审 issues 转成针对性追问；LLM 失败时回落硬编码话术。"""
+    system_prompt, user_prompt = build_review_followup_prompts(issues, history)
+    try:
+        response = client.generate_json(
+            schema_name="review_followup",
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.5,
+            max_tokens=400,
+            model=getattr(client.config, "clarify_model", None),
+        )
+        content = _unwrap_llm_json_content(response) or {}
+        question = str(content.get("question") or "").strip()
+        if question:
+            return {"question": question, "options": _clean_options(content)}
+    except Exception as exc:
+        import sys
+        print(f"[clarify] review followup failed, falling back: {exc}", file=sys.stderr)
+    return {"question": _clarification_gate_followup("contrast", topic, history), "options": []}
+
+
 
 def handle_clarify_start(payload: dict) -> dict:
     """
@@ -457,16 +481,16 @@ def handle_clarify_respond(payload: dict) -> dict:
 
             review = _review_contract(client, contract)
             if not review["pass"]:
-                # 评审判定契约空洞：转成不暴露内部字段的友好追问，对话继续
-                question = _clarification_gate_followup("contrast", conv["topic"], history)
+                # 评审判定契约空洞：把评审发现转成针对性的友好追问，对话继续
+                followup = _review_followup_question(client, review["issues"], conv["topic"], history)
                 next_round = len([t for t in history if t["role"] == "bot"]) + 1
-                store.add_turn(conversation_id, "bot", question)
+                store.add_turn(conversation_id, "bot", followup["question"])
                 return {
-                    "question": question,
+                    "question": followup["question"],
                     "roundNumber": next_round,
                     "needsMoreEvidence": True,
                     "reviewIssue": (review["issues"] or [""])[0],
-                    "options": [],
+                    "options": followup["options"],
                 }
             contract["teachingHooks"] = review["teachingHooks"]
 

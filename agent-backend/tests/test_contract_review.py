@@ -38,5 +38,21 @@ class ContractReviewPromptTests(unittest.TestCase):
         self.assertTrue(any(k in user for k in ("同义反复", "泛化", "可教", "伪问题")))
 
 
+from clarification_prompts import build_review_followup_prompts  # noqa: E402
+
+
+class ReviewFollowupPromptTests(unittest.TestCase):
+    def test_prompt_carries_issues_and_forbids_fieldnames(self):
+        system, user = build_review_followup_prompts(
+            ["modelGap 只是重复了问题，没有指出缺失的具体关系"],
+            [{"role": "bot", "text": "上一问"}, {"role": "user", "text": "上一答"}],
+        )
+        self.assertIn("只是重复了问题", user)          # 评审发现进入 prompt
+        self.assertIn("上一答", user)                  # 近期对话进入 prompt
+        combined = system + user
+        self.assertIn("不要出现", combined)            # 明令禁止内部字段名出现在追问里
+        self.assertIn("options", user)                 # 要求给可点选项
+
+
 if __name__ == "__main__":
     unittest.main()

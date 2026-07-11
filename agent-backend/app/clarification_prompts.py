@@ -234,3 +234,25 @@ def build_contract_review_prompts(contract: dict) -> tuple[str, str]:
         '"teachingHooks": ["若合格，2-3 个具体教学抓手"]}'
     )
     return system_prompt, user_prompt
+
+
+def build_review_followup_prompts(issues: list[str], recent_history: list[dict]) -> tuple[str, str]:
+    """评审判定契约空洞后，把评审发现转成一个对用户友好的针对性追问。"""
+    history_text = "\n".join(
+        f"{'Bot' if t.get('role') == 'bot' else 'User'}: {t.get('text', '')}"
+        for t in (recent_history or [])[-2:]
+    )
+    issues_text = "\n".join(f"- {i}" for i in issues or [])
+    system_prompt = (
+        "你是澄清助手。独立评审刚才判定：从对话合成的学习契约还不够实质。"
+        "你的任务是把评审发现转成**一个**对用户友好的追问，帮用户把缺的那块补出来。只输出 JSON。\n"
+        "硬规则：追问里不要出现任何内部字段名或术语（例如 modelGap、problemFraming、contrast、schema、契约字段），"
+        "用普通人的话问；不要提到存在评审这回事。"
+    )
+    user_prompt = (
+        f"评审发现的问题：\n{issues_text}\n\n"
+        f"最近的对话：\n{history_text}\n\n"
+        "生成一个针对上述问题的追问（≤2 句），并给 2-4 个用户可能的回答作为 options（每个 ≤25 字）。\n"
+        '输出 JSON：{"question": "...", "options": ["...", "..."]}'
+    )
+    return system_prompt, user_prompt

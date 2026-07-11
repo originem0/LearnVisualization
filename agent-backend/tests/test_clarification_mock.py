@@ -321,8 +321,8 @@ def test_handle_clarify_respond_rejects_hollow_contract_via_review():
                 "desiredOutcome": "能解释尺度崩塌的机制",
                 "scope": {"include": ["上帝已死", "虚无主义"], "exclude": ["海德格尔阐释"], "depth": "机制深挖"},
                 "problemFraming": {
-                    "phenomenon": "现代人没有明确信仰也能凭常识活得好好的",
-                    "contrast": "直觉当少个旧指南；尼采说是评价尺度整体失效",
+                    "phenomenon": "现代人没有明确信仰也能凭常识活得好好的，但尼采说信仰危机是整个价值体系的崩塌",
+                    "contrast": "直觉当少个旧指南；但尼采说是评价尺度整体失效",
                     "problemNature": "model_mismatch",
                     "systemGoal": "理解尺度崩塌后的真实生存处境",
                     "modelGap": "缺少价值尺度这一对象模型",
@@ -335,10 +335,11 @@ def test_handle_clarify_respond_rejects_hollow_contract_via_review():
         "content": {"pass": False, "issues": ["modelGap 只是重复了问题，没有指出缺失的具体关系"], "teachingHooks": []},
         "usage": {}, "model": "mock-judge",
     }
+    followup = {"content": {"question": "你觉得自己缺的是哪一块拼图：概念之间的关系，还是概念本身？", "options": ["概念之间怎么连不知道", "某个概念本身没懂"]}, "usage": {}, "model": "mock-clarify"}
 
     with patch('main.get_pipeline') as mock_pipeline:
         mock_client = Mock()
-        mock_client.generate_json.side_effect = [synthesis, review_fail]
+        mock_client.generate_json.side_effect = [synthesis, review_fail, followup]
         mock_client.config = _mock_config()
         mock_pipeline.return_value.client = mock_client
 
@@ -414,6 +415,94 @@ def test_error_handling():
         print("✓ Rejects nonexistent conversation")
 
 
+def test_review_fail_followup_generated_from_issues():
+    """评审打回时，追问由 LLM 基于 issues 生成并带 options。"""
+    store = get_store()
+    conv_id = store.create_conversation("尼采哲学")
+    for i in range(3):
+        store.add_turn(conv_id, "bot", f"问题{i}")
+        store.add_turn(conv_id, "user", f"这是我第{i}个足够长的具体回答，描述了差异现象和困惑")
+
+    synthesis = {
+        "content": {"complete": True, "contract": {
+            "drivingQuestion": "为什么上帝已死意味着尺度崩塌而不仅是信仰缺失？",
+            "centralTension": "直觉以为少个指南，实则衡量价值的尺度整体失效",
+            "knowledgeType": "conceptual",
+            "audience": "对存在主义有零散直觉的初学者",
+            "desiredOutcome": "能解释尺度崩塌的机制",
+            "scope": {"include": ["上帝已死"], "exclude": ["海德格尔"], "depth": "机制深挖"},
+            "problemFraming": {
+                "phenomenon": "现代人没有明确信仰也能凭常识活得好好的，但尼采说信仰危机是整个价值体系的崩塌",
+                "contrast": "直觉以为少个旧指南；但是尼采说是评价尺度整体失效",
+                "problemNature": "model_mismatch",
+                "systemGoal": "理解尺度崩塌后的真实生存处境",
+                "modelGap": "缺少价值尺度这一对象模型",
+            },
+        }}, "usage": {}, "model": "mock-clarify",
+    }
+    review_fail = {"content": {"pass": False, "issues": ["缺口表述只是重复问题"], "teachingHooks": []}, "usage": {}, "model": "mock-judge"}
+    followup = {"content": {"question": "你觉得自己缺的是哪一块拼图：概念之间的关系，还是概念本身？", "options": ["概念之间怎么连不知道", "某个概念本身没懂"]}, "usage": {}, "model": "mock-clarify"}
+
+    with patch('main.get_pipeline') as mock_pipeline:
+        mock_client = Mock()
+        mock_client.generate_json.side_effect = [synthesis, review_fail, followup]
+        mock_client.config = _mock_config()
+        mock_pipeline.return_value.client = mock_client
+        result = handle_clarify_respond({"conversationId": conv_id, "answer": "我想弄懂尺度崩塌"})
+
+    assert result["needsMoreEvidence"] is True
+    assert result["question"] == "你觉得自己缺的是哪一块拼图：概念之间的关系，还是概念本身？"
+    assert result["options"] == ["概念之间怎么连不知道", "某个概念本身没懂"]
+    assert "modelGap" not in result["question"] and "problemFraming" not in result["question"]
+
+
+def test_review_fail_followup_falls_back_on_llm_error():
+    """followup 生成失败时回落硬编码话术，不卡死对话。"""
+    store = get_store()
+    conv_id = store.create_conversation("尼采哲学")
+    for i in range(3):
+        store.add_turn(conv_id, "bot", f"问题{i}")
+        store.add_turn(conv_id, "user", f"这是我第{i}个足够长的具体回答，描述了差异现象和困惑")
+
+    synthesis_content = {
+        "complete": True, "contract": {
+            "drivingQuestion": "为什么上帝已死意味着尺度崩塌而不仅是信仰缺失？",
+            "centralTension": "直觉以为少个指南，实则衡量价值的尺度整体失效",
+            "knowledgeType": "conceptual",
+            "audience": "对存在主义有零散直觉的初学者",
+            "desiredOutcome": "能解释尺度崩塌的机制",
+            "scope": {"include": ["上帝已死"], "exclude": ["海德格尔"], "depth": "机制深挖"},
+            "problemFraming": {
+                "phenomenon": "现代人没有明确信仰也能凭常识活得好好的，但尼采说信仰危机是整个价值体系的崩塌",
+                "contrast": "直觉以为少个旧指南；但是尼采说是评价尺度整体失效",
+                "problemNature": "model_mismatch",
+                "systemGoal": "理解尺度崩塌后的真实生存处境",
+                "modelGap": "缺少价值尺度这一对象模型",
+            },
+        }}
+    synthesis = {"content": synthesis_content, "usage": {}, "model": "mock-clarify"}
+    review_fail = {"content": {"pass": False, "issues": ["缺口空洞"], "teachingHooks": []}, "usage": {}, "model": "mock-judge"}
+
+    def gen(*args, **kwargs):
+        responses = [synthesis, review_fail]
+        if gen.calls < len(responses):
+            r = responses[gen.calls]; gen.calls += 1; return r
+        gen.calls += 1
+        raise RuntimeError("followup model down")
+    gen.calls = 0
+
+    with patch('main.get_pipeline') as mock_pipeline:
+        mock_client = Mock()
+        mock_client.generate_json.side_effect = gen
+        mock_client.config = _mock_config()
+        mock_pipeline.return_value.client = mock_client
+        result = handle_clarify_respond({"conversationId": conv_id, "answer": "我想弄懂尺度崩塌"})
+
+    assert result["needsMoreEvidence"] is True
+    assert result["question"]          # 回落话术非空
+    assert result["options"] == []
+
+
 class ClarificationHandlerMockTests(unittest.TestCase):
     def test_start_with_mock_llm(self):
         test_handle_clarify_start_with_mock_llm()
@@ -448,6 +537,12 @@ class ClarificationHandlerMockTests(unittest.TestCase):
     def test_options_absent_defaults_empty(self):
         test_options_absent_defaults_empty()
 
+    def test_review_fail_followup_generated_from_issues(self):
+        test_review_fail_followup_generated_from_issues()
+
+    def test_review_fail_followup_falls_back_on_llm_error(self):
+        test_review_fail_followup_falls_back_on_llm_error()
+
 
 if __name__ == "__main__":
     print("Running mock tests for clarification handlers...\n")
@@ -463,6 +558,8 @@ if __name__ == "__main__":
     test_error_handling()
     test_options_passthrough_and_cleaning()
     test_options_absent_defaults_empty()
+    test_review_fail_followup_generated_from_issues()
+    test_review_fail_followup_falls_back_on_llm_error()
 
     print("\n✅ All mock tests passed!")
     print("\nNote: These tests use mocked LLM responses.")
