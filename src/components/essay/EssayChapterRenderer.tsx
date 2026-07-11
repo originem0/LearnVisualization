@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { Chapter, EssayNarrativeBlock, Highlight, CourseRegister } from '@/lib/course-schema';
 import type { Locale } from '@/lib/i18n';
 import type { NarrativeBlock } from '@/lib/types';
@@ -41,9 +42,17 @@ export default function EssayChapterRenderer({ chapter, prev, next, locale, base
       <div className="essay-body essay-prose py-8">
         {chapter.narrative.map((block, blockIndex) => {
           const wide = !isEssay && WIDE_BLOCK_TYPES.has(block.type);
+          let rendered: ReactNode;
+          if (block.type === 'quote') {
+            rendered = <EssayQuote content={block.content} cite={block.cite as string | undefined} />;
+          } else if (block.type === 'callout') {
+            rendered = <EssayCallout content={block.content} />;
+          } else {
+            rendered = <NarrativeBlockRenderer block={toNarrativeBlock(block)} />;
+          }
           return (
             <div key={`${chapter.id}-${blockIndex}`} className={wide ? '' : measure}>
-              <NarrativeBlockRenderer block={toNarrativeBlock(block)} />
+              {rendered}
               {chapter.highlight && chapter.highlight.afterBlock === blockIndex ? renderHighlight(chapter.highlight) : null}
             </div>
           );
@@ -51,13 +60,18 @@ export default function EssayChapterRenderer({ chapter, prev, next, locale, base
       </div>
 
       {chapter.bridge ? (
-        <div className={`my-8 border-l-[3px] border-[color:var(--color-border)] pl-4 text-base leading-8 text-[color:var(--color-text)] ${measure}`}>
-          {chapter.bridge}
+        <div className={measure}>
+          <div className="mt-12 flex justify-center" aria-hidden="true">
+            <span className="w-12 border-t border-[color:var(--color-border)]" />
+          </div>
+          <p className="essay-body mx-auto mt-6 max-w-[36rem] text-center text-[color:var(--color-muted)]">
+            {chapter.bridge}
+          </p>
         </div>
       ) : null}
 
       {chapter.sources && chapter.sources.length > 0 ? (
-        <section className={`mt-10 border-t border-[color:var(--color-border)] pt-5 ${measure}`}>
+        <section id="chapter-sources" className={`mt-10 scroll-mt-20 border-t border-[color:var(--color-border)] pt-5 ${measure}`}>
           <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--color-muted)]">
             {isZh ? '参考资料' : 'Sources'}
           </h2>
@@ -137,4 +151,33 @@ function renderHighlight(highlight: Highlight) {
   }
 
   return null;
+}
+
+function EssayQuote({ content, cite }: { content: string; cite?: string }) {
+  return (
+    <figure className="relative my-2 pl-6">
+      <span
+        aria-hidden="true"
+        className="font-serif-sc absolute -left-1 -top-3 select-none text-5xl leading-none text-[color:var(--color-accent)]/30"
+      >
+        "
+      </span>
+      <blockquote className="font-serif-sc text-[1.15em] leading-[1.9] text-[color:var(--color-text)]">
+        {content}
+      </blockquote>
+      {cite ? (
+        <figcaption className="mt-2 text-sm text-[color:var(--color-muted)]">
+          —— <a href="#chapter-sources" className="underline decoration-dotted underline-offset-4 hover:text-[color:var(--color-text)]">{cite}</a>
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
+function EssayCallout({ content }: { content: string }) {
+  return (
+    <aside className="my-2 rounded-xl border border-[color:var(--color-accent)]/15 bg-[color:var(--color-accent)]/[0.06] px-5 py-4">
+      <p className="text-[0.95em] font-medium leading-[1.8] text-[color:var(--color-text)]">{content}</p>
+    </aside>
+  );
 }
