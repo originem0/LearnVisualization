@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -130,7 +130,9 @@ class CourseGenerationPipeline:
                 shutil.rmtree(staging, ignore_errors=True)
 
         # 2. Remove job dirs for failed/cancelled jobs older than 7 days
-        cutoff = (date.today().isoformat())  # keep today's jobs for debugging
+        # createdAt 是 UTC；用 UTC 日期算界限，且真按注释说的保 7 天——
+        # 本地时区过午夜时把"今天 UTC"的失败任务连缓存工件一起清掉的事故发生过三次
+        cutoff = (datetime.now(timezone.utc).date() - timedelta(days=7)).isoformat()
         removed_jobs = 0
         for job in self.store.list_jobs():
             if job.get("status") in ("failed", "cancelled"):

@@ -499,3 +499,52 @@ class CourseGenerationPipelineTests(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
 
+
+
+class CleanupCutoffTests(unittest.TestCase):
+    def test_recent_failed_job_survives_cleanup(self):
+        import tempfile as _tf
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        temp_dir = _tf.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        provider_config = ProviderConfig(base_url="http://fake.local/v1", model="m", api_key="k", max_retries=0)
+        pipeline = CourseGenerationPipeline(
+            provider_config=provider_config,
+            jobs_root=Path(temp_dir.name) / "jobs",
+            generated_root=Path(temp_dir.name) / "generated",
+            repo_root=REPO_ROOT,
+            client=FakeClient(),
+        )
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": f"t-{uuid.uuid4().hex[:6]}", "contract": contract()}, run_async=False)
+        with pipeline.store.job_lock(job["id"]):
+            j = pipeline.store.load_job(job["id"])
+            j["status"] = "failed"
+            # 昨天 UTC 创建：在 7 天窗口内，必须保留（旧代码会在本地过午夜后删掉它）
+            j["createdAt"] = (_dt.now(_tz.utc) - _td(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            pipeline.store.write_job(j)
+
+        pipeline.cleanup_stale_data()
+        self.assertTrue(pipeline.store.job_dir(job["id"]).exists())
+
+    def test_ancient_failed_job_is_cleaned(self):
+        import tempfile as _tf
+        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        temp_dir = _tf.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        provider_config = ProviderConfig(base_url="http://fake.local/v1", model="m", api_key="k", max_retries=0)
+        pipeline = CourseGenerationPipeline(
+            provider_config=provider_config,
+            jobs_root=Path(temp_dir.name) / "jobs",
+            generated_root=Path(temp_dir.name) / "generated",
+            repo_root=REPO_ROOT,
+            client=FakeClient(),
+        )
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": f"t-{uuid.uuid4().hex[:6]}", "contract": contract()}, run_async=False)
+        with pipeline.store.job_lock(job["id"]):
+            j = pipeline.store.load_job(job["id"])
+            j["status"] = "failed"
+            j["createdAt"] = (_dt.now(_tz.utc) - _td(days=8)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            pipeline.store.write_job(j)
+
+        pipeline.cleanup_stale_data()
+        self.assertFalse(pipeline.store.job_dir(job["id"]).exists())
