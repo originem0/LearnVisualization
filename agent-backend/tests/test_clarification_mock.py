@@ -503,6 +503,20 @@ def test_review_fail_followup_falls_back_on_llm_error():
     assert result["options"] == []
 
 
+def test_start_options_passthrough():
+    """start 路径 options 被正确清洗透传。"""
+    with patch('main.get_pipeline') as mock_pipeline:
+        mock_client = Mock()
+        mock_client.generate_json.return_value = {
+            "content": {"question": "你卡在哪？", "options": ["概念没懂", "会用但不知为何"]},
+            "usage": {}, "model": "mock",
+        }
+        mock_client.config = _mock_config()
+        mock_pipeline.return_value.client = mock_client
+        result = handle_clarify_start({"topic": "Rust 所有权"})
+    assert result["options"] == ["概念没懂", "会用但不知为何"]
+
+
 class ClarificationHandlerMockTests(unittest.TestCase):
     def test_start_with_mock_llm(self):
         test_handle_clarify_start_with_mock_llm()
@@ -543,6 +557,9 @@ class ClarificationHandlerMockTests(unittest.TestCase):
     def test_review_fail_followup_falls_back_on_llm_error(self):
         test_review_fail_followup_falls_back_on_llm_error()
 
+    def test_start_options_passthrough(self):
+        test_start_options_passthrough()
+
 
 if __name__ == "__main__":
     print("Running mock tests for clarification handlers...\n")
@@ -560,6 +577,7 @@ if __name__ == "__main__":
     test_options_absent_defaults_empty()
     test_review_fail_followup_generated_from_issues()
     test_review_fail_followup_falls_back_on_llm_error()
+    test_start_options_passthrough()
 
     print("\n✅ All mock tests passed!")
     print("\nNote: These tests use mocked LLM responses.")

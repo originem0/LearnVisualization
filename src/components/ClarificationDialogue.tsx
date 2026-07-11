@@ -58,7 +58,6 @@ export default function ClarificationDialogue({
   const [candidateResult, setCandidateResult] = useState<ClarificationResult | null>(null);
   const [editedContract, setEditedContract] = useState<CourseContract | null>(null);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
-  const [answerMode, setAnswerMode] = useState<'answer' | 'continue'>('answer');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -100,7 +99,6 @@ export default function ClarificationDialogue({
       setCurrentOptions(Array.isArray(data.options) ? data.options : []);
       setRoundNumber(data.roundNumber);
       setCandidateResult(null);
-      setAnswerMode('answer');
       setMessages([{ role: 'bot', text: data.question }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -116,7 +114,6 @@ export default function ClarificationDialogue({
     setAnswer('');
     setCurrentOptions([]);
     setCandidateResult(null);
-    setAnswerMode('answer');
     setIsLoading(true);
     setError('');
 
@@ -187,7 +184,9 @@ export default function ClarificationDialogue({
   }
 
   function focusForContinue() {
-    setEditedContract(null);
+    if (candidateResult) {
+      setEditedContract(JSON.parse(JSON.stringify(candidateResult.contract)));
+    }
     inputRef.current?.focus();
   }
 
@@ -267,7 +266,7 @@ export default function ClarificationDialogue({
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
           disabled={isLoading}
-          placeholder={inputPlaceholder(isZh, Boolean(candidateResult), answerMode)}
+          placeholder={inputPlaceholder(isZh, Boolean(candidateResult))}
           className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-panel)] px-4 py-2.5 text-sm text-[color:var(--color-text)] placeholder:text-[color:var(--color-muted)]/60 focus:border-[color:var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]/20 disabled:opacity-50"
         />
         <button
@@ -307,7 +306,7 @@ function toClarificationResult(data: any): ClarificationResult {
   };
 }
 
-function inputPlaceholder(isZh: boolean, hasCandidate: boolean, mode: 'answer' | 'continue') {
+function inputPlaceholder(isZh: boolean, hasCandidate: boolean) {
   if (!hasCandidate) return isZh ? '输入你的回答...' : 'Type your answer...';
   return isZh ? '继续补充你的困惑、边界或目标...' : 'Add more confusion, boundaries, or goals...';
 }
@@ -333,7 +332,11 @@ function CandidateContractCard({
     !contract.desiredOutcome.trim() ||
     contract.scope.include.length === 0 ||
     contract.scope.exclude.length === 0 ||
-    !contract.scope.depth.trim();
+    !contract.scope.depth.trim() ||
+    !framing ||
+    !framing.phenomenon.trim() ||
+    !framing.contrast.trim() ||
+    !framing.modelGap.trim();
 
   const setField = (path: string, value: string) => {
     const next = JSON.parse(JSON.stringify(contract)) as CourseContract;
@@ -384,9 +387,9 @@ function CandidateContractCard({
         <EditableField label={isZh ? '核心张力' : 'Central tension'} value={contract.centralTension} required onSave={(v) => setField('centralTension', v)} />
         {framing && (
           <>
-            <EditableField label={isZh ? '学习困惑' : 'Learning confusion'} value={framing.phenomenon} onSave={(v) => setField('problemFraming.phenomenon', v)} />
-            <EditableField label={isZh ? '核心冲突' : 'Core tension'} value={framing.contrast} onSave={(v) => setField('problemFraming.contrast', v)} />
-            <EditableField label={isZh ? '模型缺口' : 'Model gap'} value={framing.modelGap} onSave={(v) => setField('problemFraming.modelGap', v)} />
+            <EditableField label={isZh ? '学习困惑' : 'Learning confusion'} value={framing.phenomenon} required onSave={(v) => setField('problemFraming.phenomenon', v)} />
+            <EditableField label={isZh ? '核心冲突' : 'Core tension'} value={framing.contrast} required onSave={(v) => setField('problemFraming.contrast', v)} />
+            <EditableField label={isZh ? '模型缺口' : 'Model gap'} value={framing.modelGap} required onSave={(v) => setField('problemFraming.modelGap', v)} />
           </>
         )}
         <EditableField label={isZh ? '受众' : 'Audience'} value={contract.audience} required onSave={(v) => setField('audience', v)} />

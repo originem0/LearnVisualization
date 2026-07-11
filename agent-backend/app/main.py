@@ -138,7 +138,7 @@ def _clean_options(content: dict) -> list[str]:
     if not isinstance(raw, list):
         return []
     cleaned = [str(item).strip() for item in raw if str(item).strip()]
-    return cleaned[:4]
+    return list(dict.fromkeys(cleaned))[:4]
 
 
 def _is_public_job_get(parts: list[str]) -> bool:
@@ -391,7 +391,8 @@ def handle_clarify_start(payload: dict) -> dict:
             "question": "",
             "roundNumber": 1,
             "fallback": True,
-            "error": "AI clarification unavailable"
+            "error": "AI clarification unavailable",
+            "options": [],
         }
 
 
@@ -532,7 +533,8 @@ def handle_clarify_respond(payload: dict) -> dict:
             "question": "",
             "roundNumber": round_num + 1,
             "fallback": True,
-            "error": "AI clarification unavailable"
+            "error": "AI clarification unavailable",
+            "options": [],
         }
 
 
