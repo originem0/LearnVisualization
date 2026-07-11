@@ -33,6 +33,7 @@ interface CourseContract {
     systemGoal: string;
     modelGap: string;
   };
+  teachingHooks?: string[];
 }
 
 interface ClarificationDialogueProps {
@@ -55,8 +56,9 @@ export default function ClarificationDialogue({
   const [error, setError] = useState('');
   const [roundNumber, setRoundNumber] = useState(0);
   const [candidateResult, setCandidateResult] = useState<ClarificationResult | null>(null);
+  const [editedContract, setEditedContract] = useState<CourseContract | null>(null);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
-  const [answerMode, setAnswerMode] = useState<'answer' | 'continue' | 'adjust'>('answer');
+  const [answerMode, setAnswerMode] = useState<'answer' | 'continue'>('answer');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -144,6 +146,7 @@ export default function ClarificationDialogue({
       if (data.readyForConfirmation || data.complete) {
         const result = toClarificationResult(data);
         setCandidateResult(result);
+        setEditedContract(JSON.parse(JSON.stringify(result.contract)));
         setCurrentQuestion('');
         setCurrentOptions([]);
         setRoundNumber(data.roundNumber || roundNumber);
@@ -174,19 +177,18 @@ export default function ClarificationDialogue({
   }
 
   function confirmCandidate() {
-    if (!candidateResult) return;
-    onComplete(candidateResult);
+    if (!candidateResult || !editedContract) return;
+    onComplete({
+      drivingQuestion: editedContract.drivingQuestion,
+      centralTension: editedContract.centralTension,
+      knowledgeType: editedContract.knowledgeType,
+      contract: editedContract,
+    });
   }
 
   function focusForContinue() {
-    setAnswerMode('continue');
+    setEditedContract(null);
     inputRef.current?.focus();
-  }
-
-  function focusForAdjustment(prefix?: string) {
-    setAnswerMode('adjust');
-    if (prefix) setAnswer(prefix);
-    requestAnimationFrame(() => inputRef.current?.focus());
   }
 
   return (
@@ -247,14 +249,13 @@ export default function ClarificationDialogue({
         </div>
       )}
 
-      {candidateResult && (
+      {candidateResult && editedContract && (
         <CandidateContractCard
-          result={candidateResult}
+          contract={editedContract}
           isZh={isZh}
+          onChange={setEditedContract}
           onConfirm={confirmCandidate}
           onContinue={focusForContinue}
-          onAdjust={() => focusForAdjustment()}
-          onAdjustField={focusForAdjustment}
         />
       )}
 
@@ -306,53 +307,62 @@ function toClarificationResult(data: any): ClarificationResult {
   };
 }
 
-function inputPlaceholder(isZh: boolean, hasCandidate: boolean, mode: 'answer' | 'continue' | 'adjust') {
+function inputPlaceholder(isZh: boolean, hasCandidate: boolean, mode: 'answer' | 'continue') {
   if (!hasCandidate) return isZh ? '输入你的回答...' : 'Type your answer...';
-  if (mode === 'adjust') return isZh ? '说明你想调整哪一项...' : 'Describe what should change...';
   return isZh ? '继续补充你的困惑、边界或目标...' : 'Add more confusion, boundaries, or goals...';
 }
 
 function CandidateContractCard({
-  result,
+  contract,
   isZh,
+  onChange,
   onConfirm,
   onContinue,
-  onAdjust,
-  onAdjustField,
 }: {
-  result: ClarificationResult;
+  contract: CourseContract;
   isZh: boolean;
+  onChange: (next: CourseContract) => void;
   onConfirm: () => void;
   onContinue: () => void;
-  onAdjust: () => void;
-  onAdjustField: (prefix: string) => void;
 }) {
-  const framing = result.contract.problemFraming;
-  const adjustFields = isZh
-    ? [
-        ['学习困惑', '我想调整学习困惑：'],
-        ['核心冲突', '我想调整核心冲突：'],
-        ['模型缺口', '我想调整模型缺口：'],
-        ['范围取舍', '我想调整范围取舍：'],
-      ]
-    : [
-        ['Confusion', 'I want to adjust the learning confusion: '],
-        ['Core tension', 'I want to adjust the core tension: '],
-        ['Model gap', 'I want to adjust the model gap: '],
-        ['Scope', 'I want to adjust the scope: '],
-      ];
+  const framing = contract.problemFraming;
+  const requiredMissing =
+    !contract.drivingQuestion.trim() ||
+    !contract.centralTension.trim() ||
+    !contract.audience.trim() ||
+    !contract.desiredOutcome.trim() ||
+    contract.scope.include.length === 0 ||
+    contract.scope.exclude.length === 0 ||
+    !contract.scope.depth.trim();
+
+  const setField = (path: string, value: string) => {
+    const next = JSON.parse(JSON.stringify(contract)) as CourseContract;
+    if (path.startsWith('problemFraming.') && next.problemFraming) {
+      (next.problemFraming as any)[path.split('.')[1]] = value;
+    } else if (path === 'scope.include' || path === 'scope.exclude') {
+      (next.scope as any)[path.split('.')[1]] = value.split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+    } else if (path === 'scope.depth') {
+      next.scope.depth = value;
+    } else if (path === 'teachingHooks') {
+      next.teachingHooks = value.split('\n').map(s => s.trim()).filter(Boolean);
+    } else {
+      (next as any)[path] = value;
+    }
+    onChange(next);
+  };
 
   return (
     <div className="rounded-lg border border-[color:var(--color-accent)]/25 bg-[color:var(--color-accent)]/5 p-4 text-sm">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <div className="font-medium text-[color:var(--color-text)]">
-          {isZh ? '候选学习契约' : 'Candidate Learning Contract'}
+          {isZh ? '候选学习契约（可直接修改）' : 'Candidate Learning Contract (editable)'}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-md bg-[color:var(--color-text)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-bg)] transition-opacity hover:opacity-90"
+            disabled={requiredMissing}
+            className="rounded-md bg-[color:var(--color-text)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-bg)] transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isZh ? '确认，用这个生成' : 'Confirm'}
           </button>
@@ -363,51 +373,88 @@ function CandidateContractCard({
           >
             {isZh ? '继续澄清' : 'Continue'}
           </button>
-          <button
-            type="button"
-            onClick={onAdjust}
-            className="rounded-md border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text)] transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-          >
-            {isZh ? '调整契约' : 'Adjust'}
-          </button>
         </div>
       </div>
+      <p className="mb-3 text-xs text-[color:var(--color-muted)]">
+        {isZh ? '你改的就是最终契约；继续澄清会丢弃这里的修改。' : 'Your edits are final; continuing the dialogue discards them.'}
+      </p>
 
-      <div className="space-y-2 text-[color:var(--color-muted)]">
-        <ContractLine label={isZh ? '驱动问题' : 'Driving question'} value={result.contract.drivingQuestion} />
-        <ContractLine label={isZh ? '核心张力' : 'Central tension'} value={result.contract.centralTension} />
+      <div className="space-y-2.5">
+        <EditableField label={isZh ? '驱动问题' : 'Driving question'} value={contract.drivingQuestion} required onSave={(v) => setField('drivingQuestion', v)} />
+        <EditableField label={isZh ? '核心张力' : 'Central tension'} value={contract.centralTension} required onSave={(v) => setField('centralTension', v)} />
         {framing && (
           <>
-            <ContractLine label={isZh ? '学习困惑' : 'Learning confusion'} value={framing.phenomenon} />
-            <ContractLine label={isZh ? '核心冲突' : 'Core tension'} value={framing.contrast} />
-            <ContractLine label={isZh ? '模型缺口' : 'Model gap'} value={framing.modelGap} />
+            <EditableField label={isZh ? '学习困惑' : 'Learning confusion'} value={framing.phenomenon} onSave={(v) => setField('problemFraming.phenomenon', v)} />
+            <EditableField label={isZh ? '核心冲突' : 'Core tension'} value={framing.contrast} onSave={(v) => setField('problemFraming.contrast', v)} />
+            <EditableField label={isZh ? '模型缺口' : 'Model gap'} value={framing.modelGap} onSave={(v) => setField('problemFraming.modelGap', v)} />
           </>
         )}
-        <ContractLine label={isZh ? '范围' : 'Scope'} value={result.contract.scope.include.join(' / ')} />
-        <ContractLine label={isZh ? '不讲' : 'Excluded'} value={result.contract.scope.exclude.join(' / ')} />
+        <EditableField label={isZh ? '受众' : 'Audience'} value={contract.audience} required onSave={(v) => setField('audience', v)} />
+        <EditableField label={isZh ? '学完能做什么' : 'Desired outcome'} value={contract.desiredOutcome} required onSave={(v) => setField('desiredOutcome', v)} />
+        <EditableField label={isZh ? '必须讲（逗号分隔）' : 'Include (comma-separated)'} value={contract.scope.include.join('、')} required onSave={(v) => setField('scope.include', v)} />
+        <EditableField label={isZh ? '不讲（逗号分隔）' : 'Exclude (comma-separated)'} value={contract.scope.exclude.join('、')} required onSave={(v) => setField('scope.exclude', v)} />
+        <EditableField label={isZh ? '深度取舍' : 'Depth'} value={contract.scope.depth} required onSave={(v) => setField('scope.depth', v)} />
+        <EditableField
+          label={isZh ? '教学抓手（每行一条）' : 'Teaching hooks (one per line)'}
+          value={(contract.teachingHooks || []).join('\n')}
+          multiline
+          onSave={(v) => setField('teachingHooks', v)}
+        />
       </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {adjustFields.map(([label, prefix]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => onAdjustField(prefix)}
-            className="rounded-md bg-[color:var(--color-panel)] px-2.5 py-1 text-xs text-[color:var(--color-muted)] ring-1 ring-[color:var(--color-border)] transition-colors hover:text-[color:var(--color-text)]"
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {requiredMissing && (
+        <p className="mt-2 text-xs text-[color:var(--color-danger)]">
+          {isZh ? '标 * 的字段不能为空。' : 'Fields marked * cannot be empty.'}
+        </p>
+      )}
     </div>
   );
 }
 
-function ContractLine({ label, value }: { label: string; value: string }) {
+function EditableField({
+  label,
+  value,
+  onSave,
+  required,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  onSave: (v: string) => void;
+  required?: boolean;
+  multiline?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const empty = required && !value.trim();
+
+  useEffect(() => setDraft(value), [value]);
+
+  if (!editing) {
+    return (
+      <div
+        onClick={() => setEditing(true)}
+        className={`cursor-text rounded px-1 -mx-1 transition-colors hover:bg-[color:var(--color-accent)]/10 ${empty ? 'ring-1 ring-[color:var(--color-danger)]/60' : ''}`}
+        title="点击编辑"
+      >
+        <span className="font-medium text-[color:var(--color-text)]">{label}{required ? ' *' : ''}：</span>
+        <span className={`whitespace-pre-wrap ${empty ? 'text-[color:var(--color-danger)]' : 'text-[color:var(--color-muted)]'}`}>
+          {value || '（空）'}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <span className="font-medium text-[color:var(--color-text)]">{label}：</span>
-      {value}
+      <label className="mb-0.5 block text-xs font-medium text-[color:var(--color-text)]">{label}{required ? ' *' : ''}</label>
+      <textarea
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { onSave(draft); setEditing(false); }}
+        rows={multiline ? Math.max(2, draft.split('\n').length) : 2}
+        className="w-full rounded-lg border border-[color:var(--color-accent)]/50 bg-[color:var(--color-bg)] px-2 py-1.5 text-sm text-[color:var(--color-text)] outline-none focus:border-[color:var(--color-accent)]"
+      />
     </div>
   );
 }
