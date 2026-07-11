@@ -34,12 +34,13 @@ try:
         normalize_validate_request,
     )
     from .pipeline import CourseGenerationPipeline, run_static_build
-    from .provider import OpenAICompatibleClient, ProviderConfig
+    from .provider import OpenAICompatibleClient, ProviderConfig, model_family
     from .workflow import WORKFLOW_V1, retry_policy
     from .clarification_store import get_store as get_clarification_store
     from .clarification_prompts import (
         build_clarification_system_prompt,
         build_clarification_user_prompt,
+        build_contract_review_prompts,
     )
 except ImportError:
     from common import (
@@ -62,12 +63,13 @@ except ImportError:
         normalize_validate_request,
     )
     from pipeline import CourseGenerationPipeline, run_static_build
-    from provider import OpenAICompatibleClient, ProviderConfig
+    from provider import OpenAICompatibleClient, ProviderConfig, model_family
     from workflow import WORKFLOW_V1, retry_policy
     from clarification_store import get_store as get_clarification_store
     from clarification_prompts import (
         build_clarification_system_prompt,
         build_clarification_user_prompt,
+        build_contract_review_prompts,
     )
 
 REPO_ROOT = DEFAULT_REPO_ROOT
@@ -99,7 +101,7 @@ PUBLIC_LEGACY_COURSES = {"llm-fundamentals", "postgresql-internals", "git-intern
 
 load_env_file(REPO_ROOT / "agent-backend" / ".env")
 
-# Module-level singleton — one Pipeline, one thread pool, shared across all requests
+# Module-level singleton -- one Pipeline, one thread pool, shared across all requests
 _pipeline: CourseGenerationPipeline | None = None
 
 
@@ -229,10 +231,10 @@ def _clarification_readiness_issue(contract: dict, history: list[dict]) -> str |
 def _clarification_gate_followup(issue: str, topic: str, history: list[dict]) -> str:
     if _history_shows_beginner_uncertainty(history):
         return (
-            f"没关系，这说明你现在是“对 {topic} 有好奇、但核心概念的来龙去脉还没立起来”的初学者位置。"
-            "我先这样理解你的学习需求：从你已经听过但没串起来的关键词开始，解释它为什么会被提出、"
-            "它要回应什么问题，以及后面的概念为什么会跟着出现。"
-            "如果这个方向对，你直接回“对”；如果不对，只要说最想先弄懂的那个词。"
+            f'没关系，这说明你现在是"对 {topic} 有好奇、但核心概念的来龙去脉还没立起来"的初学者位置。'
+            '我先这样理解你的学习需求：从你已经听过但没串起来的关键词开始，解释它为什么会被提出、'
+            '它要回应什么问题，以及后面的概念为什么会跟着出现。'
+            '如果这个方向对，你直接回"对"；如果不对，只要说最想先弄懂的那个词。'
         )
     if "contrast" in issue:
         return (
@@ -240,7 +242,7 @@ def _clarification_gate_followup(issue: str, topic: str, history: list[dict]) ->
             "你原本以为它只是怎么回事，但它好像实际牵出了什么更大的问题？"
         )
     if "drivingQuestion" in issue:
-        return "现在的问题还太像泛泛介绍。请说一句：学完这门课后，你最希望能解释哪个“为什么”？"
+        return '现在的问题还太像泛泛介绍。请说一句：学完这门课后，你最希望能解释哪个"为什么"？'
     if "systemGoal" in issue or "modelGap" in issue or "phenomenon" in issue:
         return "还差一点课程焦点。请说一句：你不是想背定义，而是想看懂这个主题背后的哪条关系或来龙去脉？"
     return (
@@ -258,6 +260,41 @@ def _clarification_candidate_summary(contract: dict) -> str:
         f"对比关系：{framing.get('contrast', '')}",
         f"模型缺口：{framing.get('modelGap', '')}",
     ])
+
+
+def _review_contract(client, contract: dict) -> dict:
+    """异族评审契约。返回 {'pass': bool, 'issues': [str], 'teachingHooks': [str]}。
+
+    评审模型用 judge_model（要求与 clarify_model 异族）；评审调用本身失败时，
+    降级为通过（不因评审模型抖动卡死用户），但不产出 teachingHooks。
+    """
+    judge_model = getattr(client.config, "judge_model", None)
+    clarify_model = getattr(client.config, "clarify_model", None) or getattr(client.config, "model", "")
+    if judge_model and model_family(judge_model) == model_family(clarify_model):
+        import sys
+        print(
+            f"[clarify] warning: judge_model '{judge_model}' 与 clarify 模型同族，契约评审独立性受限",
+            file=sys.stderr,
+        )
+    system_prompt, user_prompt = build_contract_review_prompts(contract)
+    try:
+        response = client.generate_json(
+            schema_name="contract_review",
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.1,
+            max_tokens=800,
+            model=judge_model,
+        )
+    except Exception as exc:
+        import sys
+        print(f"[clarify] contract review failed, passing through: {exc}", file=sys.stderr)
+        return {"pass": True, "issues": [], "teachingHooks": []}
+    content = _unwrap_llm_json_content(response) or {}
+    hooks = [str(h).strip() for h in (content.get("teachingHooks") or []) if str(h).strip()][:3]
+    issues = [str(i).strip() for i in (content.get("issues") or []) if str(i).strip()]
+    return {"pass": bool(content.get("pass")), "issues": issues, "teachingHooks": hooks}
+
 
 
 def handle_clarify_start(payload: dict) -> dict:
@@ -399,6 +436,20 @@ def handle_clarify_respond(payload: dict) -> dict:
                     "needsMoreEvidence": True,
                     "gateIssue": readiness_issue,
                 }
+
+            review = _review_contract(client, contract)
+            if not review["pass"]:
+                # 评审判定契约空洞：转成不暴露内部字段的友好追问，对话继续
+                question = _clarification_gate_followup("contrast", conv["topic"], history)
+                next_round = len([t for t in history if t["role"] == "bot"]) + 1
+                store.add_turn(conversation_id, "bot", question)
+                return {
+                    "question": question,
+                    "roundNumber": next_round,
+                    "needsMoreEvidence": True,
+                    "reviewIssue": (review["issues"] or [""])[0],
+                }
+            contract["teachingHooks"] = review["teachingHooks"]
 
             candidate_summary = _clarification_candidate_summary(contract)
             store.add_turn(conversation_id, "bot", candidate_summary)

@@ -19,6 +19,18 @@ from main import handle_clarify_start, handle_clarify_respond
 from clarification_store import get_store
 
 
+class _MockConfig:
+    model = "mock-clarify"
+    clarify_model = "mock-clarify"
+    judge_model = "mock-judge"
+    research_model = None
+
+
+def _mock_config():
+    return _MockConfig()
+
+
+
 def test_handle_clarify_start_with_mock_llm():
     """Test handle_clarify_start with mocked LLM."""
 
@@ -148,9 +160,16 @@ def test_handle_clarify_respond_returns_candidate_contract():
         "model": "mock-model"
     }
 
+    review_response = {
+        "content": {"pass": True, "issues": [], "teachingHooks": ["装饰器调用时机决定闭包捕获", "cell 变量在赋值时被判定为局部"]},
+        "usage": {},
+        "model": "mock-judge",
+    }
+
     with patch('main.get_pipeline') as mock_pipeline:
         mock_client = Mock()
-        mock_client.generate_json.return_value = mock_response
+        mock_client.generate_json.side_effect = [mock_response, review_response]
+        mock_client.config = _mock_config()
         mock_pipeline.return_value.client = mock_client
 
         # Call handler
@@ -165,7 +184,8 @@ def test_handle_clarify_respond_returns_candidate_contract():
         assert result["centralTension"] == mock_response["content"]["contract"]["centralTension"]
         assert result["knowledgeType"] == mock_response["content"]["contract"]["knowledgeType"]
         assert "候选学习契约" in result["message"]
-        assert mock_client.generate_json.call_args.kwargs["schema_name"] == "clarification_respond"
+        assert mock_client.generate_json.call_args.kwargs["schema_name"] == "contract_review"
+        assert result["contract"]["teachingHooks"] == ["装饰器调用时机决定闭包捕获", "cell 变量在赋值时被判定为局部"]
 
         # Verify the candidate was stored as a bot turn, but final synthesis waits for user confirmation.
         conv = store.get_conversation(conv_id)
@@ -216,6 +236,7 @@ def test_handle_clarify_respond_rejects_weak_synthesis():
     with patch('main.get_pipeline') as mock_pipeline:
         mock_client = Mock()
         mock_client.generate_json.return_value = mock_response
+        mock_client.config = _mock_config()
         mock_pipeline.return_value.client = mock_client
 
         result = handle_clarify_respond({
@@ -278,7 +299,57 @@ def test_beginner_gate_followup_does_not_exam_user():
     assert "problemFraming" not in question
     assert "A/B" not in question
     assert "初学" in question
-    assert "直接回“对”" in question
+    assert "直接回" in question
+
+
+def test_handle_clarify_respond_rejects_hollow_contract_via_review():
+    """规则闸通过但异族评审判定契约空洞时，继续追问而非给候选契约。"""
+    store = get_store()
+    conv_id = store.create_conversation("尼采哲学")
+    for i in range(3):
+        store.add_turn(conv_id, "bot", f"问题{i}")
+        store.add_turn(conv_id, "user", f"这是我第{i}个足够长的具体回答，描述了差异现象和困惑")
+
+    synthesis = {
+        "content": {
+            "complete": True,
+            "contract": {
+                "drivingQuestion": "为什么上帝已死意味着尺度崩塌而不仅是信仰缺失？",
+                "centralTension": "直觉以为少个指南，实则衡量价值的尺度整体失效",
+                "knowledgeType": "conceptual",
+                "audience": "对存在主义有零散直觉的初学者",
+                "desiredOutcome": "能解释尺度崩塌的机制",
+                "scope": {"include": ["上帝已死", "虚无主义"], "exclude": ["海德格尔阐释"], "depth": "机制深挖"},
+                "problemFraming": {
+                    "phenomenon": "现代人没有明确信仰也能凭常识活得好好的",
+                    "contrast": "直觉当少个旧指南；尼采说是评价尺度整体失效",
+                    "problemNature": "model_mismatch",
+                    "systemGoal": "理解尺度崩塌后的真实生存处境",
+                    "modelGap": "缺少价值尺度这一对象模型",
+                },
+            },
+        },
+        "usage": {}, "model": "mock-clarify",
+    }
+    review_fail = {
+        "content": {"pass": False, "issues": ["modelGap 只是重复了问题，没有指出缺失的具体关系"], "teachingHooks": []},
+        "usage": {}, "model": "mock-judge",
+    }
+
+    with patch('main.get_pipeline') as mock_pipeline:
+        mock_client = Mock()
+        mock_client.generate_json.side_effect = [synthesis, review_fail]
+        mock_client.config = _mock_config()
+        mock_pipeline.return_value.client = mock_client
+
+        result = handle_clarify_respond({"conversationId": conv_id, "answer": "我想弄懂尺度崩塌"})
+
+        assert result.get("needsMoreEvidence") is True
+        assert "readyForConfirmation" not in result
+        assert "contract" not in result
+        # 追问不得暴露内部字段名
+        assert "modelGap" not in result["question"]
+        assert "problemFraming" not in result["question"]
 
 
 def test_error_handling():
@@ -322,6 +393,9 @@ class ClarificationHandlerMockTests(unittest.TestCase):
     def test_respond_rejects_weak_synthesis(self):
         test_handle_clarify_respond_rejects_weak_synthesis()
 
+    def test_respond_rejects_hollow_contract_via_review(self):
+        test_handle_clarify_respond_rejects_hollow_contract_via_review()
+
     def test_beginner_uncertainty_allows_inferred_contrast(self):
         test_beginner_uncertainty_allows_inferred_contrast()
 
@@ -340,6 +414,7 @@ if __name__ == "__main__":
     test_handle_clarify_respond_continue()
     test_handle_clarify_respond_returns_candidate_contract()
     test_handle_clarify_respond_rejects_weak_synthesis()
+    test_handle_clarify_respond_rejects_hollow_contract_via_review()
     test_beginner_uncertainty_allows_inferred_contrast()
     test_beginner_gate_followup_does_not_exam_user()
     test_error_handling()
