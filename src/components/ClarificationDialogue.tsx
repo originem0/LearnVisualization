@@ -55,6 +55,7 @@ export default function ClarificationDialogue({
   const [error, setError] = useState('');
   const [roundNumber, setRoundNumber] = useState(0);
   const [candidateResult, setCandidateResult] = useState<ClarificationResult | null>(null);
+  const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [answerMode, setAnswerMode] = useState<'answer' | 'continue' | 'adjust'>('answer');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +95,7 @@ export default function ClarificationDialogue({
       }
       setConversationId(data.conversationId);
       setCurrentQuestion(data.question);
+      setCurrentOptions(Array.isArray(data.options) ? data.options : []);
       setRoundNumber(data.roundNumber);
       setCandidateResult(null);
       setAnswerMode('answer');
@@ -105,14 +107,12 @@ export default function ClarificationDialogue({
     }
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const userAnswer = answer.trim();
+  async function sendAnswer(userAnswer: string) {
     if (!userAnswer || !conversationId) return;
 
-    // Add user message to UI immediately
     setMessages((prev) => [...prev, { role: 'user', text: userAnswer }]);
     setAnswer('');
+    setCurrentOptions([]);
     setCandidateResult(null);
     setAnswerMode('answer');
     setIsLoading(true);
@@ -145,6 +145,7 @@ export default function ClarificationDialogue({
         const result = toClarificationResult(data);
         setCandidateResult(result);
         setCurrentQuestion('');
+        setCurrentOptions([]);
         setRoundNumber(data.roundNumber || roundNumber);
         setMessages((prev) => [...prev, {
           role: 'bot',
@@ -155,6 +156,7 @@ export default function ClarificationDialogue({
       } else {
         // Continue dialogue
         setCurrentQuestion(data.question);
+        setCurrentOptions(Array.isArray(data.options) ? data.options : []);
         setRoundNumber(data.roundNumber);
         setCandidateResult(null);
         setMessages((prev) => [...prev, { role: 'bot', text: data.question }]);
@@ -164,6 +166,11 @@ export default function ClarificationDialogue({
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    await sendAnswer(answer.trim());
   }
 
   function confirmCandidate() {
@@ -224,6 +231,21 @@ export default function ClarificationDialogue({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {currentOptions.length > 0 && !isLoading && !candidateResult && (
+        <div className="flex flex-wrap gap-2">
+          {currentOptions.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => sendAnswer(opt)}
+              className="rounded-full border border-[color:var(--color-accent)]/40 bg-[color:var(--color-accent)]/5 px-3 py-1.5 text-sm text-[color:var(--color-text)] transition-colors hover:bg-[color:var(--color-accent)]/15"
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
 
       {candidateResult && (
         <CandidateContractCard
