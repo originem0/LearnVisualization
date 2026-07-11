@@ -288,6 +288,35 @@ class ContractGroundingResearchPlanTests(unittest.TestCase):
             "teachingHooks": ["《快乐的科学》125 节狂人宣告", "重估一切价值的晚期计划"],
         }
 
+    def test_chapter_prompt_carries_phenomenon_and_model_gap(self):
+        from essay_prompts import build_chapter_prompts
+        payload = {"topic": "尼采哲学", "output_slug": "x", "contract": self._contract()}
+        plan = {
+            "register": "essay", "writingMode": "conceptual-essay",
+            "drivingQuestion": self._contract()["drivingQuestion"],
+            "centralTension": self._contract()["centralTension"],
+            "overview": {"whyExists": "", "wherePoints": "", "arc": []},
+            "chapterPlans": [{"id": "c01", "number": 1}],
+            "factSpine": [],
+        }
+        _, user = build_chapter_prompts(
+            request_payload=payload, plan_artifact=plan,
+            chapter_plan={"id": "c01", "number": 1, "title": "t", "role": "r"},
+            prev_chapter_ending=None,
+        )
+        self.assertIn("旧道德权威退场后人仍需判断什么值得追求", user)  # phenomenon
+        self.assertIn("缺少上帝之死、虚无主义、价值重估之间的关系链", user)  # modelGap
+
+    def test_verify_prompt_checks_model_gap_filled(self):
+        from essay_prompts import build_course_verify_prompts
+        _, user = build_course_verify_prompts(
+            plan_artifact={"drivingQuestion": "q", "centralTension": "t", "contract": {"desiredOutcome": "o"}},
+            chapters=[{"id": "c01", "title": "x", "role": "r", "narrative": [{"type": "text", "content": "正文"}]}],
+            model_gap="缺少某某关系模型",
+        )
+        self.assertIn("缺少某某关系模型", user)
+        self.assertIn("填补", user)
+
     def test_research_query_prompt_grounds_on_model_gap_and_hooks(self):
         from essay_prompts import build_research_query_prompts
         _, user = build_research_query_prompts("尼采哲学", self._contract())

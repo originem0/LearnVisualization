@@ -1130,11 +1130,14 @@ class CourseGenerationPipeline:
         }
 
         judge_model = getattr(client.config, "judge_model", None)
+        course_contract = composed_artifact["course"].get("contract") or {}
+        model_gap = (course_contract.get("problemFraming") or {}).get("modelGap")
         system_prompt, user_prompt = build_course_verify_prompts(
             plan_artifact={**plan_artifact, "drivingQuestion": composed_artifact["course"].get("drivingQuestion"),
                            "centralTension": composed_artifact["course"].get("centralTension"),
-                           "contract": composed_artifact["course"].get("contract")},
+                           "contract": course_contract},
             chapters=chapters,
+            model_gap=model_gap,
         )
         response = client.generate_json(
             schema_name="course_verify",

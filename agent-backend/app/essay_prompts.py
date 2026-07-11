@@ -169,7 +169,9 @@ def build_chapter_prompts(
         f"- register: {register}\n"
         f"- writingMode: {writing_mode}\n"
         f"- overview: {json.dumps(plan_artifact['overview'], ensure_ascii=False, indent=2)}\n"
-        f"- factSpine: {json.dumps(plan_artifact.get('factSpine') or [], ensure_ascii=False, indent=2)}\n\n"
+        f"- factSpine: {json.dumps(plan_artifact.get('factSpine') or [], ensure_ascii=False, indent=2)}\n"
+        f"- 读者观察到的现象（写作要回应它）: {(contract.get('problemFraming') or {}).get('phenomenon')}\n"
+        f"- 读者缺失的模型（本章要帮着补）: {(contract.get('problemFraming') or {}).get('modelGap')}\n\n"
         f"上一章结尾（用于承接声音和过渡）：\n{prev_chapter_ending or '(第一章，无上一章)'}\n\n"
     )
 
@@ -337,6 +339,7 @@ def build_course_verify_prompts(
     *,
     plan_artifact: dict[str, Any],
     chapters: list[dict[str, Any]],
+    model_gap: str | None = None,
 ) -> tuple[str, str]:
     system_prompt = "你是课程终审评审。只输出 JSON。"
 
@@ -362,8 +365,9 @@ def build_course_verify_prompts(
         + "\n\n".join(digests)
         + "\n\n检查：\n"
         "1. 全课读完，drivingQuestion 是否被实际回答（不是被绕开或替换）。\n"
-        "2. 末章（全文已给出）是否完成收束，给出可迁移的判断框架，而不是继续抛问题。\n"
-        "3. 章节之间的论证是否连续，有没有断裂或重复空转。\n"
+        f"2. 读者原本缺失的模型是否被填补：{model_gap or '(未提供)'}。全课是否真的建立了这个模型，而不是绕开。\n"
+        "3. 末章（全文已给出）是否完成收束，给出可迁移的判断框架，而不是继续抛问题。\n"
+        "4. 章节之间的论证是否连续，有没有断裂或重复空转。\n"
         '输出 JSON：{"pass": true/false, "issues": ["具体问题"]}'
     )
     return system_prompt, user_prompt
