@@ -294,6 +294,7 @@ def build_research_query_prompts(topic: str, contract: dict[str, Any]) -> tuple[
     scope = contract.get("scope") or {}
     framing = contract.get("problemFraming") or {}
     hooks = contract.get("teachingHooks") or []
+    hooks_line = f"必须讲到的具体锚点：{json.dumps(hooks, ensure_ascii=False)}\n" if hooks else ""
     user_prompt = (
         f"课程主题：{topic}\n"
         f"驱动问题：{contract.get('drivingQuestion')}\n"
@@ -301,7 +302,7 @@ def build_research_query_prompts(topic: str, contract: dict[str, Any]) -> tuple[
         f"不覆盖：{json.dumps(scope.get('exclude') or [], ensure_ascii=False)}\n"
         f"读者的模型缺口（搜索要能补上它）：{framing.get('modelGap')}\n"
         f"直觉与现实的冲突（搜索要能照亮它）：{framing.get('contrast')}\n"
-        f"必须讲到的具体锚点：{json.dumps(hooks, ensure_ascii=False)}\n\n"
+        f"{hooks_line}\n"
         "生成 6-10 个搜索查询，中英混合，具体到概念名、文本名、机制名或争论点；"
         "查询要优先命中能补上『模型缺口』和覆盖『具体锚点』的一手/权威材料。\n"
         "另外给出 wikiTopics：3-6 个维基百科条目名（人名、著作名、概念名），"

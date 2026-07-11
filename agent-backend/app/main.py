@@ -270,7 +270,13 @@ def _review_contract(client, contract: dict) -> dict:
     """
     judge_model = getattr(client.config, "judge_model", None)
     clarify_model = getattr(client.config, "clarify_model", None) or getattr(client.config, "model", "")
-    if judge_model and model_family(judge_model) == model_family(clarify_model):
+    if not judge_model:
+        import sys
+        print(
+            "[clarify] warning: 未配置 judge_model，契约评审将使用主模型，可能与 clarify 同族、独立性受限",
+            file=sys.stderr,
+        )
+    elif model_family(judge_model) == model_family(clarify_model):
         import sys
         print(
             f"[clarify] warning: judge_model '{judge_model}' 与 clarify 模型同族，契约评审独立性受限",
