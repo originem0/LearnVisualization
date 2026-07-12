@@ -58,6 +58,7 @@ class FakeClient:
         self.bad_fact_spine_times = 0  # 前 N 次 plan 返回空 factSpine
         self.fabricate_quotes = False
         self.fail_course_verify = False
+        self.course_verify_advisory = False
         self.fail_judge_times = 0   # 前 N 次章节评审返回不通过
         self.raise_provider_error_on_chapter = False
         self.judge_provider_error_times = 0
@@ -95,8 +96,13 @@ class FakeClient:
                 "chapters": chapters,
             }
         elif schema_name == "course_verify":
-            content = {"pass": not getattr(self, "fail_course_verify", False),
-                       "issues": ["末章没有回扣 drivingQuestion"] if getattr(self, "fail_course_verify", False) else []}
+            if getattr(self, "fail_course_verify", False):
+                content = {"pass": False, "issues": ["末章没有回扣 drivingQuestion"]}
+            elif getattr(self, "course_verify_advisory", False):
+                # 评审判通过，但附带非阻断旁注
+                content = {"pass": True, "issues": ["个别段落略有重复感，但不影响收束"]}
+            else:
+                content = {"pass": True, "issues": []}
         elif schema_name.endswith("_quality_judge"):
             if self.judge_provider_error_times > 0:
                 self.judge_provider_error_times -= 1
@@ -582,6 +588,21 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         self.assertTrue(verify["mechanical"]["quoteFidelityOk"])
         judge_models = [m for (name, m) in client.calls if name == "course_verify"]
         self.assertEqual(len(judge_models), 1)
+
+    def test_verify_passes_when_course_judge_passes_with_advisory_notes(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.course_verify_advisory = True
+        slug = f"test-verify-advisory-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        job = self.run_job_published(pipeline, job["id"])
+        # 课程级评审 pass=true 时的旁注不该让整课失败
+        self.assertEqual(job["status"], "completed")
+        verify = json.loads(Path(job["artifacts"]["verify"]).read_text("utf-8"))
+        self.assertTrue(verify["pass"])
+        self.assertTrue(verify["advisory"])  # 旁注被保留但不阻断
 
     def test_verify_failure_fails_job_with_stored_details(self):
         pipeline, temp_dir, client = self.create_pipeline()

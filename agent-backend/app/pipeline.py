@@ -1228,11 +1228,17 @@ class CourseGenerationPipeline:
             "pass": bool((response.get("content") or {}).get("pass")),
             "issues": (response.get("content") or {}).get("issues") or [],
         }
-        issues.extend(str(x) for x in course_judge["issues"])
+        # 课程级评审的 issues 只有在它自己判不通过时才算否决——评审常常在 pass=true
+        # 时附带旁注（"总体合理，但…"），那些不该让整课失败。机械检查（上面已并入
+        # issues）始终硬否决。
+        blocking = list(issues)
+        if not course_judge["pass"]:
+            blocking.extend(str(x) for x in course_judge["issues"])
 
         return {
-            "pass": not issues,
-            "issues": issues,
+            "pass": not blocking,
+            "issues": blocking,
+            "advisory": [str(x) for x in course_judge["issues"]] if course_judge["pass"] else [],
             "mechanical": mechanical,
             "courseJudge": course_judge,
         }
