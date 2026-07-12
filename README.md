@@ -113,6 +113,8 @@ python3 -m app.main   # http://127.0.0.1:8081
 
 LLM 配置支持 per-stage 模型：`model`（写作）、`fallback_model`（兜底）、`research_model`（研究，可选）、`clarify_model`（澄清对话，建议强推理模型）、`judge_model`（评审，建议与写作模型异族）。每个 job 的抓取原文保存在 `agent-backend/jobs/<id>/research_sources/` 供审计。
 
+章节 4 轮评审失败后任务失败，但失败草稿与评审意见会持久化：手动重试会带着上一版与否决原因继续迭代，前端失败卡片可展开查看失败章节全文；基础设施故障（服务商 5xx）与质量否决在 UI 分类展示。
+
 主要端点：
 
 - `POST /api/clarify/start` — 开始澄清
