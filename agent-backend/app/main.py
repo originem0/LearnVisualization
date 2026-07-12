@@ -170,6 +170,7 @@ def _public_job_view(job: dict) -> dict:
         "currentStage": job.get("currentStage"),
         "request": public_request,
         "error": job.get("error"),
+        "failureDetail": job.get("failureDetail"),
         "stages": stages,
         "resultSummary": job.get("resultSummary") or {},
         "createdAt": job.get("createdAt"),

@@ -42,6 +42,21 @@ MAX_TOTAL_COURSES = 50
 _build_lock = threading.Lock()
 
 
+def _flatten_chapter_text(chapter: dict[str, Any], limit: int = 6000) -> str:
+    parts: list[str] = []
+    for block in chapter.get("narrative") or []:
+        if not isinstance(block, dict):
+            continue
+        content = str(block.get("content") or "").strip()
+        if not content:
+            continue
+        if block.get("type") == "heading":
+            parts.append(f"\n## {content}\n")
+        else:
+            parts.append(content)
+    return "\n\n".join(parts)[:limit]
+
+
 class CancelledError(Exception):
     """Raised when a job is cancelled via cooperative cancellation."""
 
@@ -416,6 +431,11 @@ class CourseGenerationPipeline:
                         "outputSlug": composed_artifact["course"]["slug"],
                     },
                 )
+                with self.store.job_lock(job_id):
+                    cleared = self.store.load_job(job_id)
+                    if cleared.get("failureDetail"):
+                        cleared["failureDetail"] = None
+                        self.store.write_job(cleared)
 
             self._check_cancelled(job_id)
 
@@ -506,7 +526,13 @@ class CourseGenerationPipeline:
         except Exception as exc:
             current_job = self.store.load_job(job_id)
             stage = current_job.get("currentStage") or "plan"
-            self.store.mark_stage_failed(job_id, stage, str(exc))
+            if isinstance(exc, ProviderError):
+                kind = "infra"
+            elif isinstance(exc, ValueError):
+                kind = "quality"
+            else:
+                kind = "other"
+            self.store.mark_stage_failed(job_id, stage, str(exc), kind=kind)
             return self.store.load_job(job_id)
 
     def get_job(self, job_id: str) -> dict[str, Any]:
@@ -777,6 +803,15 @@ class CourseGenerationPipeline:
         completed_ids = {chapter["id"] for chapter in chapters}
         prev_chapter_ending = self._last_chapter_ending(chapters[-1]) if chapters else None
 
+        # Load failure seed if retrying from a quality failure
+        failure_seed: dict[str, Any] | None = None
+        failure_path = self.store.job_dir(job_id) / "stages" / "compose_failure.json"
+        if failure_path.exists():
+            try:
+                failure_seed = json.loads(failure_path.read_text("utf-8"))
+            except (json.JSONDecodeError, OSError):
+                failure_seed = None
+
         for index, chapter_plan in enumerate(chapter_plans, start=1):
             self._check_cancelled(job_id)
             if chapter_plan["id"] in completed_ids:
@@ -786,6 +821,16 @@ class CourseGenerationPipeline:
             chapter_evidence = [
                 e for e in evidence_library if e["id"] in set(chapter_plan.get("evidenceIds") or [])
             ] or evidence_library[:8]
+
+            initial_feedback: str | None = None
+            if failure_seed and failure_seed.get("chapterId") == chapter_plan["id"]:
+                draft_excerpt = _flatten_chapter_text(failure_seed.get("draft") or {}, limit=3000)
+                initial_feedback = (
+                    f"上一版全文已被否决。评审否决原因：{failure_seed.get('feedback')}\n"
+                    f"上一版正文摘录（针对否决原因重写，不要重蹈覆辙）：\n{draft_excerpt}"
+                )
+                failure_path.unlink(missing_ok=True)
+                failure_seed = None
 
             chapter, local_logs = self._compose_chapter_with_rewrites(
                 job_id=job_id,
@@ -797,6 +842,7 @@ class CourseGenerationPipeline:
                 prev_chapter_ending=prev_chapter_ending,
                 chapter_evidence=chapter_evidence,
                 evidence_library=evidence_library,
+                initial_feedback=initial_feedback,
             )
             chapters.append(chapter)
             prev_chapter_ending = self._last_chapter_ending(chapter)
@@ -928,9 +974,10 @@ class CourseGenerationPipeline:
         prev_chapter_ending: str | None,
         chapter_evidence: list[dict[str, Any]] | None = None,
         evidence_library: list[dict[str, Any]] | None = None,
+        initial_feedback: str | None = None,
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         local_logs: list[dict[str, Any]] = []
-        revision_feedback: str | None = None
+        revision_feedback: str | None = initial_feedback
         attempts = 4
         last_chapter: dict[str, Any] | None = None
         last_judgement: dict[str, Any] | None = None
@@ -1020,6 +1067,25 @@ class CourseGenerationPipeline:
             if judgement.get("pass"):
                 return chapter, local_logs
             revision_feedback = str(judgement.get("rewriteHint") or "; ".join(judgement.get("issues") or []))
+        failure_feedback = revision_feedback or "；".join((last_judgement or {}).get("issues") or [])
+        if last_chapter is not None:
+            write_json_atomic(
+                self.store.job_dir(job_id) / "stages" / "compose_failure.json",
+                {
+                    "chapterId": chapter_plan["id"],
+                    "feedback": failure_feedback,
+                    "draft": last_chapter,
+                    "attempts": attempts,
+                },
+            )
+            with self.store.job_lock(job_id):
+                job = self.store.load_job(job_id)
+                job["failureDetail"] = {
+                    "chapterId": chapter_plan["id"],
+                    "feedback": failure_feedback,
+                    "draftText": _flatten_chapter_text(last_chapter),
+                }
+                self.store.write_job(job)
         raise ValueError(
             f"章节 {chapter_plan['id']} 质量评审未通过: "
             f"{(last_judgement or {}).get('issues') or (last_chapter or {}).get('title')}"

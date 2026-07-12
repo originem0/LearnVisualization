@@ -14,7 +14,7 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from pipeline import CourseGenerationPipeline  # noqa: E402
-from provider import ProviderConfig  # noqa: E402
+from provider import ProviderConfig, ProviderError  # noqa: E402
 import research  # noqa: E402
 
 
@@ -58,6 +58,8 @@ class FakeClient:
         self.bad_fact_spine_times = 0  # 前 N 次 plan 返回空 factSpine
         self.fabricate_quotes = False
         self.fail_course_verify = False
+        self.fail_judge_times = 0   # 前 N 次章节评审返回不通过
+        self.raise_provider_error_on_chapter = False
         self.calls: list[tuple[str, str | None]] = []
 
     def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000, model=None):
@@ -95,8 +97,14 @@ class FakeClient:
             content = {"pass": not getattr(self, "fail_course_verify", False),
                        "issues": ["末章没有回扣 drivingQuestion"] if getattr(self, "fail_course_verify", False) else []}
         elif schema_name.endswith("_quality_judge"):
-            content = {"pass": True, "score": 90, "issues": [], "rewriteHint": ""}
+            if self.fail_judge_times > 0:
+                self.fail_judge_times -= 1
+                content = {"pass": False, "score": 40, "issues": ["论证密度不足"], "rewriteHint": "补充证据锚点"}
+            else:
+                content = {"pass": True, "score": 90, "issues": [], "rewriteHint": ""}
         elif schema_name.endswith("_chapter"):
+            if self.raise_provider_error_on_chapter:
+                raise ProviderError("HTTP 503（No active API keys available for this group）")
             chapter_id = schema_name.split("_", 1)[0]
             self.chapter_prompts.append(user_prompt)
             number = int(chapter_id[1:])
@@ -465,6 +473,66 @@ class CourseGenerationPipelineTests(unittest.TestCase):
             job = pipeline.run_job(job["id"])
         self.assertEqual(job["status"], "failed")
         self.assertIn("quote", job["error"]["message"])
+
+    def test_chapter_failure_persists_context_and_detail(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.fail_judge_times = 99
+        slug = f"test-fail-detail-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+
+        self.assertEqual(job["status"], "failed")
+        self.assertEqual(job["error"]["kind"], "quality")
+        failure_path = pipeline.store.job_dir(job["id"]) / "stages" / "compose_failure.json"
+        self.assertTrue(failure_path.exists())
+        ctx = json.loads(failure_path.read_text("utf-8"))
+        self.assertEqual(ctx["chapterId"], "c01")
+        self.assertIn("补充证据锚点", ctx["feedback"])
+        self.assertTrue(ctx["draft"]["narrative"])
+        detail = job.get("failureDetail") or {}
+        self.assertEqual(detail["chapterId"], "c01")
+        self.assertIn("补充证据锚点", detail["feedback"])
+        self.assertIn("直接进入缓存机制问题", detail["draftText"])
+
+    def test_retry_seeds_feedback_and_consumes_failure_file(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.fail_judge_times = 4  # 恰好烧完第一轮 4 次尝试
+        slug = f"test-fail-seed-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+        self.assertEqual(job["status"], "failed")
+        prompts_before = len(client.chapter_prompts)
+
+        pipeline.store.prepare_retry(job["id"], "compose")
+        job = self.run_job_published(pipeline, job["id"])
+
+        self.assertEqual(job["status"], "completed")
+        # 重试后的第一个章节 prompt 带种子反馈与上一版摘录
+        seeded_prompt = client.chapter_prompts[prompts_before]
+        self.assertIn("上一版全文已被否决", seeded_prompt)
+        self.assertIn("补充证据锚点", seeded_prompt)
+        failure_path = pipeline.store.job_dir(job["id"]) / "stages" / "compose_failure.json"
+        self.assertFalse(failure_path.exists())  # 一次性种子已消费
+        self.assertIsNone(pipeline.store.load_job(job["id"]).get("failureDetail"))  # 成功后清除
+
+    def test_provider_outage_classified_as_infra(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.raise_provider_error_on_chapter = True
+        slug = f"test-fail-infra-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        with _ResearchPatches():
+            job = pipeline.run_job(job["id"])
+
+        self.assertEqual(job["status"], "failed")
+        self.assertEqual(job["error"]["kind"], "infra")
+        self.assertIsNone(job.get("failureDetail"))
 
     def test_verify_stage_records_artifact(self):
         pipeline, temp_dir, client = self.create_pipeline()

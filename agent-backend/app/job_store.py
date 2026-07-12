@@ -127,12 +127,12 @@ class JobStore:
                 job["artifacts"][stage] = str(artifact_path)
             return self.write_job(job)
 
-    def mark_stage_failed(self, job_id: str, stage: str, error_message: str) -> dict[str, Any]:
+    def mark_stage_failed(self, job_id: str, stage: str, error_message: str, *, kind: str = "other") -> dict[str, Any]:
         with self.job_lock(job_id):
             job = self.load_job(job_id)
             job["status"] = "failed"
             job["currentStage"] = stage
-            job["error"] = {"stage": stage, "message": error_message, "failedAt": now_iso()}
+            job["error"] = {"stage": stage, "message": error_message, "kind": kind, "failedAt": now_iso()}
             stage_state = self._find_stage(job, stage)
             stage_state["status"] = "failed"
             stage_state["finishedAt"] = now_iso()
