@@ -193,8 +193,9 @@ def normalize_job_create_request(payload: dict[str, Any] | None) -> dict[str, An
 def normalize_job_retry_request(payload: dict[str, Any] | None) -> dict[str, Any]:
     payload = payload or {}
     stage = str(payload.get("stage") or "").strip() or None
-    if stage and stage not in {"plan", "compose", "validate", "export"}:
-        raise ValueError("stage must be one of: plan, compose, validate, export")
+    valid_stages = {"research", "plan", "compose", "verify", "validate", "export"}
+    if stage and stage not in valid_stages:
+        raise ValueError(f"stage must be one of: {', '.join(sorted(valid_stages))}")
     return {"stage": stage}
 
 

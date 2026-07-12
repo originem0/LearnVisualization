@@ -256,3 +256,19 @@ class TeachingHooksNormalizationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RetryStageWhitelistTests(unittest.TestCase):
+    def test_verify_and_research_are_valid_retry_stages(self):
+        from models import normalize_job_retry_request
+        for stage in ("research", "plan", "compose", "verify", "validate", "export"):
+            self.assertEqual(normalize_job_retry_request({"stage": stage})["stage"], stage)
+
+    def test_unknown_retry_stage_rejected(self):
+        from models import normalize_job_retry_request
+        with self.assertRaises(ValueError):
+            normalize_job_retry_request({"stage": "bogus"})
+
+    def test_empty_retry_stage_is_none(self):
+        from models import normalize_job_retry_request
+        self.assertIsNone(normalize_job_retry_request({})["stage"])
