@@ -30,7 +30,8 @@ interface JobState {
   status: string;
   currentStage?: string | null;
   request?: JobRequest | null;
-  error?: { stage?: string; message?: string } | null;
+  error?: { stage?: string; message?: string; kind?: string } | null;
+  failureDetail?: { chapterId: string; feedback: string; draftText: string } | null;
   stages: JobStage[];
   resultSummary?: Record<string, unknown>;
   createdAt?: string;
@@ -722,18 +723,40 @@ function JobCard({
   if (job.status === 'failed') {
     const failedStage = job.stages.find((s) => s.status === 'failed');
     const message = job.error?.message || failedStage?.error || (isZh ? '生成失败' : 'Generation failed');
+    const kind = job.error?.kind;
+    const detail = job.failureDetail;
     return (
       <div className="rounded-lg border border-[color:var(--color-danger)]/30 p-4 space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-[color:var(--color-text)]">{topicName}</span>
           <button type="button" onClick={onDismiss} className="text-xs text-[color:var(--color-muted)] hover:text-[color:var(--color-text)]">&times;</button>
         </div>
+        {kind === 'infra' ? (
+          <p className="text-xs leading-5 text-[color:var(--color-warn)]">
+            {isZh
+              ? '服务商故障，内容未被评审否决——稍后点重试即可，已完成的阶段会被复用。'
+              : 'Provider outage — the content was not rejected by review. Retry later; finished stages are reused.'}
+          </p>
+        ) : null}
         <p className="text-xs text-[color:var(--color-danger)] line-clamp-3">{message}</p>
-        <p className="text-[11px] leading-4 text-[color:var(--color-muted)]">
-          {isZh
-            ? '重试将从失败阶段继续：已完成的研究、规划与章节不会重跑。'
-            : 'Retry resumes from the failed stage; finished research, plan, and chapters are reused.'}
-        </p>
+        {kind !== 'infra' ? (
+          <p className="text-[11px] leading-4 text-[color:var(--color-muted)]">
+            {isZh
+              ? '重试将从失败阶段继续：已完成的研究、规划与章节不会重跑，且会带着评审意见迭代上一版。'
+              : 'Retry resumes from the failed stage with prior review feedback carried into the rewrite.'}
+          </p>
+        ) : null}
+        {detail && kind !== 'infra' ? (
+          <details className="rounded-md border border-[color:var(--color-border)] px-3 py-2">
+            <summary className="cursor-pointer text-xs font-medium text-[color:var(--color-text)]">
+              {isZh ? `查看失败章节（${detail.chapterId}）与评审意见` : `View failed chapter (${detail.chapterId}) & review notes`}
+            </summary>
+            <div className="mt-2 space-y-2">
+              <p className="text-xs leading-5 text-[color:var(--color-warn)] whitespace-pre-wrap">{detail.feedback}</p>
+              <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded bg-zinc-50 p-2 font-mono text-[11px] leading-5 text-[color:var(--color-muted)] dark:bg-[#073642]">{detail.draftText}</pre>
+            </div>
+          </details>
+        ) : null}
         <div className="flex gap-3 pt-1">
           <button type="button" onClick={onRetry} className="text-xs font-medium text-[color:var(--color-accent)] hover:underline">
             {isZh ? '重试（复用研究与规划）' : 'Retry (reuse research & plan)'}
