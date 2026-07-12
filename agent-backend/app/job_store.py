@@ -233,8 +233,12 @@ class JobStore:
             # 只有 research/plan 被重置时章节缓存才作废；从 compose 本身重试要保留
             # 已通过的章节，做到"只重写失败的章"
             if start_index < order["compose"]:
+                # research/plan 被重置意味着章节大纲可能改变：已过章节检查点与
+                # 失败章种子都指向旧大纲下的同名章节 id，一并作废
                 checkpoint = self.job_dir(job_id) / "stages" / "compose_checkpoint.json"
                 checkpoint.unlink(missing_ok=True)
+                failure_seed = self.job_dir(job_id) / "stages" / "compose_failure.json"
+                failure_seed.unlink(missing_ok=True)
             job["status"] = "queued"
             job["currentStage"] = None
             job["error"] = None

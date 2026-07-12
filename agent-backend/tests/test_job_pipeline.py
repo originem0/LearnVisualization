@@ -329,6 +329,25 @@ class CourseGenerationPipelineTests(unittest.TestCase):
 
         self.assertFalse(checkpoint.exists())
 
+    def test_prepare_retry_from_plan_discards_stale_failure_seed(self):
+        pipeline, temp_dir, _ = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        slug = f"test-seed-reset-{uuid.uuid4().hex[:8]}"
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        seed = pipeline.store.job_dir(job["id"]) / "stages" / "compose_failure.json"
+        seed.write_text('{"chapterId": "c01", "feedback": "旧大纲的否决意见", "draft": {}, "attempts": 4}', encoding="utf-8")
+        with pipeline.store.job_lock(job["id"]):
+            failed = pipeline.store.load_job(job["id"])
+            failed["status"] = "failed"
+            failed["currentStage"] = "plan"
+            pipeline.store.write_job(failed)
+
+        pipeline.store.prepare_retry(job["id"], None)
+
+        # 重新规划后章节 id 可能复用（c01…），旧种子必须作废，否则会把旧大纲的
+        # 否决意见注入新章节的首轮 prompt
+        self.assertFalse(seed.exists())
+
     def test_prepare_retry_from_compose_keeps_checkpoint(self):
         pipeline, temp_dir, _ = self.create_pipeline()
         self.addCleanup(temp_dir.cleanup)
