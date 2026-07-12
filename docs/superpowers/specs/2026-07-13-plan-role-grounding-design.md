@@ -1,7 +1,7 @@
 # 根治 plan role 借名（Role Grounding）设计
 
 日期：2026-07-13
-状态：已获用户批准
+状态：已实施（2026-07-13）
 分支：fix-plan-role-grounding
 
 ## 背景

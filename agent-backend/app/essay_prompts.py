@@ -107,7 +107,12 @@ def build_essay_plan_prompts(
     if hooks:
         user_prompt += f"以下具体锚点必须在课程中被讲到，factSpine 要优先回应它们：{json.dumps(hooks, ensure_ascii=False)}。"
     if evidence_digest:
-        user_prompt += "factSpine 每条和每个 chapter 都必须挂到证据库里真实存在的 evidenceIds；每章至少 2 条。"
+        user_prompt += (
+            "factSpine 每条和每个 chapter 都必须挂到证据库里真实存在的 evidenceIds；每章至少 2 条。"
+            "每个 chapter 的 role 若点名具体案例、文本、判例或数字，该锚点必须来自你为这一章挂的 "
+            "evidenceIds 对应证据；不要凭记忆点名证据库里没有的著名案例。role 可以描述要达成的论证意图，"
+            "但具体锚点只能引用本章证据覆盖的内容。"
+        )
     if revision_feedback:
         user_prompt += f"\n\n上一版规划未通过校验，必须修正：{revision_feedback}\n"
     return system_prompt, user_prompt

@@ -375,3 +375,30 @@ class JudgeRoleGroundingTests(unittest.TestCase):
             evidence_items=None,
         )
         self.assertNotIn("证据能支撑的范围", user)
+
+
+class PlanRoleGroundingTests(unittest.TestCase):
+    def _payload(self):
+        return {"topic": "AI 就业", "output_slug": "x", "contract": {
+            "drivingQuestion": "q", "centralTension": "t", "knowledgeType": "conceptual",
+            "audience": "a", "desiredOutcome": "o",
+            "scope": {"include": ["x"], "exclude": ["y"], "depth": "d"},
+            "problemFraming": {"phenomenon": "p", "contrast": "c", "problemNature": "model_mismatch",
+                               "systemGoal": "s", "modelGap": "缺少某关系模型"},
+        }}
+
+    def _research(self):
+        return {"evidence": [
+            {"id": "E01", "kind": "quote", "content": "证据一", "sourceTitle": "维基", "sourceUrl": "https://x"},
+            {"id": "E02", "kind": "fact", "content": "证据二", "sourceTitle": "维基", "sourceUrl": "https://y"},
+        ]}
+
+    def test_plan_prompt_grounds_role_anchors_on_evidence(self):
+        from essay_prompts import build_essay_plan_prompts
+        _, user = build_essay_plan_prompts(self._payload(), research_artifact=self._research())
+        self.assertIn("具体锚点只能引用本章证据覆盖的内容", user)
+
+    def test_plan_prompt_without_evidence_omits_role_grounding(self):
+        from essay_prompts import build_essay_plan_prompts
+        _, user = build_essay_plan_prompts(self._payload(), research_artifact=None)
+        self.assertNotIn("具体锚点只能引用本章证据覆盖的内容", user)
