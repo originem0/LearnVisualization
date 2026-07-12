@@ -348,3 +348,30 @@ class FragmentationGateTests(unittest.TestCase):
         )
         self.assertFalse(result["pass"])
         self.assertTrue(any("碎块化" in issue for issue in result["issues"]))
+
+
+class JudgeRoleGroundingTests(unittest.TestCase):
+    def _chapter(self):
+        return {"id": "c04", "number": 4, "title": "责任", "role": "r",
+                "narrative": [{"type": "text", "content": "正文"}]}
+
+    def _plan(self):
+        return {"drivingQuestion": "q", "centralTension": "t",
+                "chapterPlans": [{"id": "c04", "number": 4}]}
+
+    def test_judge_role_check_is_evidence_scoped_when_evidence_present(self):
+        _, user = build_judge_prompts(
+            self._chapter(), register="essay", writing_mode="conceptual-essay",
+            chapter_plan={"id": "c04", "role": "引入某判例"}, plan_artifact=self._plan(),
+            evidence_items=[{"id": "E01", "kind": "quote", "content": "证据全文"}],
+        )
+        self.assertIn("证据能支撑的范围", user)
+        self.assertIn("凭记忆", user)
+
+    def test_judge_without_evidence_keeps_plain_role_check(self):
+        _, user = build_judge_prompts(
+            self._chapter(), register="essay", writing_mode="conceptual-essay",
+            chapter_plan={"id": "c04", "role": "r"}, plan_artifact=self._plan(),
+            evidence_items=None,
+        )
+        self.assertNotIn("证据能支撑的范围", user)
