@@ -60,6 +60,7 @@ class FakeClient:
         self.fail_course_verify = False
         self.fail_judge_times = 0   # 前 N 次章节评审返回不通过
         self.raise_provider_error_on_chapter = False
+        self.judge_provider_error_times = 0
         self.calls: list[tuple[str, str | None]] = []
 
     def generate_json(self, *, schema_name, system_prompt, user_prompt, temperature=0.2, max_tokens=4000, model=None):
@@ -97,6 +98,9 @@ class FakeClient:
             content = {"pass": not getattr(self, "fail_course_verify", False),
                        "issues": ["末章没有回扣 drivingQuestion"] if getattr(self, "fail_course_verify", False) else []}
         elif schema_name.endswith("_quality_judge"):
+            if self.judge_provider_error_times > 0:
+                self.judge_provider_error_times -= 1
+                raise ProviderError("c01_quality_judge: model returned invalid JSON")
             if self.fail_judge_times > 0:
                 self.fail_judge_times -= 1
                 content = {"pass": False, "score": 40, "issues": ["论证密度不足"], "rewriteHint": "补充证据锚点"}
@@ -539,6 +543,17 @@ class CourseGenerationPipelineTests(unittest.TestCase):
         failure_path = pipeline.store.job_dir(job["id"]) / "stages" / "compose_failure.json"
         self.assertFalse(failure_path.exists())  # 一次性种子已消费
         self.assertIsNone(pipeline.store.load_job(job["id"]).get("failureDetail"))  # 成功后清除
+
+    def test_transient_judge_error_retries_not_crashes(self):
+        pipeline, temp_dir, client = self.create_pipeline()
+        self.addCleanup(temp_dir.cleanup)
+        client.judge_provider_error_times = 2  # 前两轮评审抛坏 JSON，第三轮放行
+        slug = f"test-judge-transient-{uuid.uuid4().hex[:8]}"
+        promoted = REPO_ROOT / "courses" / slug
+        self.addCleanup(lambda: shutil.rmtree(promoted, ignore_errors=True))
+        job = pipeline.create_job({"topic": "缓存系统 internals", "output_slug": slug, "contract": contract()}, run_async=False)
+        job = self.run_job_published(pipeline, job["id"])
+        self.assertEqual(job["status"], "completed")
 
     def test_provider_outage_classified_as_infra(self):
         pipeline, temp_dir, client = self.create_pipeline()

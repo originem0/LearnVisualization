@@ -1047,7 +1047,16 @@ class CourseGenerationPipeline:
             if fidelity_issues:
                 judgement = {"pass": False, "score": 40, "issues": fidelity_issues, "rewriteHint": "；".join(fidelity_issues)}
             else:
-                judgement = self._judge_chapter(chapter, plan_artifact, chapter_plan, client=client, evidence_items=chapter_evidence)
+                try:
+                    judgement = self._judge_chapter(chapter, plan_artifact, chapter_plan, client=client, evidence_items=chapter_evidence)
+                except ProviderError as exc:
+                    # 评审模型偶发吐坏 JSON/瞬时故障：当作该轮不通过、带反馈重写，
+                    # 而不是让整个 compose 阶段崩成 infra 失败（末轮才放行 re-raise）
+                    if attempt == attempts - 1:
+                        raise
+                    local_logs.append({"chapterId": chapter["id"], "attempt": attempt + 1, "judgeError": str(exc)[:300]})
+                    revision_feedback = "上一次评审因模型故障未完成，请重新输出一版更扎实、论证更完整的章节。"
+                    continue
             log_entry = {
                 "chapterId": chapter["id"],
                 "usage": response["usage"],
